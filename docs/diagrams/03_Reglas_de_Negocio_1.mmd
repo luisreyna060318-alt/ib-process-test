@@ -1,0 +1,24 @@
+stateDiagram-v2
+    [*] --> DRAFT: POST (folio asignado)
+    DRAFT --> REQUESTED: Etapa 1 completa
+    DRAFT --> CANCELLED
+    REQUESTED --> CANCELLED: sin cruce (VAL-052)
+    REQUESTED --> IMPORTED: ImportDateElpJup1 + Invoice
+    IMPORTED --> IN_REWORK: MFO inicia (IB order, scrap, New HU…)
+    IN_REWORK --> PENDING_EXPORT: MFO cierra, Old > 0, sin referencia aduanal
+    IN_REWORK --> PENDING_HSE: MFO cierra, sólo scrap pendiente
+    PENDING_EXPORT --> PENDING_HSE: exportado, scrap sin confirmar
+    PENDING_HSE --> EXPORTED: HSE confirma y Old exportado
+    PENDING_HSE --> SCRAPPED: HSE confirma 100 % scrap
+    PENDING_EXPORT --> EXPORTED: Customs Export PRyy-#####
+    IMPORTED --> DUTY_RISK: plazo ≤ ALERT_CRITICAL_DAYS_LEFT
+    IN_REWORK --> DUTY_RISK: plazo / faltante declarado
+    PENDING_EXPORT --> DUTY_RISK: plazo
+    PENDING_HSE --> DUTY_RISK: plazo
+    DUTY_RISK --> EXPORTED: se concilia antes del vencimiento
+    DUTY_RISK --> SCRAPPED
+    DUTY_RISK --> CLOSED_DUTY_PAID: duty pagado + categoría (VAL-051)
+    EXPORTED --> [*]
+    SCRAPPED --> [*]
+    CLOSED_DUTY_PAID --> [*]
+    CANCELLED --> [*]

@@ -3,30 +3,43 @@
 Digitalización de la **Matriz de Rastreo de Productos Terminados Importados Temporalmente 2.0**
 Bosch Mobility Electronics · Planta Juárez 1 (JuP1, SAP 8640) · ME/QMM · Pilar Process Excellence (Q2E)
 
-La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8) con SQL Server centralizado. La arquitectura es API-first, para que la interfaz de escritorio (WPF) se pueda reemplazar por una Web sin reescribir la lógica de negocio ni el modelo de datos.
+La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8) con SQL Server centralizado. La arquitectura es API-first, para que la interfaz de escritorio (WPF) se pueda reemplazar por una Web sin reescribir la lógica de negocio ni el modelo de datos. La integración con SAP queda **fuera del alcance** actual.
 
-## Entregable para revisión
+## 1. Documento del proyecto (fuente de verdad)
 
-**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.1.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.1.docx)**: documento Word consolidado (portada, control del documento, resumen ejecutivo y capítulos 00–04). Se genera desde los `.md` con [`tools/docx`](tools/docx/README.md); los `.md` son la fuente de verdad.
+**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx)** es la versión vigente y **la fuente de verdad**. Las revisiones (comentarios y control de cambios) se hacen en el Word.
 
-## Documento del proyecto (SRS y diseño técnico)
+Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 tools/docx/docx_to_md.py`); no se editan a mano. Flujo completo en [`tools/docx/README.md`](tools/docx/README.md).
 
-| # | Documento | Contenido |
-|---|---|---|
-| — | [Resumen Ejecutivo](docs/Resumen_Ejecutivo.md) | Problema, propuesta, beneficios, plan y decisiones que se solicitan a la jefatura |
-| 00 | [Diagnóstico AS-IS de la Matriz 2.0](docs/00_Diagnostico_AS-IS_Matriz_2.0.md) | Estructura del Excel, fórmulas actuales y 17 hallazgos (incluye fórmulas de VS7 que apuntan a VS_4, falsos cierres y faltantes que no aparecen en el balance) |
-| 01 | [Arquitectura de la Solución (Desktop → Web)](docs/01_Arquitectura_Solucion.md) | ADRs, capas Clean Architecture, estructura de la solución .NET, API, seguridad/RBAC, auditoría, SAP NCo, SOURCE/BBM, despliegue |
-| 02 | [Modelo Entidad-Relación](docs/02_Modelo_Entidad_Relacion.md) | Diagrama ER, diccionario de datos y mapeo columna por columna Excel → SQL |
-| 03 | [Reglas de Negocio y Fórmulas](docs/03_Reglas_de_Negocio.md) | Catálogo de validaciones VAL-xxx, motor financiero v1 (réplica Excel) y v2 (corregido), máquina de estados, Duty Risk, alertas, casos golden |
-| 04 | [Plan de Migración e Implementación](docs/04_Plan_Migracion_Implementacion.md) | Fases MVP → Producción → Web, ETL del histórico, conciliación, runbook de cutover, UAT, riesgos y pendientes |
+| Capítulo (derivado) | Contenido |
+|---|---|
+| [Resumen Ejecutivo](docs/Resumen_Ejecutivo.md) | Problema con cifras del Excel real, propuesta, beneficios, plan y decisiones solicitadas |
+| [00 · Diagnóstico AS-IS](docs/00_Diagnostico_AS-IS_Matriz_2.0.md) | Análisis del archivo real: 625 registros, ≈ USD 7.4 M importados, 17 hallazgos (VS7 lee los datos de VS4: ≈ USD 700 k no visibles; BALANCE en error; falsos cierres) |
+| [01 · Arquitectura](docs/01_Arquitectura_Solucion.md) | ADRs, capas, solución .NET, API, seguridad/RBAC, auditoría, despliegue y borrador implementado |
+| [02 · Modelo ER](docs/02_Modelo_Entidad_Relacion.md) | Diagrama ER, diccionario de datos y mapeo Excel → SQL |
+| [03 · Reglas de negocio](docs/03_Reglas_de_Negocio.md) | Validaciones VAL-xxx, motor financiero, máquina de estados, Duty Risk, alertas y casos golden |
+| [04 · Plan de implementación](docs/04_Plan_Migracion_Implementacion.md) | Fases, migración del histórico, cutover, UAT, riesgos y pendientes de validación (P-01…P-12) |
+| [Comentarios de revisión](docs/_revision_comentarios.md) | Comentarios exportados del Word |
 
-## Scripts de base de datos (SQL Server 2019+)
+## 2. Borrador de la aplicación (.NET 8 / WPF)
 
-Se ejecutan en orden sobre una BD vacía (p. ej. `JUP1_QMM_EXPORETURN`):
+Solución `ExpoReturn.sln` con las pantallas esperadas, **sin base de datos**: bandeja, formulario de 6 bloques con permisos por rol/VS, cálculo en vivo, validaciones, Balance/Duties, alertas, Champions y bitácora. Puede importar el Excel real **en memoria y en sólo lectura**.
 
-1. [`database/01_schema.sql`](database/01_schema.sql): esquemas, catálogos, RBAC, tabla transaccional temporal, auditoría append-only, roles de BD
+Instrucciones, guion de revisión y limitaciones en [`src/README.md`](src/README.md).
+
+```bash
+dotnet run --project src/ExpoReturn.Desktop
+```
+
+```bash
+dotnet test
+```
+
+## 3. Base de datos (diseño para producción, SQL Server 2019+)
+
+1. [`database/01_schema.sql`](database/01_schema.sql): esquemas, catálogos, RBAC, tabla transaccional temporal, auditoría append-only
 2. [`database/02_seed_catalogs.sql`](database/02_seed_catalogs.sql): VS, departamentos, 10 motivos, estatus, categorías, roles, permisos por campo y parámetros
-3. [`database/03_views_powerbi.sql`](database/03_views_powerbi.sql): vistas `rpt.*` para Power BI (BALANCE_ por periodo fiscal, conciliación de cantidades, Duty Risk, audit trail)
-4. [`database/04_staging_migration.sql`](database/04_staging_migration.sql): staging, parsers y transformación del histórico Excel
+3. [`database/03_views_powerbi.sql`](database/03_views_powerbi.sql): vistas `rpt.*` para Power BI
+4. [`database/04_staging_migration.sql`](database/04_staging_migration.sql): staging y transformación del histórico Excel
 
-> Los valores marcados **[VALIDAR]** (plazo IMMEX, tasa de duty, catálogo de motivos, PPI5/PPI6) son provisionales hasta que los confirmen QMM y GS/OSD43. Ver [04 §8](docs/04_Plan_Migracion_Implementacion.md#8-pendientes-de-validación-del-negocio-consolidado).
+> Los valores marcados **[VALIDAR]** (plazo IMMEX, tasa de duty, motivos, F4/V1, HU/lote, Date PO, matriz Champions) son provisionales hasta que los confirmen QMM y GS/OSD43. Ver Sección 04 §8.

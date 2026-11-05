@@ -1,0 +1,45 @@
+<UserControl x:Class="ExpoReturn.Desktop.Views.AlertsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Alertas" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}"
+                       Text="Lo que hoy nadie ve en el Excel: plazos IMMEX por vencer, faltantes, material en LOW sin pedimento y scrap sin confirmar. En producción se enviará un resumen diario por correo/Teams al Champion y Proxy del área responsable." />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="Críticas" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Critical}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="Avisos" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Warnings}" Style="{StaticResource KpiValue}" Foreground="#B45309" /></StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+        <DataGrid ItemsSource="{Binding Alerts}">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Severidad" Width="95">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Severity, Converter={StaticResource SeverityBrush}}" CornerRadius="9" Padding="8,1" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding SeverityText}" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Tipo" Binding="{Binding TypeText}" Width="170" />
+                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
+                <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" />
+                <DataGridTextColumn Header="Detalle" Binding="{Binding Message}" Width="*" />
+                <DataGridTextColumn Header="Responsable" Binding="{Binding Owner}" Width="140" />
+                <DataGridTemplateColumn Header="" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Abrir" Style="{StaticResource LinkButton}"
+                                    Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

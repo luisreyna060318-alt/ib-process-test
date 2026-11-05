@@ -1,0 +1,21 @@
+<UserControl x:Class="ExpoReturn.Desktop.Views.AuditView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Bitácora de cambios" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Todos los cambios a nivel campo, de todos los registros. En producción es inmodificable (append-only) y se consulta también desde Power BI." />
+        </StackPanel>
+        <DataGrid ItemsSource="{Binding Entries}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Fecha / hora" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
+                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
+                <DataGridTextColumn Header="Usuario" Binding="{Binding NtUser}" Width="130" />
+                <DataGridTextColumn Header="Campo" Binding="{Binding Field}" Width="190" />
+                <DataGridTextColumn Header="Valor anterior" Binding="{Binding OldValue}" Width="*" />
+                <DataGridTextColumn Header="Valor nuevo" Binding="{Binding NewValue}" Width="*" />
+                <DataGridTextColumn Header="Motivo" Binding="{Binding Reason}" Width="160" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

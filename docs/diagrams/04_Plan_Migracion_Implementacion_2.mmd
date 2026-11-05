@@ -1,0 +1,14 @@
+flowchart TB
+    X[Excel 2.0<br/>congelado + SHA-256] --> E[ExpoReturn.Migration<br/>ClosedXML: lee tablas VS_n y Table3<br/>texto crudo + valores cacheados<br/>+ flag 'celda con fórmula']
+    E --> R[(stg.Legacy_Matrix_Raw<br/>stg.Legacy_MM60_Raw)]
+    R --> M[stg.usp_LoadMM60<br/>costos con vigencia]
+    R --> T[stg.usp_TransformLegacy<br/>parseo, mapeo, DQ]
+    M --> T
+    T --> P[(trk.Pallets_Return_Tracking<br/>IsLegacy = 1, CalcVersion 0)]
+    T --> I[(stg.Migration_Issues)]
+    P --> C[Migration console<br/>invoca Domain: v1 y v2<br/>StatusResolver]
+    C --> Q[(stg.Migration_Reconciliation)]
+    Q --> S{¿v1 = Excel?<br/>¿0 ERROR?}
+    S -- no --> D[Depuración con Champions<br/>en el Excel congelado o vía Resolution]
+    D --> E
+    S -- sí --> G[Sign-off QMM + GS<br/>activar CalcVersion 2]

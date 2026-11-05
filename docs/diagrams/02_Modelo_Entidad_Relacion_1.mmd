@@ -1,0 +1,28 @@
+erDiagram
+    Catalog_ValueStreams ||--o{ Pallets_Return_Tracking : "ValueStreamId"
+    Catalog_Departments  ||--o{ Pallets_Return_Tracking : "RequestingDepartmentId"
+    Catalog_Reasons      ||--o{ Pallets_Return_Tracking : "ReasonId"
+    Pallets_Return_Tracking }o--|| Catalog_WorkflowStatus : "WorkflowStatusId"
+    Pallets_Return_Tracking }o--o| Catalog_StatusCategories : "StatusCategoryId"
+    Pallets_Return_Tracking }o--o| Catalog_IbOrderTypes : "IbOrderTypeCode"
+    Pallets_Return_Tracking }o..|| Material_Cost_MM60 : "snapshot de costo"
+    Users                ||--o{ Pallets_Return_Tracking : "QmmResponsibleUserId"
+
+    Pallets_Return_Tracking {
+        int PalletReturnId PK
+        tinyint ValueStreamId FK
+        int FolioNumber "UQ con VS"
+        varchar FolioCode "VS7-00012"
+        smallint ReasonId FK
+        varchar ReturnedMaterial
+        decimal UnitCostUSD
+        int QtyImported
+        date ImportDateElpJup1 "abre ciclo IMMEX"
+        int OldMaterialDeliveredQty
+        int ScrapQty
+        varchar CustomsExportReference
+        date HseConfirmationDate
+        decimal BalanceGeneralUSD "Core"
+        tinyint WorkflowStatusId FK
+        rowversion RowVer
+    }

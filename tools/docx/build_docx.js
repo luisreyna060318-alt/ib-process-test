@@ -63,8 +63,10 @@ function parseInline(text, fmt = {}) {
 }
 
 function run(t, fmt) {
+  if (!fmt.code) t = t.replace(/\\([\\`*_{}\[\]()#+\-.!|<>~"'])/g, '$1');   // escapes de Markdown (pandoc)
   return new TextRun({
     text: t,
+    style: fmt.code ? 'VerbatimChar' : undefined,   // pandoc lo reconoce como `código`
     bold: fmt.bold, italics: fmt.italics,
     font: fmt.code ? MONO : (fmt.font || FONT),
     size: fmt.code ? Math.max((fmt.size || 20) - 2, 14) : fmt.size,
@@ -97,21 +99,21 @@ function paragraph(text) {
 
 function note(lines) {
   return lines.map((l, i) => new Paragraph({
+    style: 'BlockText',                               // pandoc lo reconoce como nota (> ...)
     spacing: { before: i === 0 ? 80 : 0, after: i === lines.length - 1 ? 160 : 40, line: 264 },
     shading: { type: ShadingType.CLEAR, color: 'auto', fill: C.noteFill },
     border: { left: { style: BorderStyle.SINGLE, size: 18, color: C.noteBorder, space: 8 } },
-    indent: { left: 200, right: 120 },
     children: parseInline(l, { size: 19 }),
   }));
 }
 
 function codeBlock(lines) {
   return lines.map((l, i) => new Paragraph({
+    style: 'SourceCode',                              // pandoc lo reconoce como bloque de código
     spacing: { before: i === 0 ? 80 : 0, after: i === lines.length - 1 ? 160 : 0, line: 228 },
     shading: { type: ShadingType.CLEAR, color: 'auto', fill: C.codeFill },
     border: i === 0 ? { top: { style: BorderStyle.SINGLE, size: 4, color: C.border, space: 4 } }
           : i === lines.length - 1 ? { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border, space: 4 } } : undefined,
-    indent: { left: 120, right: 120 },
     children: [new TextRun({ text: l.length ? l : ' ', font: MONO, size: 15, color: '1F2937' })],
   }));
 }
@@ -137,6 +139,17 @@ function mermaidImage(src) {
     alignment: AlignmentType.CENTER, spacing: { before: 120, after: 160 },
     children: [new ImageRun({ type: 'png', data: fs.readFileSync(file), transformation: { width: Math.round(dw), height: Math.round(dh) } })],
   });
+  return landscape ? [{ landscape: true, para }] : [para];
+}
+
+function fileImage(file) {
+  if (!fs.existsSync(file) || !/\.png$/i.test(file)) return [paragraph(`[imagen no encontrada: ${path.basename(file)}]`)];
+  const { w, h } = pngSize(file);
+  let dw = w / 2, dh = h / 2;
+  const landscape = dw / dh > LANDSCAPE_RATIO && dw > LANDSCAPE_MIN_W;
+  const s = landscape ? Math.min(1, LAND_IMG_W / dw, LAND_IMG_H / dh) : Math.min(1, MAX_IMG_W / dw, MAX_IMG_H / dh);
+  const para = new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 160 },
+    children: [new ImageRun({ type: 'png', data: fs.readFileSync(file), transformation: { width: Math.round(dw * s), height: Math.round(dh * s) } })] });
   return landscape ? [{ landscape: true, para }] : [para];
 }
 
@@ -221,6 +234,18 @@ function list(items) {
   }));
 }
 
+/* Inserta imágenes; las anchas van a una página horizontal junto con su título inmediato anterior. */
+function pushImage(out, items) {
+  for (const b of items) {
+    if (b && b.landscape) {
+      const blocks = [];
+      while (out.length && headingParas.has(out[out.length - 1])) blocks.unshift(out.pop());
+      blocks.push(b.para);
+      out.push({ landscape: true, blocks, absorb: 2 });
+    } else out.push(b);
+  }
+}
+
 /* ---------- Markdown -> bloques ---------- */
 function convert(md) {
   const out = [];
@@ -234,20 +259,21 @@ function convert(md) {
       const buf = []; i++;
       while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
       i++;
-      if (lang === 'mermaid') {
-        for (const b of mermaidImage(buf.join('\n') + '\n')) {
-          if (b.landscape) {
-            // el título inmediato anterior viaja con el diagrama a la página horizontal
-            const blocks = [];
-            while (out.length && headingParas.has(out[out.length - 1])) blocks.unshift(out.pop());
-            blocks.push(b.para);
-            out.push({ landscape: true, blocks, absorb: 2 });
-          } else out.push(b);
-        }
-      } else out.push(...codeBlock(buf));
+      if (lang === 'mermaid') pushImage(out, mermaidImage(buf.join('\n') + '\n'));
+      else out.push(...codeBlock(buf));
       continue;
     }
-    if (/^\s*$/.test(l) || /^---+\s*$/.test(l)) { i++; continue; }
+    if (/^\s*$/.test(l) || /^---+\s*$/.test(l) || /^<!--/.test(l)) { i++; continue; }
+    const img = /^!\[[^\]]*\]\(([^)]+)\)\s*$/.exec(l.trim());
+    if (img) { pushImage(out, fileImage(path.join(ROOT, 'docs', decodeURI(img[1])))); i++; continue; }
+    if (/^( {4}|\t)\S/.test(l)) {                    // bloque de código indentado (salida de pandoc)
+      const buf = [];
+      while (i < lines.length && (/^( {4}|\t)/.test(lines[i]) || (/^\s*$/.test(lines[i]) && /^( {4}|\t)\S/.test(lines[i + 1] || '')))) {
+        buf.push(lines[i].replace(/^( {4}|\t)/, '')); i++;
+      }
+      out.push(...codeBlock(buf));
+      continue;
+    }
     const h = /^(#{1,4})\s+(.*)$/.exec(l);
     if (h) { out.push(heading(h[1].length, h[2].trim())); i++; continue; }
     if (/^\s*\|/.test(l)) {
@@ -264,7 +290,10 @@ function convert(md) {
     }
     if (isListLine(l)) {
       const items = [];
-      while (i < lines.length && (isListLine(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length))) {
+      const nextIsItem = (k) => { while (k < lines.length && /^\s*$/.test(lines[k])) k++; return k < lines.length && isListLine(lines[k]); };
+      while (i < lines.length && (isListLine(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length)
+             || (/^\s*$/.test(lines[i]) && items.length && nextIsItem(i)))) {
+        if (/^\s*$/.test(lines[i])) { i++; continue; }
         const m = /^(\s*)([*-]|\d+\.)\s+(.*)$/.exec(lines[i]);
         if (m) items.push({ level: m[1].length >= 2 ? 1 : 0, marker: m[2], text: m[3] });
         else items[items.length - 1].text += ' ' + lines[i].trim();
@@ -340,7 +369,7 @@ function controlSection() {
     h('Revisión y aprobación'),
     ...simpleTable(['Rol', 'Nombre', 'Firma', 'Fecha'], cfg.approvers.map(([r, n]) => [r, n, '', '']), [3300, 2900, 2300, CONTENT_W - 8500]),
     h('Fuentes del documento'),
-    paragraph('Este documento se genera a partir de los archivos modulares del repositorio del proyecto (carpeta docs/ y scripts database/*.sql). Los cambios acordados en revisión deben reflejarse en esos archivos para mantener una sola fuente de verdad; el Word se regenera con tools/docx/build_docx.js.'),
+    paragraph('Este documento Word es la FUENTE DE VERDAD del proyecto. Las revisiones (comentarios y control de cambios) se hacen aquí. Los archivos Markdown de trabajo del repositorio (carpeta docs/) se derivan de este Word con tools/docx/docx_to_md.py, y los scripts de base de datos (database/*.sql) y la solución .NET (src/) se mantienen alineados con esta especificación.'),
     new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun({ text: 'Contenido' })] }),
     new TableOfContents('Contenido', { hyperlink: true, headingStyleRange: '1-3' }),
   ];
@@ -355,8 +384,8 @@ function controlSection() {
     console.log('  + capítulo', rel);
   }
 
-  const headingStyle = (id, name, size, color, before, after, extra = {}) => ({
-    id, name, basedOn: 'Normal', next: 'Normal', quickFormat: true,
+  // Estilos de título: se ajustan los predeterminados (sin duplicar styleId) para que Word y pandoc los reconozcan.
+  const heading = (size, color, before, after, extra = {}) => ({
     run: { font: FONT, size, bold: true, color },
     paragraph: { spacing: { before, after }, keepNext: true, keepLines: true, ...extra },
   });
@@ -406,13 +435,20 @@ function controlSection() {
     creator: cfg.author, title: `${cfg.title} · SRS v${cfg.version}`, description: cfg.subtitle,
     features: { updateFields: true },
     styles: {
-      default: { document: { run: { font: FONT, size: 20, color: C.text } } },
+      default: {
+        document: { run: { font: FONT, size: 20, color: C.text } },
+        heading1: heading(32, C.primary, 0, 200, { outlineLevel: 0, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: C.primary, space: 4 } } }),
+        heading2: heading(26, C.primary, 280, 120, { outlineLevel: 1 }),
+        heading3: heading(22, C.accent, 220, 100, { outlineLevel: 2 }),
+        heading4: heading(20, C.text, 180, 80, { outlineLevel: 3 }),
+      },
+      // Sin un estilo "Normal" explícito, pandoc no resuelve la herencia y no reconoce los títulos.
       paragraphStyles: [
-        headingStyle('Heading1', 'Heading 1', 32, C.primary, 0, 200, { outlineLevel: 0, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: C.primary, space: 4 } } }),
-        headingStyle('Heading2', 'Heading 2', 26, C.primary, 280, 120, { outlineLevel: 1 }),
-        headingStyle('Heading3', 'Heading 3', 22, C.accent, 220, 100, { outlineLevel: 2 }),
-        headingStyle('Heading4', 'Heading 4', 20, C.text, 180, 80, { outlineLevel: 3 }),
+        { id: 'Normal', name: 'Normal', quickFormat: true, run: { font: FONT, size: 20, color: C.text } },
+        { id: 'SourceCode', name: 'Source Code', basedOn: 'Normal', run: { font: MONO, size: 15 } },
+        { id: 'BlockText', name: 'Block Text', basedOn: 'Normal', run: { font: FONT, size: 19 } },
       ],
+      characterStyles: [{ id: 'VerbatimChar', name: 'Verbatim Char', run: { font: MONO } }],
     },
     numbering: {
       config: [
@@ -428,7 +464,7 @@ function controlSection() {
   });
 
 
-  const out = path.join(ROOT, cfg.output);
+  const out = process.env.DOCX_OUTPUT ? path.resolve(process.env.DOCX_OUTPUT) : path.join(ROOT, cfg.output);
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, await Packer.toBuffer(doc));
   console.log('OK ->', path.relative(ROOT, out));

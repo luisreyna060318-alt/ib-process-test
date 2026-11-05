@@ -1,26 +1,58 @@
 {
-  "output": "entregables/SRS_ExpoReturn_FG_JuP1_v0.1.docx",
+  "output": "entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx",
   "imageDir": "docs/img",
   "title": "Expo & Return FG Follow Up",
   "subtitle": "Especificación de Requerimientos de Software, Arquitectura y Plan de Implementación",
   "scope": "Digitalización de la Matriz de Rastreo de Productos Terminados Importados Temporalmente 2.0",
   "organization": "Bosch Mobility Electronics · Planta Juárez 1 (JuP1 · SAP 8640) · ME/QMM · Process Excellence (Q2E)",
-  "version": "0.1",
+  "version": "0.2",
   "status": "Borrador para revisión",
   "date": "2026-11-05",
   "classification": "Confidencial interno",
   "author": "[Nombre del autor] · ME/QMM-JuP1",
   "approvers": [
-    ["Jefe ME/QMM-JuP1", "[Nombre]"],
-    ["Process Excellence (Q2E)", "[Nombre]"],
-    ["Comercio Exterior GS/OSD43", "[Nombre]"],
-    ["Manufactura (MFO)", "[Nombre]"],
-    ["Logística (LOP / LOW)", "[Nombre]"],
-    ["HSE", "[Nombre]"],
-    ["IT / Infraestructura JuP1", "[Nombre]"]
+    [
+      "Jefe ME/QMM-JuP1",
+      "[Nombre]"
+    ],
+    [
+      "Process Excellence (Q2E)",
+      "[Nombre]"
+    ],
+    [
+      "Comercio Exterior GS/OSD43",
+      "[Nombre]"
+    ],
+    [
+      "Manufactura (MFO)",
+      "[Nombre]"
+    ],
+    [
+      "Logística (LOP / LOW)",
+      "[Nombre]"
+    ],
+    [
+      "HSE",
+      "[Nombre]"
+    ],
+    [
+      "IT / Infraestructura JuP1",
+      "[Nombre]"
+    ]
   ],
   "history": [
-    ["0.1", "2026-11-05", "[Autor]", "Versión inicial para revisión con la jefatura"]
+    [
+      "0.1",
+      "2026-11-05",
+      "[Autor]",
+      "Versión inicial para revisión con la jefatura"
+    ],
+    [
+      "0.2",
+      "2026-11-05",
+      "[Autor]",
+      "Diagnóstico con el Excel real (625 registros); SAP fuera de alcance; borrador .NET; reglas ajustadas (F4/V1, HU/lote, Date PO); el Word pasa a ser la fuente de verdad"
+    ]
   ],
   "chapters": [
     "docs/Resumen_Ejecutivo.md",

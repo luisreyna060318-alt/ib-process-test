@@ -1,1 +1,7 @@
 node_modules/
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+publish/

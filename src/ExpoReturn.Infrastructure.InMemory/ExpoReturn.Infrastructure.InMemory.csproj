@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ExpoReturn.Infrastructure.InMemory</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExpoReturn.Application\ExpoReturn.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Lectura del Excel 2.0 (sólo para la demo con datos reales, en memoria) -->
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+  </ItemGroup>
+</Project>

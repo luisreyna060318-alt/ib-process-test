@@ -1,0 +1,11 @@
+flowchart LR
+    PC[PC usuario JuP1<br/>WPF MSIX vía Software Center] -- HTTPS 443 Kerberos --> IIS
+    BR[Navegador Fase 2] -- HTTPS 443 Kerberos --> IIS
+    subgraph APPSRV["Servidor JuP1"]
+        IIS[IIS · ExpoReturn.Api<br/>App Pool gMSA]
+        SVC[Windows Service<br/>ExpoReturn.Worker]
+    end
+    IIS -- TDS 1433 --> SQL[(SQL Server JuP1<br/>AlwaysOn / cluster)]
+    SVC -- TDS 1433 --> SQL
+    SVC -- SMTP relay --> MAIL[Exchange Bosch]
+    PBIS[Power BI Service<br/>On-prem Data Gateway] -- rpt.* --> SQL

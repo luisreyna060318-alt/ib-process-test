@@ -1,0 +1,69 @@
+<UserControl x:Class="ExpoReturn.Desktop.Views.PalletListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Bandeja de retornos" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}"
+                       Text="Un renglón por pallet retornado de El Paso WHS. El estatus y los montos se calculan solos. Doble clic para abrir el detalle. Orden: primero los abiertos más próximos a vencer su plazo IMMEX." />
+
+            <!-- KPIs -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="Registros (filtro)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiCount}" Style="{StaticResource KpiValue}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="Abiertos" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiOpen}" Style="{StaticResource KpiValue}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="En Duty Risk" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyRisk}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="Balance general USD (no conciliado)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel><TextBlock Text="Exposición duty USD (× tasa)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyExposure, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Filtros -->
+            <Border Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Value Stream" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding ValueStreamOptions}" SelectedItem="{Binding SelectedValueStream}" Width="130" Margin="0,0,16,0" />
+                    <TextBlock Text="Estatus" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="190" Margin="0,0,16,0" />
+                    <TextBlock Text="Buscar" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="260" Margin="0,0,16,0"
+                             ToolTip="Folio, número de parte, HU/lote, factura, QMM o referencia aduanal" />
+                    <CheckBox Content="Sólo Duty Risk" IsChecked="{Binding OnlyDutyRisk}" Margin="0,0,16,0" />
+                    <Button Content="Limpiar filtros" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+            <Button Content="Abrir detalle" Command="{Binding OpenCommand}" Style="{StaticResource PrimaryButton}" />
+            <TextBlock Text="Los registros importados del Excel muestran la columna 'Calidad de datos' con las observaciones encontradas."
+                       VerticalAlignment="Center" Style="{StaticResource Hint}" Visibility="{Binding HasLegacy, Converter={StaticResource BoolToVis}}" />
+        </StackPanel>
+
+        <DataGrid x:Name="Grid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" MouseDoubleClick="OnRowDoubleClick">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
+                <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="48" />
+                <DataGridTemplateColumn Header="Estatus" Width="160" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
+                <DataGridTextColumn Header="Número de parte" Binding="{Binding Material}" Width="135" />
+                <DataGridTextColumn Header="Cant." Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="60" />
+                <DataGridTextColumn Header="SAP USD" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="95" />
+                <DataGridTextColumn Header="Balance USD" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="95" />
+                <DataGridTextColumn Header="Días en JuP1" Binding="{Binding DaysInJuP1}" Width="80" />
+                <DataGridTextColumn Header="Días p/vencer" Binding="{Binding DaysToLegalDue}" Width="85" />
+                <DataGridTextColumn Header="QMM Responsible" Binding="{Binding Qmm}" Width="140" />
+                <DataGridTextColumn Header="Factura" Binding="{Binding Invoice}" Width="105" />
+                <DataGridTextColumn Header="Categoría" Binding="{Binding Category}" Width="180" />
+                <DataGridTextColumn Header="Calidad de datos" Binding="{Binding DqText}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,38 @@
+erDiagram
+    Users                ||--o{ Champions_Matrix : "UserId"
+    App_Roles            ||--o{ Champions_Matrix : "RoleId"
+    Catalog_ValueStreams ||--o{ Champions_Matrix : "alcance VS"
+    App_Roles            ||--o{ Field_Permissions : "RoleId"
+    Catalog_Departments  ||--o{ Users : "DepartmentId"
+    Catalog_ValueStreams ||--|| Folio_Counters : "consecutivo"
+    Status_History }o--|| Pallets_Return_Tracking : "PalletReturnId"
+    Alerts }o--|| Pallets_Return_Tracking : "PalletReturnId"
+    Audit_Logs }o--|| Pallets_Return_Tracking : "RecordId (lógica)"
+
+    Champions_Matrix {
+        int ChampionsMatrixId PK
+        int UserId FK
+        tinyint RoleId FK
+        tinyint ValueStreamId FK
+        varchar Assignment "CHAMPION/PROXY"
+        date ValidFrom
+        date ValidTo
+    }
+    Users {
+        int UserId PK
+        varchar NtUser UK
+    }
+    Field_Permissions {
+        tinyint RoleId PK
+        sysname FieldName PK
+        tinyint StageNo
+    }
+    Audit_Logs {
+        bigint AuditLogId PK
+        varchar RecordId
+        sysname FieldName
+        nvarchar OldValue
+        nvarchar NewValue
+        varchar NtUser
+        datetime2 ChangedAtUtc
+    }
