@@ -5,10 +5,15 @@ Bosch Mobility Electronics · Planta Juárez 1 (JuP1, SAP 8640) · ME/QMM · Pil
 
 La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8) con SQL Server centralizado. La arquitectura es API-first, para que la interfaz de escritorio (WPF) se pueda reemplazar por una Web sin reescribir la lógica de negocio ni el modelo de datos.
 
+## Entregable para revisión
+
+**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.1.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.1.docx)**: documento Word consolidado (portada, control del documento, resumen ejecutivo y capítulos 00–04). Se genera desde los `.md` con [`tools/docx`](tools/docx/README.md); los `.md` son la fuente de verdad.
+
 ## Documento del proyecto (SRS y diseño técnico)
 
 | # | Documento | Contenido |
 |---|---|---|
+| — | [Resumen Ejecutivo](docs/Resumen_Ejecutivo.md) | Problema, propuesta, beneficios, plan y decisiones que se solicitan a la jefatura |
 | 00 | [Diagnóstico AS-IS de la Matriz 2.0](docs/00_Diagnostico_AS-IS_Matriz_2.0.md) | Estructura del Excel, fórmulas actuales y 17 hallazgos (incluye fórmulas de VS7 que apuntan a VS_4, falsos cierres y faltantes que no aparecen en el balance) |
 | 01 | [Arquitectura de la Solución (Desktop → Web)](docs/01_Arquitectura_Solucion.md) | ADRs, capas Clean Architecture, estructura de la solución .NET, API, seguridad/RBAC, auditoría, SAP NCo, SOURCE/BBM, despliegue |
 | 02 | [Modelo Entidad-Relación](docs/02_Modelo_Entidad_Relacion.md) | Diagrama ER, diccionario de datos y mapeo columna por columna Excel → SQL |

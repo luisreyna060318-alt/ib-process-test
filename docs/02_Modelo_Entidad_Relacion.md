@@ -18,39 +18,28 @@
 
 ## 2. Diagrama entidad-relación
 
+### 2.1 Núcleo transaccional y catálogos
+
 ```mermaid
 erDiagram
     Catalog_ValueStreams ||--o{ Pallets_Return_Tracking : "ValueStreamId"
-    Catalog_ValueStreams ||--|| Folio_Counters : "consecutivo"
-    Catalog_ValueStreams ||--o{ Champions_Matrix : "alcance VS"
     Catalog_Departments  ||--o{ Pallets_Return_Tracking : "RequestingDepartmentId"
-    Catalog_Departments  ||--o{ Catalog_Departments : "ParentDepartmentId"
-    Catalog_Departments  ||--o{ Users : "DepartmentId"
     Catalog_Reasons      ||--o{ Pallets_Return_Tracking : "ReasonId"
-    Catalog_WorkflowStatus ||--o{ Pallets_Return_Tracking : "WorkflowStatusId"
-    Catalog_StatusCategories ||--o{ Pallets_Return_Tracking : "StatusCategoryId"
-    Catalog_IbOrderTypes ||--o{ Pallets_Return_Tracking : "IbOrderTypeCode"
-    Material_Cost_MM60   ||..o{ Pallets_Return_Tracking : "Material (snapshot de costo)"
+    Pallets_Return_Tracking }o--|| Catalog_WorkflowStatus : "WorkflowStatusId"
+    Pallets_Return_Tracking }o--o| Catalog_StatusCategories : "StatusCategoryId"
+    Pallets_Return_Tracking }o--o| Catalog_IbOrderTypes : "IbOrderTypeCode"
+    Pallets_Return_Tracking }o..|| Material_Cost_MM60 : "snapshot de costo"
     Users                ||--o{ Pallets_Return_Tracking : "QmmResponsibleUserId"
-    Users                ||--o{ Champions_Matrix : "UserId"
-    App_Roles            ||--o{ Champions_Matrix : "RoleId"
-    App_Roles            ||--o{ Field_Permissions : "RoleId"
-    Pallets_Return_Tracking ||--o{ Status_History : "PalletReturnId"
-    Pallets_Return_Tracking ||--o{ Alerts : "PalletReturnId"
-    Pallets_Return_Tracking ||--o{ Audit_Logs : "RecordId (lógica)"
 
     Pallets_Return_Tracking {
         int PalletReturnId PK
         tinyint ValueStreamId FK
         int FolioNumber "UQ con VS"
-        varchar FolioCode "VS7-00012 (calc)"
-        int QmmResponsibleUserId FK
-        smallint RequestingDepartmentId FK
+        varchar FolioCode "VS7-00012"
         smallint ReasonId FK
         varchar ReturnedMaterial
         decimal UnitCostUSD
         int QtyImported
-        decimal SapUsdTotal "calc"
         date ImportDateElpJup1 "abre ciclo IMMEX"
         int OldMaterialDeliveredQty
         int ScrapQty
@@ -60,41 +49,49 @@ erDiagram
         tinyint WorkflowStatusId FK
         rowversion RowVer
     }
-    Catalog_ValueStreams { tinyint ValueStreamId PK
-        varchar Code "VS1..VS9" }
-    Catalog_Reasons { smallint ReasonId PK
-        nvarchar Description
-        bit RequiresNewMaterial }
-    Catalog_Departments { smallint DepartmentId PK
-        varchar Code
-        varchar FunctionalArea
-        smallint ParentDepartmentId FK }
-    Champions_Matrix { int ChampionsMatrixId PK
+```
+
+### 2.2 Seguridad, auditoría y soporte
+
+```mermaid
+erDiagram
+    Users                ||--o{ Champions_Matrix : "UserId"
+    App_Roles            ||--o{ Champions_Matrix : "RoleId"
+    Catalog_ValueStreams ||--o{ Champions_Matrix : "alcance VS"
+    App_Roles            ||--o{ Field_Permissions : "RoleId"
+    Catalog_Departments  ||--o{ Users : "DepartmentId"
+    Catalog_ValueStreams ||--|| Folio_Counters : "consecutivo"
+    Status_History }o--|| Pallets_Return_Tracking : "PalletReturnId"
+    Alerts }o--|| Pallets_Return_Tracking : "PalletReturnId"
+    Audit_Logs }o--|| Pallets_Return_Tracking : "RecordId (lógica)"
+
+    Champions_Matrix {
+        int ChampionsMatrixId PK
         int UserId FK
         tinyint RoleId FK
         tinyint ValueStreamId FK
         varchar Assignment "CHAMPION/PROXY"
         date ValidFrom
-        date ValidTo }
-    Audit_Logs { bigint AuditLogId PK
+        date ValidTo
+    }
+    Users {
+        int UserId PK
+        varchar NtUser UK
+    }
+    Field_Permissions {
+        tinyint RoleId PK
+        sysname FieldName PK
+        tinyint StageNo
+    }
+    Audit_Logs {
+        bigint AuditLogId PK
         varchar RecordId
         sysname FieldName
         nvarchar OldValue
         nvarchar NewValue
         varchar NtUser
-        datetime2 ChangedAtUtc }
-    Users { int UserId PK
-        varchar NtUser UK }
-    App_Roles { tinyint RoleId PK
-        varchar Code }
-    Field_Permissions { tinyint RoleId PK
-        sysname FieldName PK
-        tinyint StageNo }
-    Material_Cost_MM60 { int MaterialCostId PK
-        varchar Material
-        decimal UnitCostUSD "Price/PriceUnit"
-        date ValidFrom
-        date ValidTo }
+        datetime2 ChangedAtUtc
+    }
 ```
 
 **¿Por qué una sola tabla transaccional con columnas por etapa y no tablas hijas por movimiento?** Porque cada pallet tiene, en la práctica, **una** importación, **un** cierre MFO, **una** exportación y **una** confirmación HSE (relación 1:1). Una tabla ancha y bien tipada hace la migración 1:1 desde el Excel, simplifica Power BI y permite reglas `CHECK` entre etapas. Si en el futuro aparecen exportaciones parciales múltiples por pallet, se agrega `trk.Pallet_Movements` (tipo EXPORT/SCRAP/NATIONAL, cantidad, documento) y los campos actuales pasan a ser totales derivados. Es un cambio aditivo.

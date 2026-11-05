@@ -23,18 +23,18 @@
 
 ```mermaid
 flowchart TB
-    subgraph P[Presentación - REEMPLAZABLE]
+    subgraph P["Presentación"]
         WPF[ExpoReturn.Desktop<br/>WPF + MVVM<br/>Fase 1]
         WEB[ExpoReturn.Web<br/>Blazor / Angular<br/>Fase 2]
         PBI[Power BI<br/>ME/QMM-JuP1]
     end
 
-    subgraph S[Servidor de aplicaciones JuP1 - IIS]
+    subgraph S["Servidor JuP1 (IIS)"]
         API[ExpoReturn.Api<br/>ASP.NET Core 8 REST<br/>Windows Auth / Negotiate]
         WRK[ExpoReturn.Worker<br/>Alertas, recálculo, refresh MM60]
     end
 
-    subgraph C[Núcleo - SE CONSERVA EN LA MIGRACIÓN A WEB]
+    subgraph C["Núcleo reutilizable"]
         APP[ExpoReturn.Application<br/>Casos de uso, validadores,<br/>políticas RBAC, puertos]
         DOM[ExpoReturn.Domain<br/>Entidades, Value Objects,<br/>FinancialCalculator, StatusResolver]
         CON[ExpoReturn.Contracts<br/>DTOs / API models]
@@ -61,6 +61,8 @@ flowchart TB
     INF --> DB
     SAP --> P98
 ```
+
+La capa de **Presentación** es la única que se reemplaza al pasar a Web; el **Núcleo** (Domain, Application, Contracts) se reutiliza sin cambios.
 
 **Regla de dependencias:** `Domain` no referencia nada; `Application` sólo referencia `Domain`; `Infrastructure`, `Integration.Sap` y `Api` implementan los puertos (interfaces) que define `Application`. **Ningún proyecto de UI referencia `Infrastructure`.**
 
@@ -300,7 +302,7 @@ public interface ISapGateway
 flowchart LR
     PC[PC usuario JuP1<br/>WPF MSIX vía Software Center] -- HTTPS 443 Kerberos --> IIS
     BR[Navegador Fase 2] -- HTTPS 443 Kerberos --> IIS
-    subgraph APPSRV[Servidor de aplicaciones JuP1]
+    subgraph APPSRV["Servidor JuP1"]
         IIS[IIS · ExpoReturn.Api<br/>App Pool gMSA]
         SVC[Windows Service<br/>ExpoReturn.Worker]
     end

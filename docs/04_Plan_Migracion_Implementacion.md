@@ -22,7 +22,7 @@ gantt
     section Fase 4 Go-Live
     Cutover VS1-VS9, Excel en sólo lectura, hypercare      :f4, after f3b, 20d
     section Fase 5 SAP P98
-    NCo/SNC: costos MM60, HU, órdenes PPI                  :f5, after f4, 30d
+    NCo/SNC - costos MM60, HU, órdenes PPI                 :f5, after f4, 30d
     section Fase 6 Web
     Blazor sobre la misma API                              :f6, after f5, 40d
 ```
@@ -49,7 +49,7 @@ gantt
 ### 2.2 Flujo técnico
 
 ```mermaid
-flowchart LR
+flowchart TB
     X[Excel 2.0<br/>congelado + SHA-256] --> E[ExpoReturn.Migration<br/>ClosedXML: lee tablas VS_n y Table3<br/>texto crudo + valores cacheados<br/>+ flag 'celda con fórmula']
     E --> R[(stg.Legacy_Matrix_Raw<br/>stg.Legacy_MM60_Raw)]
     R --> M[stg.usp_LoadMM60<br/>costos con vigencia]
