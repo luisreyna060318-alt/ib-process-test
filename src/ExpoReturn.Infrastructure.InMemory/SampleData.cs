@@ -22,7 +22,7 @@ public static class SampleData
         ("F005.V04.580-5ZS", 12.8400m, "Ultrasonic sensor"),
     };
 
-    private static readonly string[] Requestors = { "Arreola, Lizbeth", "Rios, David", "Zavala, Alejandra", "Hinojos, Ricardo", "Macías, Abraham", "López, Frida" };
+    private static readonly string[] Requestors = { "Montaño, Sofía", "Quiroga, Tomás", "Bermúdez, Elena", "Cisneros, Marco", "Olvera, Rubén", "Treviño, Lucía" };
     private static readonly string[] Depts = { "MFQ4", "LOP2", "MFQ7", "MFQ9", "PUQ", "LOP1" };
 
     public static void Seed(IPalletReturnRepository repo, IAuditTrail audit, IChampionsDirectory champions, IClock clock)

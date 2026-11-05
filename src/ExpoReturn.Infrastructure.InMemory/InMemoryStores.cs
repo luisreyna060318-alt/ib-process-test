@@ -78,11 +78,11 @@ public sealed class ChampionsDirectory : IChampionsDirectory
         {
             new("DEMO\\ADMIN", "Admin Process Excellence", RoleCode.AdminQmmPe, Array.Empty<int>()),
             new("DEMO\\QMM7", Pick(RoleCode.Qmm, 7, "Andrea Salinas"), RoleCode.Qmm, new[] { 7 }),
-            new("DEMO\\QMM9", Pick(RoleCode.Qmm, 9, "Rodrigo Prieto"), RoleCode.Qmm, new[] { 9 }),
+            new("DEMO\\QMM9", Pick(RoleCode.Qmm, 9, "Rodrigo Sandoval"), RoleCode.Qmm, new[] { 9 }),
             new("DEMO\\MFQ4", "Karla Ontiveros (MFQ4)", RoleCode.Requestor, new[] { 4 }),
             new("DEMO\\GS", Pick(RoleCode.Gs, 1, "Patricia Lozano"), RoleCode.Gs, Array.Empty<int>()),
             new("DEMO\\LOP", "Héctor Villalobos (LOP2)", RoleCode.Lop, Array.Empty<int>()),
-            new("DEMO\\MFO7", Pick(RoleCode.Mfo, 7, "Gerardo Ibarra"), RoleCode.Mfo, new[] { 7 }),
+            new("DEMO\\MFO7", Pick(RoleCode.Mfo, 7, "Gerardo Peralta"), RoleCode.Mfo, new[] { 7 }),
             new("DEMO\\LOW", Pick(RoleCode.Low, 1, "Óscar Medina"), RoleCode.Low, Array.Empty<int>()),
             new("DEMO\\HSE", "Silvia Cárdenas (HSE)", RoleCode.Hse, Array.Empty<int>()),
             new("DEMO\\VIEW", "Consulta Gerencia", RoleCode.Viewer, Array.Empty<int>()),
@@ -93,11 +93,11 @@ public sealed class ChampionsDirectory : IChampionsDirectory
     {
         var data = new (int Vs, string MfoC, string MfoP, string QmmC, string QmmP)[]
         {
-            (1, "Gerardo Ibarra", "Luis Paredes", "Andrea Salinas", "Mónica Trejo"),
+            (1, "Gerardo Peralta", "Luis Paredes", "Andrea Salinas", "Mónica Trejo"),
             (4, "Fernanda Ruiz", "Joel Aranda", "Ivonne Castillo", "Raúl Quintana"),
-            (5, "Mauricio Peña", "Daniel Correa", "Natalia Herrera", "César Domínguez"),
+            (5, "Mauricio Peña", "Daniel Correa", "Natalia Ocampo", "César Domínguez"),
             (7, "Paola Esquer", "TBD", "Andrea Salinas", "Julián Robles"),
-            (9, "Jorge Arreola", "Abril Fuentes", "Rodrigo Prieto", "Diana Lares"),
+            (9, "Jorge Montes", "Abril Fuentes", "Rodrigo Sandoval", "Diana Solís"),
         };
         var list = new List<Person>();
         foreach (var d in data)
