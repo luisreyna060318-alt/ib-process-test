@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 05 · Flujos por rol
 
@@ -20,7 +20,7 @@ Recorridos típicos de cada área en la aplicación. Sirven como guion para las 
 
 ## Flujo QMM: nuevo retorno
 
-1.  Menú **Nuevo retorno** (usuario simulado: QMM del VS).
+1.  Menú **Nuevo retorno** (usuario simulado: QMM asignado a ese VS en la matriz). Los campos que puede capturar aparecen en verde.
 
 2.  El Value Stream viene sugerido. Elegir **QMM Responsible**, **Requesting department** y **Reason**, y capturar **Requestor**.
 

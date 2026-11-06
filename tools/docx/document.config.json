@@ -1,11 +1,11 @@
 {
-  "output": "entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx",
+  "output": "entregables/SRS_ExpoReturn_FG_JuP1_v0.4.docx",
   "imageDir": "docs/img",
   "title": "Expo & Return FG Follow Up",
   "subtitle": "Especificación de Requerimientos de Software y Arquitectura",
   "scope": "Digitalización de la Matriz de Rastreo de Productos Terminados Importados Temporalmente 2.0",
   "organization": "Bosch Mobility Electronics · Planta Juárez 1 (JuP1 · SAP 8640) · ME/QMM · Process Excellence (Q2E)",
-  "version": "0.3",
+  "version": "0.4",
   "status": "Borrador para revisión",
   "date": "2026-11-06",
   "classification": "Confidencial interno",

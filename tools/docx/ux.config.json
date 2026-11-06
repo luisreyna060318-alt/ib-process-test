@@ -1,5 +1,5 @@
 {
-  "output": "entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx",
+  "output": "entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx",
   "imageDir": "docs/img",
   "orientation": "landscape",
   "shortName": "Manual de pantallas",
@@ -7,7 +7,7 @@
   "subtitle": "Manual de pantallas y control de experiencia de usuario (UX)",
   "scope": "Descripción de cada pantalla del borrador, estatus del pallet, flujos por rol y registro de revisiones UX",
   "organization": "Bosch Mobility Electronics · Planta Juárez 1 (JuP1 · SAP 8640) · ME/QMM · Process Excellence (Q2E)",
-  "version": "0.2",
+  "version": "0.3",
   "status": "Para revisión con usuarios",
   "date": "2026-11-06",
   "classification": "Confidencial interno",

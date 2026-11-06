@@ -19,7 +19,7 @@ Los archivos `docs/*.md` son una **copia de trabajo derivada** del Word. Sirven 
 ```bash
 # 1) Derivar los .md desde el Word más reciente de entregables/ (o desde la ruta indicada)
 python3 tools/docx/docx_to_md.py
-python3 tools/docx/docx_to_md.py entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx
+python3 tools/docx/docx_to_md.py entregables/SRS_ExpoReturn_FG_JuP1_v0.4.docx
 
 # 2) Renderizar diagramas (fuentes en docs/diagrams/*.mmd -> .png)
 cd tools/docx && npm install && npx playwright install chromium && npm run diagrams
@@ -44,7 +44,7 @@ Usa el mismo flujo, con su propia configuración (`ux.config.json`, en horizonta
 
 ```bash
 # Word -> docs/ux/*.md
-python3 tools/docx/docx_to_md.py entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx --out docs/ux
+python3 tools/docx/docx_to_md.py entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx --out docs/ux
 ```
 
 ```bash

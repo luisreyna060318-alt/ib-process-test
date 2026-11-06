@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.4.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 02 · Modelo Entidad-Relación (SQL Server)
 
@@ -65,15 +65,15 @@
 
 ### 3.4 `sec.Champions_Matrix`
 
-| **Columna**         | **Tipo**                     | **Regla**                                                    |
-|---------------------|------------------------------|--------------------------------------------------------------|
-| ChampionsMatrixId   | INT IDENTITY PK              |                                                              |
-| UserId              | INT FK → `sec.Users`         | `sec.Users.NtUser` = DOMINIO\usuario (AD)                    |
-| RoleId              | TINYINT FK → `sec.App_Roles` | QMM, GS, LOP, MFO, LOW, HSE, REQUESTOR, ADMIN_QMM_PE, VIEWER |
-| ValueStreamId       | TINYINT FK, **nulo = todos** |                                                              |
-| DepartmentId        | SMALLINT FK                  | Departamento con el que actúa                                |
-| Assignment          | VARCHAR(10)                  | CHAMPION · PROXY · ADMIN · VIEWER                            |
-| ValidFrom / ValidTo | DATE                         | Vigencia: un cambio de Champion no borra la historia         |
+| **Columna**         | **Tipo**                     | **Regla**                                                                                           |
+|---------------------|------------------------------|-----------------------------------------------------------------------------------------------------|
+| ChampionsMatrixId   | INT IDENTITY PK              |                                                                                                     |
+| UserId              | INT FK → `sec.Users`         | `sec.Users.NtUser` = DOMINIO\usuario (AD)                                                           |
+| RoleId              | TINYINT FK → `sec.App_Roles` | QMM, GS, LOP, MFO, LOW, HSE, REQUESTOR, ADMIN_QMM_PE, VIEWER                                        |
+| ValueStreamId       | TINYINT FK, **nulo = todos** |                                                                                                     |
+| DepartmentId        | SMALLINT FK                  | Departamento con el que actúa                                                                       |
+| Assignment          | VARCHAR(10)                  | CHAMPION · PROXY · ADMIN · VIEWER                                                                   |
+| ValidFrom / ValidTo | DATE                         | Fecha de alta y de baja, registradas por el sistema (no se capturan): una baja no borra la historia |
 
 Uso: "¿Puede el usuario X editar `ScrapQty` del folio VS7-00012?" ⇔ existe un renglón vigente de X con un rol que tenga `ScrapQty` en `sec.Field_Permissions` y `ValueStreamId IN (7, NULL)`, o X tiene un rol con `IsAdmin = 1`.
 

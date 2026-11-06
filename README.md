@@ -7,7 +7,7 @@ La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8
 
 ## 1. Documento del proyecto (fuente de verdad)
 
-**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx)** es la versión vigente y **la fuente de verdad**. Las revisiones (comentarios y control de cambios) se hacen en el Word.
+**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.4.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.4.docx)** es la versión vigente y **la fuente de verdad**. Las revisiones (comentarios y control de cambios) se hacen en el Word.
 
 Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 tools/docx/docx_to_md.py`); no se editan a mano. Flujo completo en [`tools/docx/README.md`](tools/docx/README.md).
 
@@ -21,12 +21,12 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 ## 2. Manual de pantallas y control de UX
 
-**[`entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx`](entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx)** (fuente de verdad, en horizontal) contiene:
+**[`entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx`](entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx)** (fuente de verdad, en horizontal) contiene:
 
 * las fichas de las 8 pantallas, con capturas anotadas y la tabla de elementos;
 * la lista de estatus del pallet y su significado para el usuario;
 * los flujos por rol;
-* el registro de hallazgos UX de las rondas 1 a 3, el estado de los pendientes UX (implementados en v0.1.3, por verificar) y la lista de verificación.
+* el registro de hallazgos UX de las rondas 1 a 4 (capturas de la app v0.1.5), el estado de los pendientes UX y la lista de verificación.
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 

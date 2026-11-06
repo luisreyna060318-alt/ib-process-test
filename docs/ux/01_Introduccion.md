@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 01 · Introducción
 
@@ -11,19 +11,19 @@ Complementa a la *Especificación de Requerimientos de Software (SRS)*, que defi
 
 ## Alcance de esta versión
 
-| **Concepto**                         | **Valor**                                                                                                                           |
-|--------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| Versión de la aplicación documentada | **Borrador v0.1.3** (escritorio Windows, .NET 8 / WPF)                                                                              |
-| Datos                                | Demostración sintética (nombres ficticios). Puede importar el Excel real en memoria y en sólo lectura                               |
-| Base de datos                        | Ninguna en el borrador: los cambios se pierden al cerrar                                                                            |
-| Usuario                              | Simulado desde la barra superior; en producción vendrá de Windows (Active Directory) y de la matriz Champions VS                    |
-| Capturas                             | Versión v0.1.2, tomadas en Windows a 1920 × 1080 el 06-nov-2026 (tercera ronda). Se reemplazan por las de v0.1.3 en la cuarta ronda |
+| **Concepto**                         | **Valor**                                                                                                                                                               |
+|--------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Versión de la aplicación documentada | **Borrador v0.1.5** (escritorio Windows, .NET 8 / WPF)                                                                                                                  |
+| Datos                                | Demostración sintética (nombres ficticios). Puede importar el Excel real en memoria y en sólo lectura                                                                   |
+| Base de datos                        | Ninguna en el borrador: los cambios se pierden al cerrar                                                                                                                |
+| Usuario                              | Simulado desde la barra superior: cada persona de la matriz Champions VS, con su área y sus VS. En producción vendrá de Windows (Active Directory) y de la misma matriz |
+| Capturas                             | Versión v0.1.5, tomadas en Windows a 1920 × 1080 el 06-nov-2026 (cuarta ronda de revisión)                                                                              |
 
 ## Cómo leer cada ficha de pantalla
 
 Cada pantalla tiene un identificador **PNT-xx**, que se mantiene en todas las versiones, y una ficha con:
 
-1.  **Captura anotada**: los círculos rojos numerados corresponden a la tabla *Elementos*.
+1.  **Captura anotada**: los círculos rojos numerados corresponden a la tabla *Elementos*. En el detalle, el verde ligero marca los campos que el usuario puede editar y el gris los de sólo lectura.
 
 2.  **Propósito** y **usuarios / roles**.
 

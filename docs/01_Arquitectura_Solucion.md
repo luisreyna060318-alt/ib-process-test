@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.4.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 01 · Arquitectura de la Solución (Desktop → Web)
 
@@ -208,7 +208,7 @@ Recomendación para la Fase 2: **Blazor Server**. Mismo lenguaje que el equipo, 
 
 1.  **Bloque (qué columnas):** `sec.Field_Permissions` (rol × campo × etapa). Replica los encabezados de área del Excel (QMM, GS/OSD43, LOP, MFO, LOW, HSE).
 
-2.  **Alcance (qué Value Stream):** `sec.Champions_Matrix` (usuario × rol × VS × Champion/Proxy, con vigencia). Se carga desde la matriz Champions_VS que mantiene Ezequiel Loya Morales.
+2.  **Alcance (qué Value Stream):** `sec.Champions_Matrix` (usuario × rol × VS × Champion/Proxy). Delimita los VS de **todas** las áreas, incluidas GS/OSD43 y LOW; una persona puede estar asignada a varios VS. Las altas y bajas no llevan fechas capturadas: el sistema registra la fecha de cada una y conserva la historia. Se carga desde la matriz Champions_VS que mantiene Ezequiel Loya Morales.
 
 Un `IClaimsTransformation` agrega al usuario los *claims* `role:VS7:MFO`, etc., en cada request (con caché de 5 min). El rol **ADMIN_QMM_PE** edita todo, pero debe capturar un **motivo**, que queda en `Audit_Logs.ChangeReason`.
 
@@ -236,13 +236,13 @@ Por decisión del negocio, **esta etapa no se conecta con SAP P98**:
 
 Existe una primera versión ejecutable de la solución con las capas definidas en este documento:
 
-| **Proyecto**                             | **Contenido**                                                                                                                                                         |
-|------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `src/ExpoReturn.Domain`                  | Entidad `PalletReturn`, catálogos, normalización de identificadores, `FinancialCalculator` (CalcVersion 2), `StatusResolver`, `DutyRisk`, `PalletValidator` (VAL-xxx) |
-| `src/ExpoReturn.Application`             | Roles y matriz de permisos por campo, `PalletReturnService` (permisos + validación + recálculo + auditoría), reportes de Balance y alertas                            |
-| `src/ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, datos demo sintéticos, importador del Excel 2.0 (ClosedXML, sólo lectura)                                                          |
-| `src/ExpoReturn.Desktop`                 | WPF/MVVM: bandeja, detalle con 6 pestañas, Balance/Duties, alertas, Champions, bitácora y captura de comentarios de los revisores                                     |
-| `tests/ExpoReturn.Domain.Tests`          | Casos golden, invariante de balance, normalizadores, fechas heredadas e importación del archivo real                                                                  |
+| **Proyecto**                             | **Contenido**                                                                                                                                                                                             |
+|------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `src/ExpoReturn.Domain`                  | Entidad `PalletReturn`, catálogos, normalización de identificadores, `FinancialCalculator` (CalcVersion 2), `StatusResolver`, `DutyRisk`, `PalletValidator` (VAL-xxx)                                     |
+| `src/ExpoReturn.Application`             | Roles y matriz de permisos por campo, `PalletReturnService` (permisos + validación + recálculo + auditoría), reportes de Balance y alertas                                                                |
+| `src/ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, datos demo sintéticos, importador del Excel 2.0 (ClosedXML, sólo lectura)                                                                                              |
+| `src/ExpoReturn.Desktop`                 | WPF/MVVM: bandeja, detalle con 6 pestañas (campos editables en verde según rol y VS), Balance/Aranceles, alertas, matriz Champions editable por Admin, bitácora y captura de comentarios de los revisores |
+| `tests/ExpoReturn.Domain.Tests`          | Casos golden, invariante de balance, normalizadores, fechas heredadas e importación del archivo real                                                                                                      |
 
 El borrador **no usa base de datos**. Para pasar a producción se reemplaza `Infrastructure.InMemory` por la persistencia en SQL Server y el cliente de la Web API, sin tocar Domain ni Application.
 

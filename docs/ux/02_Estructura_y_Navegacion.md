@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 02 · Estructura y navegación
 
@@ -23,8 +23,8 @@
 
 Todas las pantallas comparten la misma estructura, para que el usuario siempre sepa dónde está:
 
-| **Zona**                                   | **Contenido**                                                                                                                        | **Comportamiento**                                                                    |
-|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| **Barra lateral** (izquierda, azul oscuro) | Nombre de la aplicación, menú de 6 opciones, botones *Importar Excel 2.0…*, *Restaurar datos demo*, *Enviar comentario* y la versión | La opción activa se resalta con un fondo más claro y una línea azul a la izquierda    |
-| **Barra superior** (blanca)                | Aviso de borrador, origen de los datos (demo o Excel importado) y selector de **usuario simulado** (nombre · rol · Value Streams)    | Al cambiar el usuario, la pantalla abierta recalcula qué campos puede editar          |
-| **Área de trabajo**                        | Título de la pantalla, descripción breve y contenido                                                                                 | Encabezados de tabla en azul oscuro con texto blanco; tarjetas blancas con borde gris |
+| **Zona**                                   | **Contenido**                                                                                                                                                                      | **Comportamiento**                                                                    |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| **Barra lateral** (izquierda, azul oscuro) | Nombre de la aplicación, menú de 6 opciones, botones *Importar Excel 2.0…*, *Restaurar datos demo*, *Enviar comentario* y la versión                                               | La opción activa se resalta con un fondo más claro y una línea azul a la izquierda    |
+| **Barra superior** (blanca)                | Aviso de borrador, origen de los datos (demo o Excel importado) y selector de **usuario simulado**, agrupado por área (nombre · área · Value Streams según la matriz Champions VS) | Al cambiar el usuario, la pantalla abierta recalcula qué campos puede editar          |
+| **Área de trabajo**                        | Título de la pantalla, descripción breve y contenido                                                                                                                               | Encabezados de tabla en azul oscuro con texto blanco; tarjetas blancas con borde gris |
