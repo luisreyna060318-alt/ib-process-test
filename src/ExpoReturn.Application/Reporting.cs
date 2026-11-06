@@ -96,9 +96,9 @@ public sealed class ReportingService
             if (f.QtyPendingExport > 0 && deliveredOn is not null && (today - deliveredOn.Value.Date).Days > _prm.SlaExportDays)
                 list.Add(new(AlertType.ExportSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingExport} pzs en LOW sin pedimento desde hace {(today - deliveredOn.Value.Date).Days} días.", "LOW + GS"));
             if (f.QtyPendingHse > 0 && p.ScrapDate is not null && (today - p.ScrapDate.Value.Date).Days > _prm.SlaHseDays)
-                list.Add(new(AlertType.HseSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingHse} pzs de scrap sin confirmación HSE.", "HSE + MFO"));
+                list.Add(new(AlertType.HseSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingHse} {(f.QtyPendingHse == 1 ? "pz" : "pzs")} de scrap sin confirmación HSE.", "HSE + MFO"));
             if (f.QtyMissing > 0)
-                list.Add(new(AlertType.QtyMismatch, Severity.Error, p.Id, p.FolioCode, vs, $"Faltan {f.QtyMissing} pzs (USD {f.QtyMissing * (p.UnitCostUsd ?? 0):N2}).", "QMM + MFO + LOW"));
+                list.Add(new(AlertType.QtyMismatch, Severity.Error, p.Id, p.FolioCode, vs, $"{(f.QtyMissing == 1 ? "Falta 1 pz" : $"Faltan {f.QtyMissing} pzs")} (USD {f.QtyMissing * (p.UnitCostUsd ?? 0):N2}).", "QMM + MFO + LOW"));
         }
         return list.OrderBy(a => a.Severity).ThenBy(a => a.FolioCode).ToList();
     }

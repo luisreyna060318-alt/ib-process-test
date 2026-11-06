@@ -57,7 +57,6 @@ public sealed partial class PalletListViewModel : PageViewModel
         _selectedStatus = StatusOptions[0];
         Rows = CollectionViewSource.GetDefaultView(_rows);
         Rows.Filter = Filter;
-        Rows.SortDescriptions.Add(new SortDescription(nameof(PalletRow.SortKey), ListSortDirection.Ascending));
         Refresh();
     }
 
@@ -88,7 +87,10 @@ public sealed partial class PalletListViewModel : PageViewModel
     {
         _rows.Clear();
         var today = Services.Clock.Today;
-        foreach (var p in Services.Repository.GetAll()) _rows.Add(new PalletRow(p, today));
+        // Orden por defecto en los datos (no en SortDescriptions: el DataGrid las limpia al recrear la vista).
+        foreach (var r in Services.Repository.GetAll().Select(p => new PalletRow(p, today))
+                     .OrderBy(r => r.SortKey).ThenBy(r => r.FolioCode))
+            _rows.Add(r);
         OnPropertyChanged(nameof(HasLegacy));
         ApplyFilter();
     }

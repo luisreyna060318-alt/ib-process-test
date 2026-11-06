@@ -77,7 +77,9 @@ public sealed partial class ChampionsViewModel : PageViewModel
     public override string Title => "Champions VS";
     [ObservableProperty] private IReadOnlyList<ChampionRow> _rows = Array.Empty<ChampionRow>();
     public IReadOnlyList<string> EditableByRole => Enum.GetValues<RoleCode>()
-        .Select(r => $"{r.DisplayName()}: {string.Join(", ", FieldPermissions.EditableFields(r).Take(40))}").ToList();
+        .Select(r => FieldPermissions.EditableFields(r).Count == 0
+            ? $"{r.DisplayName()}: (sólo lectura, no edita campos)"
+            : $"{r.DisplayName()}: {string.Join(", ", FieldPermissions.EditableFields(r))}").ToList();
 
     public override void Refresh()
     {

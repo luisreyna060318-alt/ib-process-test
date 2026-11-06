@@ -57,11 +57,11 @@
                 <DataGridTextColumn Header="Cant." Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="60" />
                 <DataGridTextColumn Header="SAP USD" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="95" />
                 <DataGridTextColumn Header="Balance USD" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="95" />
-                <DataGridTextColumn Header="Días en JuP1" Binding="{Binding DaysInJuP1}" Width="80" />
-                <DataGridTextColumn Header="Días p/vencer" Binding="{Binding DaysToLegalDue}" Width="85" />
+                <DataGridTextColumn Header="Días en JuP1" Binding="{Binding DaysInJuP1}" Width="95" />
+                <DataGridTextColumn Header="Días p/vencer" Binding="{Binding DaysToLegalDue}" Width="100" />
                 <DataGridTextColumn Header="QMM Responsible" Binding="{Binding Qmm}" Width="140" />
                 <DataGridTextColumn Header="Factura" Binding="{Binding Invoice}" Width="105" />
-                <DataGridTextColumn Header="Categoría" Binding="{Binding Category}" Width="180" />
+                <DataGridTextColumn Header="Categoría" Binding="{Binding Category}" Width="215" />
                 <DataGridTextColumn Header="Calidad de datos" Binding="{Binding DqText}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>
