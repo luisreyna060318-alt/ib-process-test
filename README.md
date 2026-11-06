@@ -21,7 +21,18 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 | [04 · Plan de implementación](docs/04_Plan_Migracion_Implementacion.md) | Fases, migración del histórico, cutover, UAT, riesgos y pendientes de validación (P-01…P-12) |
 | [Comentarios de revisión](docs/_revision_comentarios.md) | Comentarios exportados del Word |
 
-## 2. Borrador de la aplicación (.NET 8 / WPF)
+## 2. Manual de pantallas y control de UX
+
+**[`entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx`](entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx)** (fuente de verdad, en horizontal) contiene:
+
+* las fichas de las 8 pantallas, con capturas anotadas y la tabla de elementos;
+* las convenciones visuales, con el contraste medido de cada color;
+* los flujos por rol;
+* el registro de hallazgos UX de las rondas 1 a 3, los pendientes por validar con usuarios, la lista de verificación y la plantilla de sesión de prueba.
+
+Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
+
+## 3. Borrador de la aplicación (.NET 8 / WPF)
 
 Solución `ExpoReturn.sln` con las pantallas esperadas, **sin base de datos**: bandeja, formulario de 6 bloques con permisos por rol/VS, cálculo en vivo, validaciones, Balance/Duties, alertas, Champions y bitácora. Puede importar el Excel real **en memoria y en sólo lectura**.
 
@@ -35,7 +46,7 @@ dotnet run --project src/ExpoReturn.Desktop
 dotnet test
 ```
 
-## 3. Base de datos (diseño para producción, SQL Server 2019+)
+## 4. Base de datos (diseño para producción, SQL Server 2019+)
 
 1. [`database/01_schema.sql`](database/01_schema.sql): esquemas, catálogos, RBAC, tabla transaccional temporal, auditoría append-only
 2. [`database/02_seed_catalogs.sql`](database/02_seed_catalogs.sql): VS, departamentos, 10 motivos, estatus, categorías, roles, permisos por campo y parámetros

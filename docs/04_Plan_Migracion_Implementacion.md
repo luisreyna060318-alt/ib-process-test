@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-05 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 04 · Plan de Migración e Implementación por Fases (MVP → Producción)
 
@@ -7,22 +7,7 @@
 
 ## 1. Hoja de ruta
 
-    gantt
-        dateFormat  YYYY-MM-DD
-        title Expo & Return FG Follow Up · Roadmap
-        section Fase 0 Gobierno
-        Registro SOURCE, data owner, RACI, firma de reglas      :f0, 2026-11-16, 15d
-        section Fase 1 Fundaciones
-        BD DEV/QAS, API + Windows Auth, Domain + pruebas golden :f1, after f0, 25d
-        section Fase 2 MVP Desktop
-        WPF 6 bloques, RBAC por campo, auditoría, alertas       :f2, after f1, 35d
-        section Fase 3 Migración y paralelo
-        Dry-runs ETL, depuración DQ con Champions              :f3a, after f1, 45d
-        Piloto VS9 + corrida en paralelo                       :f3b, after f2, 15d
-        section Fase 4 Go-Live
-        Cutover VS1-VS9, Excel en sólo lectura, hypercare      :f4, after f3b, 20d
-        section Fase 5 Web
-        Blazor sobre la misma API                              :f6, after f4, 40d
+![](media/4dc9ae8a7667269e91130917a2fe837daaab4ab4.png)
 
 | **Fase**                                                                                                                 | **Entregable**                                                                                                                                                                                                                                            | **Criterio de salida (*gate*)**                                                  |
 |--------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
@@ -47,20 +32,7 @@
 
 ### 2.2 Flujo técnico
 
-    flowchart TB
-        X[Excel 2.0<br/>congelado + SHA-256] --> E[ExpoReturn.Migration<br/>ClosedXML: lee tablas VS_n y Table3<br/>texto crudo + valores cacheados<br/>+ flag 'celda con fórmula']
-        E --> R[(stg.Legacy_Matrix_Raw<br/>stg.Legacy_MM60_Raw)]
-        R --> M[stg.usp_LoadMM60<br/>costos con vigencia]
-        R --> T[stg.usp_TransformLegacy<br/>parseo, mapeo, DQ]
-        M --> T
-        T --> P[(trk.Pallets_Return_Tracking<br/>IsLegacy = 1, CalcVersion 0)]
-        T --> I[(stg.Migration_Issues)]
-        P --> C[Migration console<br/>invoca Domain: v1 y v2<br/>StatusResolver]
-        C --> Q[(stg.Migration_Reconciliation)]
-        Q --> S{¿v1 = Excel?<br/>¿0 ERROR?}
-        S -- no --> D[Depuración con Champions<br/>en el Excel congelado o vía Resolution]
-        D --> E
-        S -- sí --> G[Sign-off QMM + GS<br/>activar CalcVersion 2]
+![](media/27c71955c5a1618c76a51317e78bf797c26d81ad.png)
 
 **Por qué el extractor lee tablas estructuradas y no rangos de celdas:** cada hoja empieza en otra columna (B, C o D) y tiene encabezados distintos (H-07). ClosedXML lee `VS_n` por nombre de columna, con un **diccionario de alias** por encabezado:
 

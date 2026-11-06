@@ -1,0 +1,54 @@
+{
+  "output": "entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx",
+  "imageDir": "docs/img",
+  "orientation": "landscape",
+  "shortName": "Manual de pantallas",
+  "title": "Expo & Return FG Follow Up",
+  "subtitle": "Manual de pantallas y control de experiencia de usuario (UX)",
+  "scope": "Descripción de cada pantalla del borrador v0.1.2, convenciones visuales, flujos por rol y registro de revisiones UX",
+  "organization": "Bosch Mobility Electronics · Planta Juárez 1 (JuP1 · SAP 8640) · ME/QMM · Process Excellence (Q2E)",
+  "version": "0.1",
+  "status": "Para revisión con usuarios",
+  "date": "2026-11-06",
+  "classification": "Confidencial interno",
+  "author": "[Nombre del autor] · ME/QMM-JuP1",
+  "approvers": [
+    [
+      "Jefe ME/QMM-JuP1",
+      "[Nombre]"
+    ],
+    [
+      "Process Excellence (Q2E)",
+      "[Nombre]"
+    ],
+    [
+      "Usuario clave QMM",
+      "[Nombre]"
+    ],
+    [
+      "Usuario clave GS/OSD43",
+      "[Nombre]"
+    ],
+    [
+      "Usuario clave MFO / LOW / HSE",
+      "[Nombre]"
+    ]
+  ],
+  "history": [
+    [
+      "0.1",
+      "2026-11-06",
+      "[Autor]",
+      "Versión inicial: 8 pantallas de la app v0.1.2, rondas de revisión 1 a 3 (12 hallazgos corregidos) y 13 pendientes UX"
+    ]
+  ],
+  "chapters": [
+    "docs/ux/01_Introduccion.md",
+    "docs/ux/02_Estructura_y_Navegacion.md",
+    "docs/ux/03_Convenciones_Visuales.md",
+    "docs/ux/04_Catalogo_de_Pantallas.md",
+    "docs/ux/05_Flujos_por_Rol.md",
+    "docs/ux/06_Control_UX.md"
+  ],
+  "sourcesNote": "Este documento Word es la FUENTE DE VERDAD del manual de pantallas. Las revisiones se hacen aquí. Los archivos Markdown de trabajo (docs/ux/) se derivan con tools/docx/docx_to_md.py --out docs/ux. Las capturas originales por versión están en docs/ux/capturas/ y los marcadores en tools/ux/markers_<versión>.json (se anotan con tools/ux/annotate_screens.py)."
+}

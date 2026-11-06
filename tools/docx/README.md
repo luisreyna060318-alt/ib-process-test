@@ -38,6 +38,27 @@ cd tools/docx && npm install && npx playwright install chromium && npm run diagr
 2. **Cambios que propone Claude:** Claude edita el Word directamente (cambios puntuales) o, cuando son cambios amplios y **no hay comentarios pendientes**, edita los `.md` y regenera el Word con `build_docx.js`. Luego vuelve a derivar los `.md`. El ida y vuelta Word → Markdown → Word conserva el texto, las tablas, el código, las notas y las imágenes; los comentarios y el control de cambios de Word **no** se conservan, por eso primero se atienden.
 3. Se actualiza `document.config.json` (versión, fecha, historial), que alimenta la portada y el control del documento.
 
+## Manual de pantallas (UX)
+
+Usa el mismo flujo, con su propia configuración (`ux.config.json`, en horizontal):
+
+```bash
+# Word -> docs/ux/*.md
+python3 tools/docx/docx_to_md.py entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx --out docs/ux
+```
+
+```bash
+# (sólo para regenerar desde .md) .md -> Word
+DOCX_CONFIG=tools/docx/ux.config.json node tools/docx/build_docx.js
+```
+
+Nueva ronda de revisión UX:
+
+1. Guardar las capturas en `docs/ux/capturas/<versión>/` con el nombre de la pantalla (`PNT-01_bandeja.png`…).
+2. Copiar `tools/ux/markers_<versión anterior>.json`, ajustar las coordenadas y agregar en `mask` las zonas con datos personales.
+3. Ejecutar `python3 tools/ux/annotate_screens.py tools/ux/markers_<versión>.json` (genera `docs/ux/img/`, que no se versiona).
+4. Reemplazar las capturas en el Word y registrar los hallazgos UX-xxx en el capítulo 06.
+
 ## Archivos
 
 | Archivo | Uso |
@@ -45,6 +66,8 @@ cd tools/docx && npm install && npx playwright install chromium && npm run diagr
 | `docx_to_md.py` | Word → `docs/*.md` (flujo normal) |
 | `build_docx.js` | `docs/*.md` → Word con formato corporativo: portada, control del documento, índice, páginas horizontales para diagramas anchos. `DOCX_OUTPUT=ruta.docx` cambia el destino |
 | `render_mermaid.js` | Diagramas `docs/diagrams/*.mmd` → `.png` |
-| `document.config.json` | Versión, fecha, estatus, autor, aprobadores, historial y orden de capítulos |
+| `document.config.json` | SRS: versión, fecha, estatus, autor, aprobadores, historial y orden de capítulos |
+| `ux.config.json` | Lo mismo para el Manual de pantallas (orientación horizontal, `shortName`, `sourcesNote`) |
+| `../ux/annotate_screens.py` | Anota las capturas con marcadores numerados y oculta datos personales |
 
 Al abrir el Word, acepta **actualizar campos** para que se llene el índice (o en Word: clic derecho sobre el índice → *Actualizar campos*).

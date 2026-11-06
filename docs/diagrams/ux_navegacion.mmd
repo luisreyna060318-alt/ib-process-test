@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph SHELL["Marco común (PNT-00)"]
+        NAV["Barra lateral<br/>navegación"]
+        TOP["Barra superior<br/>aviso de borrador · usuario simulado"]
+    end
+    NAV --> P1["PNT-01<br/>Bandeja de retornos"]
+    NAV --> P2N["PNT-02<br/>Nuevo retorno"]
+    NAV --> P3["PNT-03<br/>Balance / Duties"]
+    NAV --> P4["PNT-04<br/>Alertas"]
+    NAV --> P5["PNT-05<br/>Champions VS"]
+    NAV --> P6["PNT-06<br/>Bitácora"]
+    NAV --> P7["PNT-07<br/>Enviar comentario"]
+    NAV --> P8["PNT-08<br/>Importar Excel 2.0"]
+    P1 -- "doble clic / Abrir detalle" --> P2["PNT-02<br/>Detalle del retorno<br/>6 pestañas"]
+    P4 -- "Abrir" --> P2
+    P2N --> P2
+    P2 -- "← Bandeja" --> P1
+    P8 -- "carga en memoria" --> P1

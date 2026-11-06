@@ -5,6 +5,7 @@ que es la FUENTE DE VERDAD del proyecto.
 
     python3 tools/docx/docx_to_md.py                      # usa el .docx más reciente de entregables/
     python3 tools/docx/docx_to_md.py ruta/al/archivo.docx
+    python3 tools/docx/docx_to_md.py entregables/UX_Manual_Pantallas_v0.1.docx --out docs/ux
 
 Qué hace:
   1. Convierte el .docx con pandoc (GitHub Markdown, control de cambios ACEPTADO).
@@ -32,7 +33,7 @@ SKIP = {"control del documento", "contenido", "índice", "indice", "table of con
 
 
 def latest_docx() -> str:
-    files = sorted(glob.glob(os.path.join(ROOT, "entregables", "*.docx")), key=os.path.getmtime)
+    files = sorted(glob.glob(os.path.join(ROOT, "entregables", "SRS_*.docx")), key=os.path.getmtime)
     if not files:
         sys.exit("No hay .docx en entregables/. Indique la ruta del Word.")
     return files[-1]
@@ -81,7 +82,14 @@ def export_comments(docx: str) -> list[str]:
 
 
 def main():
-    docx = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else latest_docx()
+    global DOCS
+    args = sys.argv[1:]
+    if "--out" in args:
+        i = args.index("--out")
+        DOCS = os.path.abspath(args[i + 1])
+        del args[i:i + 2]
+        os.makedirs(DOCS, exist_ok=True)
+    docx = os.path.abspath(args[0]) if args else latest_docx()
     if shutil.which("pandoc") is None:
         sys.exit("Se requiere pandoc (https://pandoc.org/installing.html).")
     rel = os.path.relpath(docx, ROOT)
@@ -116,10 +124,11 @@ def main():
         else:
             f.write("_El documento no tiene comentarios de Word._\n")
 
+    out_rel = os.path.relpath(DOCS, ROOT)
     print(f"Fuente: {rel}")
     for n in written:
-        print(f"  -> docs/{n}")
-    print(f"  -> docs/_revision_comentarios.md ({len(comments)} comentarios)")
+        print(f"  -> {out_rel}/{n}")
+    print(f"  -> {out_rel}/_revision_comentarios.md ({len(comments)} comentarios)")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-05 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 01 · Arquitectura de la Solución (Desktop → Web)
 
@@ -24,40 +24,7 @@
 
 ## 2. Vista de capas
 
-    flowchart TB
-        subgraph P["Presentación"]
-            WPF[ExpoReturn.Desktop<br/>WPF + MVVM<br/>Fase 1]
-            WEB[ExpoReturn.Web<br/>Blazor / Angular<br/>Fase 2]
-            PBI[Power BI<br/>ME/QMM-JuP1]
-        end
-     
-        subgraph S["Servidor JuP1 (IIS)"]
-            API[ExpoReturn.Api<br/>ASP.NET Core 8 REST<br/>Windows Auth / Negotiate]
-            WRK[ExpoReturn.Worker<br/>Alertas, recálculo, refresh MM60]
-        end
-     
-        subgraph C["Núcleo reutilizable"]
-            APP[ExpoReturn.Application<br/>Casos de uso, validadores,<br/>políticas RBAC, puertos]
-            DOM[ExpoReturn.Domain<br/>Entidades, Value Objects,<br/>FinancialCalculator, StatusResolver]
-            CON[ExpoReturn.Contracts<br/>DTOs / API models]
-        end
-     
-        subgraph I[Infraestructura]
-            INF[ExpoReturn.Infrastructure<br/>EF Core, AuditInterceptor,<br/>AD lookup, Email/Teams]
-        end
-     
-        DB[(SQL Server JuP1<br/>JUP1_QMM_EXPORETURN)]
-     
-        WPF -- HTTPS + Kerberos --> API
-        WEB -- HTTPS + Kerberos --> API
-        PBI -- rpt.* views --> DB
-        API --> APP
-        WRK --> APP
-        APP --> DOM
-        API --> CON
-        WPF --> CON
-        APP -. puertos .-> INF
-        INF --> DB
+![](media/6eb00a82d0984d2a4dd670b78e6ee3e891feaaa0.png)
 
 La capa de **Presentación** es la única que se reemplaza al pasar a Web; el **Núcleo** (Domain, Application, Contracts) se reutiliza sin cambios.
 
@@ -302,16 +269,6 @@ El borrador **no usa base de datos**. Para pasar a producción se reemplaza `Inf
 
 ## 9. Despliegue (vista física)
 
-    flowchart LR
-        PC[PC usuario JuP1<br/>WPF MSIX vía Software Center] -- HTTPS 443 Kerberos --> IIS
-        BR[Navegador Fase 2] -- HTTPS 443 Kerberos --> IIS
-        subgraph APPSRV["Servidor JuP1"]
-            IIS[IIS · ExpoReturn.Api<br/>App Pool gMSA]
-            SVC[Windows Service<br/>ExpoReturn.Worker]
-        end
-        IIS -- TDS 1433 --> SQL[(SQL Server JuP1<br/>AlwaysOn / cluster)]
-        SVC -- TDS 1433 --> SQL
-        SVC -- SMTP relay --> MAIL[Exchange Bosch]
-        PBIS[Power BI Service<br/>On-prem Data Gateway] -- rpt.* --> SQL
+![](media/133a96221cbb1d0328e6c191f177b5e517225220.png)
 
 Ambientes: **DEV → QAS → PRD**, cada uno con su propia BD. CI/CD en el repositorio corporativo (Azure DevOps o GitHub Enterprise de Bosch): *build*, pruebas, migraciones EF como script idempotente revisado por el DBA y despliegue con aprobación.

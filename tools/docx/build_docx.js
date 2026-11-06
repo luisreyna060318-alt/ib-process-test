@@ -22,7 +22,10 @@ const {
 } = require('docx');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'document.config.json'), 'utf8'));
+// DOCX_CONFIG permite generar otros documentos (p. ej. tools/docx/ux.config.json) con el mismo formato.
+const CFG_PATH = process.env.DOCX_CONFIG ? path.resolve(process.env.DOCX_CONFIG) : path.join(__dirname, 'document.config.json');
+const cfg = JSON.parse(fs.readFileSync(CFG_PATH, 'utf8'));
+const DOC_LANDSCAPE = cfg.orientation === 'landscape';      // documento completo en horizontal (manual de pantallas)
 
 /* ---------- Diseño ---------- */
 const FONT = 'Arial';
@@ -31,9 +34,9 @@ const C = { primary: '1F3864', accent: '2E75B6', text: '222222', muted: '666666'
             headFill: '1F3864', zebra: 'F2F5F9', border: 'BFC7D5', codeFill: 'F3F4F6',
             noteFill: 'EAF1FB', noteBorder: '2E75B6' };
 const PAGE_W = 12240, PAGE_H = 15840, MARGIN = 1080;       // Carta, márgenes 0.75"
-const CONTENT_W = PAGE_W - 2 * MARGIN;                      // 10080 DXA = 7"
+const CONTENT_W = (DOC_LANDSCAPE ? PAGE_H : PAGE_W) - 2 * MARGIN;   // 7" vertical · 9.5" horizontal
 const PX_PER_IN = 96;
-const MAX_IMG_W = 7 * PX_PER_IN, MAX_IMG_H = 8.6 * PX_PER_IN;          // página vertical
+const MAX_IMG_W = (DOC_LANDSCAPE ? 9.5 : 7) * PX_PER_IN, MAX_IMG_H = (DOC_LANDSCAPE ? 5.7 : 8.6) * PX_PER_IN;
 const LAND_IMG_W = 9.5 * PX_PER_IN, LAND_IMG_H = 5.9 * PX_PER_IN;       // página horizontal
 const LANDSCAPE_RATIO = 1.3, LANDSCAPE_MIN_W = 800;                      // diagramas anchos -> horizontal
 
@@ -132,7 +135,7 @@ function mermaidImage(src) {
   }
   const { w, h } = pngSize(file);
   let dw = w / 2, dh = h / 2;                       // PNG a escala 2x
-  const landscape = dw / dh > LANDSCAPE_RATIO && dw > LANDSCAPE_MIN_W;
+  const landscape = !DOC_LANDSCAPE && dw / dh > LANDSCAPE_RATIO && dw > LANDSCAPE_MIN_W;
   const s = landscape ? Math.min(1, LAND_IMG_W / dw, LAND_IMG_H / dh) : Math.min(1, MAX_IMG_W / dw, MAX_IMG_H / dh);
   dw *= s; dh *= s;
   const para = new Paragraph({
@@ -145,8 +148,9 @@ function mermaidImage(src) {
 function fileImage(file) {
   if (!fs.existsSync(file) || !/\.png$/i.test(file)) return [paragraph(`[imagen no encontrada: ${path.basename(file)}]`)];
   const { w, h } = pngSize(file);
-  let dw = w / 2, dh = h / 2;
-  const landscape = dw / dh > LANDSCAPE_RATIO && dw > LANDSCAPE_MIN_W;
+  const k = w >= 1400 ? 2 : 1;                      // diagramas a 2x; capturas pequeñas a 1x
+  let dw = w / k, dh = h / k;
+  const landscape = !DOC_LANDSCAPE && dw / dh > LANDSCAPE_RATIO && dw > LANDSCAPE_MIN_W;
   const s = landscape ? Math.min(1, LAND_IMG_W / dw, LAND_IMG_H / dh) : Math.min(1, MAX_IMG_W / dw, MAX_IMG_H / dh);
   const para = new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 160 },
     children: [new ImageRun({ type: 'png', data: fs.readFileSync(file), transformation: { width: Math.round(dw * s), height: Math.round(dh * s) } })] });
@@ -247,7 +251,7 @@ function pushImage(out, items) {
 }
 
 /* ---------- Markdown -> bloques ---------- */
-function convert(md) {
+function convert(md, baseDir = path.join(ROOT, 'docs')) {
   const out = [];
   const lines = md.replace(/\r/g, '').split('\n');
   let i = 0;
@@ -265,7 +269,7 @@ function convert(md) {
     }
     if (/^\s*$/.test(l) || /^---+\s*$/.test(l) || /^<!--/.test(l)) { i++; continue; }
     const img = /^!\[[^\]]*\]\(([^)]+)\)\s*$/.exec(l.trim());
-    if (img) { pushImage(out, fileImage(path.join(ROOT, 'docs', decodeURI(img[1])))); i++; continue; }
+    if (img) { pushImage(out, fileImage(path.join(baseDir, decodeURI(img[1])))); i++; continue; }
     if (/^( {4}|\t)\S/.test(l)) {                    // bloque de código indentado (salida de pandoc)
       const buf = [];
       while (i < lines.length && (/^( {4}|\t)/.test(lines[i]) || (/^\s*$/.test(lines[i]) && /^( {4}|\t)\S/.test(lines[i + 1] || '')))) {
@@ -369,7 +373,7 @@ function controlSection() {
     h('Revisión y aprobación'),
     ...simpleTable(['Rol', 'Nombre', 'Firma', 'Fecha'], cfg.approvers.map(([r, n]) => [r, n, '', '']), [3300, 2900, 2300, CONTENT_W - 8500]),
     h('Fuentes del documento'),
-    paragraph('Este documento Word es la FUENTE DE VERDAD del proyecto. Las revisiones (comentarios y control de cambios) se hacen aquí. Los archivos Markdown de trabajo del repositorio (carpeta docs/) se derivan de este Word con tools/docx/docx_to_md.py, y los scripts de base de datos (database/*.sql) y la solución .NET (src/) se mantienen alineados con esta especificación.'),
+    paragraph(cfg.sourcesNote || 'Este documento Word es la FUENTE DE VERDAD del proyecto. Las revisiones (comentarios y control de cambios) se hacen aquí. Los archivos Markdown de trabajo del repositorio (carpeta docs/) se derivan de este Word con tools/docx/docx_to_md.py, y los scripts de base de datos (database/*.sql) y la solución .NET (src/) se mantienen alineados con esta especificación.'),
     new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun({ text: 'Contenido' })] }),
     new TableOfContents('Contenido', { hyperlink: true, headingStyleRange: '1-3' }),
   ];
@@ -380,7 +384,7 @@ function controlSection() {
   const children = [...coverPage(), ...controlSection()];
   for (const rel of cfg.chapters) {
     const md = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-    children.push(...convert(md));
+    children.push(...convert(md, path.dirname(path.join(ROOT, rel))));
     console.log('  + capítulo', rel);
   }
 
@@ -396,7 +400,7 @@ function controlSection() {
     border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.border, space: 4 } },
     children: [
       new TextRun({ text: 'JuP1 · ME/QMM · Process Excellence', font: FONT, size: 16, color: C.muted }),
-      new TextRun({ children: [tab(), `${cfg.title} · SRS v${cfg.version}`], font: FONT, size: 16, color: C.muted }),
+      new TextRun({ children: [tab(), `${cfg.title} · ${cfg.shortName || 'SRS'} v${cfg.version}`], font: FONT, size: 16, color: C.muted }),
     ] })] });
   const mkFooter = () => new Footer({ children: [new Paragraph({
     children: [
@@ -411,7 +415,7 @@ function controlSection() {
   const flush = (first = false) => {
     if (!current.length) return;
     sections.push({
-      properties: { page: { size: { width: PAGE_W, height: PAGE_H }, margin }, titlePage: first },
+      properties: { page: { size: { width: PAGE_W, height: PAGE_H, orientation: DOC_LANDSCAPE ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT }, margin }, titlePage: first },
       headers: first ? { default: mkHeader(), first: new Header({ children: [new Paragraph({ children: [] })] }) } : { default: mkHeader() },
       footers: first ? { default: mkFooter(), first: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER,
         children: [new TextRun({ text: cfg.classification, font: FONT, size: 16, color: C.muted })] })] }) } : { default: mkFooter() },
@@ -432,7 +436,7 @@ function controlSection() {
   flush(sections.length === 0);
 
   const doc = new Document({
-    creator: cfg.author, title: `${cfg.title} · SRS v${cfg.version}`, description: cfg.subtitle,
+    creator: cfg.author, title: `${cfg.title} · ${cfg.shortName || 'SRS'} v${cfg.version}`, description: cfg.subtitle,
     features: { updateFields: true },
     styles: {
       default: {

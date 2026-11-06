@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-05 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 02 · Modelo Entidad-Relación (SQL Server)
 
@@ -21,75 +21,11 @@
 
 ### 2.1 Núcleo transaccional y catálogos
 
-    erDiagram
-        Catalog_ValueStreams ||--o{ Pallets_Return_Tracking : "ValueStreamId"
-        Catalog_Departments  ||--o{ Pallets_Return_Tracking : "RequestingDepartmentId"
-        Catalog_Reasons      ||--o{ Pallets_Return_Tracking : "ReasonId"
-        Pallets_Return_Tracking }o--|| Catalog_WorkflowStatus : "WorkflowStatusId"
-        Pallets_Return_Tracking }o--o| Catalog_StatusCategories : "StatusCategoryId"
-        Pallets_Return_Tracking }o--o| Catalog_IbOrderTypes : "IbOrderTypeCode"
-        Pallets_Return_Tracking }o..|| Material_Cost_MM60 : "snapshot de costo"
-        Users                ||--o{ Pallets_Return_Tracking : "QmmResponsibleUserId"
-     
-        Pallets_Return_Tracking {
-            int PalletReturnId PK
-            tinyint ValueStreamId FK
-            int FolioNumber "UQ con VS"
-            varchar FolioCode "VS7-00012"
-            smallint ReasonId FK
-            varchar ReturnedMaterial
-            decimal UnitCostUSD
-            int QtyImported
-            date ImportDateElpJup1 "abre ciclo IMMEX"
-            int OldMaterialDeliveredQty
-            int ScrapQty
-            varchar CustomsExportReference
-            date HseConfirmationDate
-            decimal BalanceGeneralUSD "Core"
-            tinyint WorkflowStatusId FK
-            rowversion RowVer
-        }
+![](media/8084acea8f4a7ad8197e52b37f8f6197fff261cb.png)
 
 ### 2.2 Seguridad, auditoría y soporte
 
-    erDiagram
-        Users                ||--o{ Champions_Matrix : "UserId"
-        App_Roles            ||--o{ Champions_Matrix : "RoleId"
-        Catalog_ValueStreams ||--o{ Champions_Matrix : "alcance VS"
-        App_Roles            ||--o{ Field_Permissions : "RoleId"
-        Catalog_Departments  ||--o{ Users : "DepartmentId"
-        Catalog_ValueStreams ||--|| Folio_Counters : "consecutivo"
-        Status_History }o--|| Pallets_Return_Tracking : "PalletReturnId"
-        Alerts }o--|| Pallets_Return_Tracking : "PalletReturnId"
-        Audit_Logs }o--|| Pallets_Return_Tracking : "RecordId (lógica)"
-     
-        Champions_Matrix {
-            int ChampionsMatrixId PK
-            int UserId FK
-            tinyint RoleId FK
-            tinyint ValueStreamId FK
-            varchar Assignment "CHAMPION/PROXY"
-            date ValidFrom
-            date ValidTo
-        }
-        Users {
-            int UserId PK
-            varchar NtUser UK
-        }
-        Field_Permissions {
-            tinyint RoleId PK
-            sysname FieldName PK
-            tinyint StageNo
-        }
-        Audit_Logs {
-            bigint AuditLogId PK
-            varchar RecordId
-            sysname FieldName
-            nvarchar OldValue
-            nvarchar NewValue
-            varchar NtUser
-            datetime2 ChangedAtUtc
-        }
+![](media/2b6690f60e06361f4e65a4dc02412a3b6d115165.png)
 
 **¿Por qué una sola tabla transaccional con columnas por etapa y no tablas hijas por movimiento?** Porque cada pallet tiene, en la práctica, **una** importación, **un** cierre MFO, **una** exportación y **una** confirmación HSE (relación 1:1). Una tabla ancha y bien tipada hace la migración 1:1 desde el Excel, simplifica Power BI y permite reglas `CHECK` entre etapas. Si en el futuro aparecen exportaciones parciales múltiples por pallet, se agrega `trk.Pallet_Movements` (tipo EXPORT/SCRAP/NATIONAL, cantidad, documento) y los campos actuales pasan a ser totales derivados. Es un cambio aditivo.
 

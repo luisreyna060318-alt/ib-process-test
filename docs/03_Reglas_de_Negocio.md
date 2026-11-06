@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-05 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 03 · Reglas de Negocio, Validaciones y Fórmulas Automatizadas
 
@@ -188,30 +188,7 @@ Indicadores USD (cada uno se redondea a 2 decimales con `MidpointRounding.AwayFr
 
 ## 4. Máquina de estados (derivada)
 
-    stateDiagram-v2
-        [*] --> DRAFT: POST (folio asignado)
-        DRAFT --> REQUESTED: Etapa 1 completa
-        DRAFT --> CANCELLED
-        REQUESTED --> CANCELLED: sin cruce (VAL-052)
-        REQUESTED --> IMPORTED: ImportDateElpJup1 + Invoice
-        IMPORTED --> IN_REWORK: MFO inicia (IB order, scrap, New HU…)
-        IN_REWORK --> PENDING_EXPORT: MFO cierra, Old > 0, sin referencia aduanal
-        IN_REWORK --> PENDING_HSE: MFO cierra, sólo scrap pendiente
-        PENDING_EXPORT --> PENDING_HSE: exportado, scrap sin confirmar
-        PENDING_HSE --> EXPORTED: HSE confirma y Old exportado
-        PENDING_HSE --> SCRAPPED: HSE confirma 100 % scrap
-        PENDING_EXPORT --> EXPORTED: Customs Export PRyy-#####
-        IMPORTED --> DUTY_RISK: plazo ≤ ALERT_CRITICAL_DAYS_LEFT
-        IN_REWORK --> DUTY_RISK: plazo / faltante declarado
-        PENDING_EXPORT --> DUTY_RISK: plazo
-        PENDING_HSE --> DUTY_RISK: plazo
-        DUTY_RISK --> EXPORTED: se concilia antes del vencimiento
-        DUTY_RISK --> SCRAPPED
-        DUTY_RISK --> CLOSED_DUTY_PAID: duty pagado + categoría (VAL-051)
-        EXPORTED --> [*]
-        SCRAPPED --> [*]
-        CLOSED_DUTY_PAID --> [*]
-        CANCELLED --> [*]
+![](media/895b1f205b9e40a05d0116659c23c7fd638bb8ae.png)
 
 ### 4.1 Algoritmo de resolución (orden de prioridad)
 
