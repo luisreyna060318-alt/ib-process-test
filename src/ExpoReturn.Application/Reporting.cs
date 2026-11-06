@@ -18,12 +18,12 @@ public sealed record Alert(AlertType Type, Severity Severity, int PalletId, stri
 {
     public string TypeText => Type switch
     {
-        AlertType.AgingWarning => "Aging IMMEX (aviso)",
-        AlertType.AgingCritical => "Aging IMMEX (crítico)",
+        AlertType.AgingWarning => "Antigüedad IMMEX (aviso)",
+        AlertType.AgingCritical => "Antigüedad IMMEX (crítica)",
         AlertType.LegalExpired => "Plazo IMMEX vencido",
-        AlertType.ReworkSla => "SLA retrabajo MFO",
-        AlertType.ExportSla => "SLA exportación",
-        AlertType.HseSla => "SLA confirmación HSE",
+        AlertType.ReworkSla => "Plazo interno de retrabajo (MFO)",
+        AlertType.ExportSla => "Plazo interno de exportación",
+        AlertType.HseSla => "Plazo interno de confirmación HSE",
         AlertType.QtyMismatch => "Faltante de piezas",
         _ => "Costo MM60 pendiente",
     };

@@ -357,15 +357,21 @@ function coverPage() {
     p(cfg.subtitle, { size: 30, color: C.accent, after: 300,
       border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: C.accent, space: 8 } } }),
     p(cfg.scope, { size: 22, after: 1400 }),
-    ...simpleTable(['Atributo', 'Valor'], [
+    ...(cfg.coverAttributes === false ? [] : simpleTable(['Atributo', 'Valor'], [
       ['Versión', cfg.version], ['Estatus', cfg.status], ['Fecha', cfg.date],
       ['Autor', cfg.author], ['Clasificación', cfg.classification],
-    ], [2600, CONTENT_W - 2600]),
+    ], [2600, CONTENT_W - 2600])),
   ];
 }
 
 function controlSection() {
   const h = (t) => new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: t })] });
+  const toc = [
+    new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun({ text: 'Contenido' })] }),
+    new TableOfContents('Contenido', { hyperlink: true, headingStyleRange: '1-3' }),
+  ];
+  // "documentControl": false -> sin historial, aprobaciones ni fuentes; sólo el índice.
+  if (cfg.documentControl === false) return toc;
   return [
     new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun({ text: 'Control del documento' })] }),
     h('Historial de versiones'),

@@ -1,9 +1,9 @@
-<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 05 · Flujos por rol
 
 
-Recorridos típicos de cada área en la aplicación. Sirven como guion para las pruebas con usuarios (capítulo 06) y como guía rápida para la capacitación.
+Recorridos típicos de cada área en la aplicación. Sirven como guion para las revisiones con usuarios y como guía rápida para la capacitación.
 
 ## Ciclo de vida del pallet y pantalla donde ocurre
 
@@ -14,9 +14,9 @@ Recorridos típicos de cada área en la aplicación. Sirven como guion para las 
 | 3\. Retrabajar / sortear                | MFO                   | PNT-02 · Pestaña 3             | En retrabajo → Pendiente exportación / Pendiente HSE |
 | 4a. Exportar el material bueno          | LOW y GS/OSD43        | PNT-02 · Pestaña 4             | Exportado                                            |
 | 4b. Confirmar el scrap                  | MFO (GR) y HSE        | PNT-02 · Pestaña 4             | Scrap confirmado / Exportado                         |
-| 5\. Clasificar discrepancias            | QMM                   | PNT-02 · Pestaña 5             | Duty Risk → Cerrado c/duty pagado                    |
+| 5\. Clasificar discrepancias            | QMM                   | PNT-02 · Pestaña 5             | Riesgo arancelario → Cerrado c/aranceles pagados     |
 | Seguimiento diario                      | Todas las áreas       | PNT-04 Alertas, PNT-01 Bandeja | —                                                    |
-| Reporte                                 | Jefaturas             | PNT-03 Balance / Duties        | —                                                    |
+| Reporte                                 | Jefaturas             | PNT-03 Balance / Aranceles     | —                                                    |
 
 ## Flujo QMM: nuevo retorno
 
@@ -58,8 +58,8 @@ Recorridos típicos de cada área en la aplicación. Sirven como guion para las 
 
 ## Flujo jefatura: seguimiento
 
-1.  **Balance / Duties**: exposición por VS y por año fiscal.
+1.  **Balance / Aranceles**: exposición por VS y por año fiscal.
 
 2.  **Alertas**: críticas primero (plazo IMMEX y faltantes).
 
-3.  **Bandeja** con "Sólo Duty Risk" para revisar caso por caso.
+3.  **Bandeja** con "Sólo riesgo arancelario" para revisar caso por caso.

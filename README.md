@@ -7,34 +7,32 @@ La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8
 
 ## 1. Documento del proyecto (fuente de verdad)
 
-**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx)** es la versión vigente y **la fuente de verdad**. Las revisiones (comentarios y control de cambios) se hacen en el Word.
+**[`entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx`](entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx)** es la versión vigente y **la fuente de verdad**. Las revisiones (comentarios y control de cambios) se hacen en el Word.
 
 Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 tools/docx/docx_to_md.py`); no se editan a mano. Flujo completo en [`tools/docx/README.md`](tools/docx/README.md).
 
 | Capítulo (derivado) | Contenido |
 |---|---|
-| [Resumen Ejecutivo](docs/Resumen_Ejecutivo.md) | Problema con cifras del Excel real, propuesta, beneficios, plan y decisiones solicitadas |
-| [00 · Diagnóstico AS-IS](docs/00_Diagnostico_AS-IS_Matriz_2.0.md) | Análisis del archivo real: 625 registros, ≈ USD 7.4 M importados, 17 hallazgos (VS7 lee los datos de VS4: ≈ USD 700 k no visibles; BALANCE en error; falsos cierres) |
+| [Resumen Ejecutivo](docs/Resumen_Ejecutivo.md) | Contexto, problema, propuesta y beneficios esperados |
 | [01 · Arquitectura](docs/01_Arquitectura_Solucion.md) | ADRs, capas, solución .NET, API, seguridad/RBAC, auditoría, despliegue y borrador implementado |
 | [02 · Modelo ER](docs/02_Modelo_Entidad_Relacion.md) | Diagrama ER, diccionario de datos y mapeo Excel → SQL |
-| [03 · Reglas de negocio](docs/03_Reglas_de_Negocio.md) | Validaciones VAL-xxx, motor financiero, máquina de estados, Duty Risk, alertas y casos golden |
-| [04 · Plan de implementación](docs/04_Plan_Migracion_Implementacion.md) | Fases, migración del histórico, cutover, UAT, riesgos y pendientes de validación (P-01…P-12) |
+| [03 · Reglas de negocio](docs/03_Reglas_de_Negocio.md) | Validaciones VAL-xxx, motor financiero, máquina de estados, riesgo arancelario, alertas y casos golden |
 | [Comentarios de revisión](docs/_revision_comentarios.md) | Comentarios exportados del Word |
 
 ## 2. Manual de pantallas y control de UX
 
-**[`entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx`](entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx)** (fuente de verdad, en horizontal) contiene:
+**[`entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx`](entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx)** (fuente de verdad, en horizontal) contiene:
 
 * las fichas de las 8 pantallas, con capturas anotadas y la tabla de elementos;
-* las convenciones visuales, con el contraste medido de cada color;
+* la lista de estatus del pallet y su significado para el usuario;
 * los flujos por rol;
-* el registro de hallazgos UX de las rondas 1 a 3, los pendientes por validar con usuarios, la lista de verificación y la plantilla de sesión de prueba.
+* el registro de hallazgos UX de las rondas 1 a 3, el estado de los pendientes UX (implementados en v0.1.3, por verificar) y la lista de verificación.
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
 ## 3. Borrador de la aplicación (.NET 8 / WPF)
 
-Solución `ExpoReturn.sln` con las pantallas esperadas, **sin base de datos**: bandeja, formulario de 6 bloques con permisos por rol/VS, cálculo en vivo, validaciones, Balance/Duties, alertas, Champions y bitácora. Puede importar el Excel real **en memoria y en sólo lectura**.
+Solución `ExpoReturn.sln` con las pantallas esperadas, **sin base de datos**: bandeja, formulario de 6 bloques con permisos por rol/VS, cálculo en vivo, validaciones, Balance/Aranceles, alertas, Champions y bitácora. Puede importar el Excel real **en memoria y en sólo lectura**.
 
 Instrucciones, guion de revisión y limitaciones en [`src/README.md`](src/README.md).
 

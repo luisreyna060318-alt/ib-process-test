@@ -29,10 +29,10 @@ public static class WorkflowStatusInfo
         WorkflowStatus.InRework => "En retrabajo",
         WorkflowStatus.PendingHse => "Pendiente HSE",
         WorkflowStatus.PendingExport => "Pendiente exportación",
-        WorkflowStatus.DutyRisk => "Duty Risk",
+        WorkflowStatus.DutyRisk => "Riesgo arancelario",
         WorkflowStatus.Exported => "Exportado",
         WorkflowStatus.Scrapped => "Scrap confirmado",
-        WorkflowStatus.ClosedDutyPaid => "Cerrado c/duty pagado",
+        WorkflowStatus.ClosedDutyPaid => "Cerrado c/aranceles pagados",
         WorkflowStatus.Cancelled => "Cancelado",
         _ => s.ToString(),
     };

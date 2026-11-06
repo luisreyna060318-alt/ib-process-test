@@ -28,7 +28,7 @@ cd tools/docx && npm install && npx playwright install chromium && npm run diagr
 `docx_to_md.py` requiere **pandoc**. Hace lo siguiente:
 
 * acepta el control de cambios del Word;
-* separa un `.md` por capítulo (Título 1) y omite la portada, el control del documento y el índice;
+* separa un `.md` por capítulo (Título 1) y omite la portada y el índice (y el control del documento, si lo hay);
 * extrae las imágenes a `docs/media/`;
 * exporta los **comentarios** de Word a `docs/_revision_comentarios.md`, con autor, fecha, texto comentado y comentario, para atenderlos uno por uno.
 
@@ -36,7 +36,7 @@ cd tools/docx && npm install && npx playwright install chromium && npm run diagr
 
 1. **Cambios de la jefatura o las áreas:** se hacen en Word sobre la versión vigente y se guardan como `vX.Y+1`. Después se ejecuta `docx_to_md.py` y se hace commit del `.docx` y de los `.md` regenerados.
 2. **Cambios que propone Claude:** Claude edita el Word directamente (cambios puntuales) o, cuando son cambios amplios y **no hay comentarios pendientes**, edita los `.md` y regenera el Word con `build_docx.js`. Luego vuelve a derivar los `.md`. El ida y vuelta Word → Markdown → Word conserva el texto, las tablas, el código, las notas y las imágenes; los comentarios y el control de cambios de Word **no** se conservan, por eso primero se atienden.
-3. Se actualiza `document.config.json` (versión, fecha, historial), que alimenta la portada y el control del documento.
+3. Se actualiza `document.config.json` (versión, fecha, capítulos), que alimenta la portada y el encabezado.
 
 ## Manual de pantallas (UX)
 
@@ -44,7 +44,7 @@ Usa el mismo flujo, con su propia configuración (`ux.config.json`, en horizonta
 
 ```bash
 # Word -> docs/ux/*.md
-python3 tools/docx/docx_to_md.py entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx --out docs/ux
+python3 tools/docx/docx_to_md.py entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx --out docs/ux
 ```
 
 ```bash
@@ -64,10 +64,10 @@ Nueva ronda de revisión UX:
 | Archivo | Uso |
 |---|---|
 | `docx_to_md.py` | Word → `docs/*.md` (flujo normal) |
-| `build_docx.js` | `docs/*.md` → Word con formato corporativo: portada, control del documento, índice, páginas horizontales para diagramas anchos. `DOCX_OUTPUT=ruta.docx` cambia el destino |
+| `build_docx.js` | `docs/*.md` → Word con formato corporativo: portada, índice, páginas horizontales para diagramas anchos. `DOCX_OUTPUT=ruta.docx` cambia el destino |
 | `render_mermaid.js` | Diagramas `docs/diagrams/*.mmd` → `.png` |
-| `document.config.json` | SRS: versión, fecha, estatus, autor, aprobadores, historial y orden de capítulos |
-| `ux.config.json` | Lo mismo para el Manual de pantallas (orientación horizontal, `shortName`, `sourcesNote`) |
+| `document.config.json` | SRS: versión, fecha, estatus y orden de capítulos. `coverAttributes: false` quita la tabla Atributo/Valor de la portada y `documentControl: false` quita historial, aprobaciones y fuentes (queda sólo el índice) |
+| `ux.config.json` | Lo mismo para el Manual de pantallas (orientación horizontal, `shortName`) |
 | `../ux/annotate_screens.py` | Anota las capturas con marcadores numerados y oculta datos personales |
 
 Al abrir el Word, acepta **actualizar campos** para que se llene el índice (o en Word: clic derecho sobre el índice → *Actualizar campos*).

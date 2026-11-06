@@ -62,7 +62,8 @@ public sealed class ChampionsDirectory : IChampionsDirectory
 
     public IReadOnlyList<Person> All() => _people;
     public IReadOnlyList<string> QmmFor(int vs) =>
-        _people.Where(p => p.Role == RoleCode.Qmm && p.ValueStreamId == vs && p.Name != "TBD").Select(p => p.Name).Distinct().ToList();
+        _people.Where(p => p.Role == RoleCode.Qmm && p.ValueStreamId == vs && p.Name != "TBD" && p.IsActiveOn(DateTime.Today))
+               .Select(p => p.Name).Distinct().ToList();
 
     public void Replace(IEnumerable<Person> people)
     {
@@ -73,7 +74,7 @@ public sealed class ChampionsDirectory : IChampionsDirectory
     public IReadOnlyList<UserContext> DemoUsers()
     {
         string Pick(RoleCode r, int vs, string fallback) =>
-            _people.FirstOrDefault(p => p.Role == r && p.ValueStreamId == vs && p.Assignment == "Champion" && p.Name != "TBD")?.Name ?? fallback;
+            _people.FirstOrDefault(p => p.Role == r && p.ValueStreamId == vs && p.Assignment == "Champion" && p.Name != "TBD" && p.IsActiveOn(DateTime.Today))?.Name ?? fallback;
         return new List<UserContext>
         {
             new("DEMO\\ADMIN", "Admin Process Excellence", RoleCode.AdminQmmPe, Array.Empty<int>()),
@@ -113,4 +114,14 @@ public sealed class ChampionsDirectory : IChampionsDirectory
         list.Add(new("Iván Robledo", RoleCode.Gs, 1, "Proxy"));
         return list;
     }
+}
+
+/// <summary>Alertas atendidas (UX-B09), en memoria.</summary>
+public sealed class InMemoryAlertAcknowledgementStore : IAlertAcknowledgementStore
+{
+    private readonly Dictionary<(int, AlertType), AlertAcknowledgement> _items = new();
+    private readonly object _gate = new();
+    public void Acknowledge(AlertAcknowledgement ack) { lock (_gate) _items[(ack.PalletId, ack.Type)] = ack; }
+    public AlertAcknowledgement? Find(int palletId, AlertType type) { lock (_gate) return _items.GetValueOrDefault((palletId, type)); }
+    public void Clear() { lock (_gate) _items.Clear(); }
 }

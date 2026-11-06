@@ -5,19 +5,82 @@
         <StackPanel>
             <TextBlock Text="Matriz Champions VS" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}"
-                       Text="Quién es Champion / Proxy de cada área por Value Stream (Process Owner: Ezequiel Loya Morales). Define en qué VS puede editar cada usuario. Con datos demo los nombres son ficticios; al importar el Excel se leen de la hoja 'Champions VS'. En producción la administrará el rol Admin QMM/PE desde aquí." />
+                       Text="Quién es Champion / Proxy de cada área por Value Stream (Process Owner: Ezequiel Loya Morales). Define en qué VS puede editar cada usuario. Con datos demo los nombres son ficticios; al importar el Excel se leen de la hoja 'Champions VS'. El rol Admin QMM/PE la administra desde esta pantalla." />
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                <DataGrid ItemsSource="{Binding Rows}" RowHeight="40">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="60" />
-                        <DataGridTextColumn Header="MFO" Binding="{Binding Mfo}" Width="*" />
-                        <DataGridTextColumn Header="QMM" Binding="{Binding Qmm}" Width="*" />
-                        <DataGridTextColumn Header="LOW" Binding="{Binding Low}" Width="*" />
-                        <DataGridTextColumn Header="GS / OSD43" Binding="{Binding Gs}" Width="*" />
-                        <DataGridTextColumn Header="MFQ" Binding="{Binding Mfq}" Width="0.6*" />
-                    </DataGrid.Columns>
-                </DataGrid>
+                <StackPanel>
+                    <TextBlock Text="Vigentes hoy" Style="{StaticResource SectionTitle}" />
+                    <DataGrid ItemsSource="{Binding Rows}" RowHeight="40">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="60" />
+                            <DataGridTextColumn Header="MFO" Binding="{Binding Mfo}" Width="*" />
+                            <DataGridTextColumn Header="QMM" Binding="{Binding Qmm}" Width="*" />
+                            <DataGridTextColumn Header="LOW" Binding="{Binding Low}" Width="*" />
+                            <DataGridTextColumn Header="GS / OSD43" Binding="{Binding Gs}" Width="*" />
+                            <DataGridTextColumn Header="MFQ" Binding="{Binding Mfq}" Width="0.6*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
             </Border>
+
+            <!-- UX-B10: edición por Admin QMM/PE con vigencia -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Administrar la matriz (sólo Admin QMM / Process Excellence)" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                               Text="Para cambiar a un Champion/Proxy: dé de baja al actual (cierra su vigencia; no se borra la historia) y agregue al nuevo con su fecha de inicio. Los cambios aplican al guardar y quedan en la bitácora." />
+                    <TextBlock Text="Su rol no administra la matriz (sólo lectura). Cambie el usuario simulado a Admin para probar la edición."
+                               Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"
+                               Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
+                    <DataGrid ItemsSource="{Binding EditRows}" SelectedItem="{Binding SelectedEdit}" IsReadOnly="False" CanUserAddRows="False"
+                              IsEnabled="{Binding CanEdit}" MaxHeight="360" RowHeight="32">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nombre" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" IsReadOnly="False" />
+                            <DataGridTemplateColumn Header="Área" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding DataContext.RoleOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Role, UpdateSourceTrigger=PropertyChanged}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="VS" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding DataContext.ValueStreamOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedItem="{Binding ValueStreamId, UpdateSourceTrigger=PropertyChanged}" ItemStringFormat="VS{0}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Asignación" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding DataContext.AssignmentOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedItem="{Binding Assignment, UpdateSourceTrigger=PropertyChanged}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Vigente desde" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><DatePicker SelectedDate="{Binding ValidFrom, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Vigente hasta" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><DatePicker SelectedDate="{Binding ValidTo, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0" IsEnabled="{Binding CanEdit}">
+                        <Button Content="Agregar persona" Command="{Binding AddPersonCommand}" Style="{StaticResource SecondaryButton}" />
+                        <Button Content="Dar de baja (cerrar vigencia)" Command="{Binding EndPersonCommand}" Style="{StaticResource SecondaryButton}" />
+                        <Button Content="Guardar cambios" Command="{Binding SaveChangesCommand}" Style="{StaticResource PrimaryButton}" />
+                        <Button Content="Descartar" Command="{Binding DiscardChangesCommand}" Style="{StaticResource LinkButton}" />
+                        <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560" Margin="8,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="Campos que edita cada rol (bloques del Excel)" Style="{StaticResource SectionTitle}" />

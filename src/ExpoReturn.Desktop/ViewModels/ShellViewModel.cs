@@ -21,7 +21,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             new NavItem("list", "Bandeja de retornos", ""),
             new NavItem("new", "Nuevo retorno", ""),
-            new NavItem("dashboard", "Balance / Duties", ""),
+            new NavItem("dashboard", "Balance / Aranceles", ""),
             new NavItem("alerts", "Alertas", ""),
             new NavItem("champions", "Champions VS", ""),
             new NavItem("audit", "Bitácora", ""),
@@ -51,7 +51,7 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = value.Key switch
         {
             "new" => new PalletDetailViewModel(_services, CurrentUser, null, Back),
-            "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenPallet),
+            "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenList),
             "alerts" => new AlertsViewModel(_services, CurrentUser, OpenPallet),
             "champions" => new ChampionsViewModel(_services, CurrentUser),
             "audit" => new AuditViewModel(_services, CurrentUser),
@@ -73,6 +73,27 @@ public sealed partial class ShellViewModel : ObservableObject
         var pallet = _services.Repository.Get(id);
         if (pallet is null) return;
         CurrentPage = new PalletDetailViewModel(_services, CurrentUser, pallet, Back);
+    }
+
+    /// <summary>UX-B13: abre la bandeja con un filtro (desde Balance / Aranceles).</summary>
+    private void OpenList(ListFilter filter)
+    {
+        if (!ConfirmLeave()) return;
+        _suppressNav = true;
+        SelectedNav = NavItems[0];
+        _suppressNav = false;
+        CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenPallet, filter);
+    }
+
+    /// <summary>UX-B12: Ctrl+N abre un retorno nuevo desde cualquier pantalla.</summary>
+    [RelayCommand]
+    private void NewReturn()
+    {
+        if (!ConfirmLeave()) return;
+        _suppressNav = true;
+        SelectedNav = NavItems[1];
+        _suppressNav = false;
+        CurrentPage = new PalletDetailViewModel(_services, CurrentUser, null, Back);
     }
 
     private void Back()

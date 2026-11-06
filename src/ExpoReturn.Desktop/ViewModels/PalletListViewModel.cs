@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ExpoReturn.Application;
 using ExpoReturn.Domain;
+using ExpoReturn.Infrastructure.InMemory;
+using Microsoft.Win32;
 
 namespace ExpoReturn.Desktop.ViewModels;
 
@@ -41,12 +44,16 @@ public sealed class PalletRow
     public int SortKey => Status.IsClosed() ? 100000 : DaysToLegalDue ?? 50000;
 }
 
+/// <summary>Filtro inicial al llegar desde otra pantalla (UX-B13: clic en Balance).</summary>
+public sealed record ListFilter(int? ValueStreamId = null, WorkflowStatus? Status = null, bool OnlyOpen = false);
+
 public sealed partial class PalletListViewModel : PageViewModel
 {
     private readonly Action<int> _open;
     private readonly ObservableCollection<PalletRow> _rows = new();
+    private bool _loadingFilters;
 
-    public PalletListViewModel(AppServices services, UserContext user, Action<int> open) : base(services, user)
+    public PalletListViewModel(AppServices services, UserContext user, Action<int> open, ListFilter? initial = null) : base(services, user)
     {
         _open = open;
         ValueStreamOptions = new[] { new LookupItem(null, "Todos los VS") }
@@ -57,6 +64,9 @@ public sealed partial class PalletListViewModel : PageViewModel
         _selectedStatus = StatusOptions[0];
         Rows = CollectionViewSource.GetDefaultView(_rows);
         Rows.Filter = Filter;
+
+        if (initial is not null) ApplyInitial(initial);
+        else LoadPreferences();
         Refresh();
     }
 
@@ -64,6 +74,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     public ICollectionView Rows { get; }
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; }
     public IReadOnlyList<LookupItem> StatusOptions { get; }
+    /// <summary>La columna "Calidad de datos" sólo se muestra si hay registros históricos (UX-B07).</summary>
     public bool HasLegacy => _rows.Any(r => r.Pallet.IsLegacy);
 
     [ObservableProperty] private LookupItem _selectedValueStream;
@@ -71,6 +82,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _onlyDutyRisk;
     [ObservableProperty] private PalletRow? _selectedRow;
+    [ObservableProperty] private string? _message;
 
     [ObservableProperty] private int _kpiCount;
     [ObservableProperty] private int _kpiOpen;
@@ -78,10 +90,16 @@ public sealed partial class PalletListViewModel : PageViewModel
     [ObservableProperty] private decimal _kpiBalance;
     [ObservableProperty] private decimal _kpiDutyExposure;
 
-    partial void OnSelectedValueStreamChanged(LookupItem value) => ApplyFilter();
-    partial void OnSelectedStatusChanged(LookupItem value) => ApplyFilter();
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
-    partial void OnOnlyDutyRiskChanged(bool value) => ApplyFilter();
+    partial void OnSelectedValueStreamChanged(LookupItem value) => FiltersChanged();
+    partial void OnSelectedStatusChanged(LookupItem value) => FiltersChanged();
+    partial void OnSearchTextChanged(string value) => FiltersChanged();
+    partial void OnOnlyDutyRiskChanged(bool value) => FiltersChanged();
+
+    protected override void UserChanged()
+    {
+        LoadPreferences();
+        ApplyFilter();
+    }
 
     public override void Refresh()
     {
@@ -93,6 +111,47 @@ public sealed partial class PalletListViewModel : PageViewModel
             _rows.Add(r);
         OnPropertyChanged(nameof(HasLegacy));
         ApplyFilter();
+    }
+
+    private void FiltersChanged()
+    {
+        ApplyFilter();
+        if (_loadingFilters) return;
+        Services.Preferences.SetListFilter(User.NtUser, new ListFilterPreference
+        {
+            ValueStreamId = SelectedValueStream?.Value as int?,
+            Status = SelectedStatus?.Value?.ToString(),
+            Search = SearchText,
+            OnlyDutyRisk = OnlyDutyRisk,
+        });
+    }
+
+    private void LoadPreferences()
+    {
+        var pref = Services.Preferences.GetListFilter(User.NtUser);
+        _loadingFilters = true;
+        try
+        {
+            SelectedValueStream = ValueStreamOptions.FirstOrDefault(o => Equals(o.Value, pref?.ValueStreamId)) ?? ValueStreamOptions[0];
+            SelectedStatus = StatusOptions.FirstOrDefault(o => o.Value?.ToString() == pref?.Status) ?? StatusOptions[0];
+            SearchText = pref?.Search ?? "";
+            OnlyDutyRisk = pref?.OnlyDutyRisk ?? false;
+        }
+        finally { _loadingFilters = false; }
+    }
+
+    private void ApplyInitial(ListFilter f)
+    {
+        _loadingFilters = true;
+        try
+        {
+            SelectedValueStream = ValueStreamOptions.FirstOrDefault(o => Equals(o.Value, f.ValueStreamId)) ?? ValueStreamOptions[0];
+            SelectedStatus = f.Status is { } s ? StatusOptions.First(o => Equals(o.Value, s))
+                           : f.OnlyOpen ? StatusOptions[0] : StatusOptions[1];
+            SearchText = "";
+            OnlyDutyRisk = false;
+        }
+        finally { _loadingFilters = false; }
     }
 
     private void ApplyFilter()
@@ -126,6 +185,11 @@ public sealed partial class PalletListViewModel : PageViewModel
         return true;
     }
 
+    private string FilterDescription =>
+        $"{SelectedValueStream?.Label} · {SelectedStatus?.Label}" +
+        (string.IsNullOrWhiteSpace(SearchText) ? "" : $" · \"{SearchText}\"") +
+        (OnlyDutyRisk ? " · sólo riesgo arancelario" : "");
+
     [RelayCommand]
     private void Open(PalletRow? row)
     {
@@ -140,5 +204,28 @@ public sealed partial class PalletListViewModel : PageViewModel
         SelectedStatus = StatusOptions[1];
         SearchText = "";
         OnlyDutyRisk = false;
+    }
+
+    /// <summary>UX-B06: exporta la vista filtrada a un Excel de sólo lectura.</summary>
+    [RelayCommand]
+    private void Export()
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = "Exportar bandeja (sólo lectura)",
+            Filter = "Excel (*.xlsx)|*.xlsx",
+            FileName = $"Bandeja_retornos_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            var visible = Rows.Cast<PalletRow>().Select(r => r.Pallet).ToList();
+            ExcelExporter.ExportPallets(visible, dlg.FileName, Services.Clock.Today, FilterDescription);
+            Message = $"Se exportaron {visible.Count} registros a {System.IO.Path.GetFileName(dlg.FileName)} (hoja protegida, sólo lectura).";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo exportar:\n{ex.Message}\n\nSi el archivo está abierto en Excel, ciérrelo.", "Exportar", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 }

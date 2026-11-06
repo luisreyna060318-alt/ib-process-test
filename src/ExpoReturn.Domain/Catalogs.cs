@@ -1,7 +1,11 @@
 namespace ExpoReturn.Domain;
 
 public sealed record ValueStream(int Id, string Code, string Name);
-public sealed record Reason(int Id, string Code, string Description, string Group, bool RequiresNewMaterial);
+/// <summary>Description = texto oficial del Excel (inglés, se usa para importar); Label = etiqueta en español.</summary>
+public sealed record Reason(int Id, string Code, string Description, string Group, bool RequiresNewMaterial, string Label)
+{
+    public string ExcelHelp => $"Excel 2.0: {Description}";
+}
 public sealed record Department(string Code, string Name, string Area, bool CanRequest);
 public sealed record StatusCategory(string Code, string Description, string Kind, string? ResponsibleArea, bool AffectsDuty, bool IsAutoDerived);
 public sealed record IbOrderType(string Code, string Description);
@@ -21,16 +25,16 @@ public static class Catalogs
     /// <summary>El Excel real trae 10 motivos (la especificación decía 9). [VALIDAR QMM]</summary>
     public static IReadOnlyList<Reason> Reasons { get; } = new[]
     {
-        new Reason(1, "R01", "Packaging change due to customer request", "PACKAGING", false),
-        new Reason(2, "R02", "Packaging change due to planning error", "PACKAGING", false),
-        new Reason(3, "R03", "To change FG P/N with reflash", "REFLASH", true),
-        new Reason(4, "R04", "To inspect due to possible pallet damage", "INSPECTION", false),
-        new Reason(5, "R05", "To complete a partial pallet", "COMPLETION", false),
-        new Reason(6, "R06", "Inspect due to Customer Quality", "INSPECTION", false),
-        new Reason(7, "R07", "Inspect due to Manufacturing Quality", "INSPECTION", false),
-        new Reason(8, "R08", "Inspect due to Supplier Quality", "INSPECTION", false),
-        new Reason(9, "R09", "Inspect due to incomplete box or pallet", "INSPECTION", false),
-        new Reason(10, "R10", "Inspect due to mistakes in standard pack", "PACKAGING", false),
+        new Reason(1, "R01", "Packaging change due to customer request", "PACKAGING", false, "Cambio de empaque por solicitud del cliente"),
+        new Reason(2, "R02", "Packaging change due to planning error", "PACKAGING", false, "Cambio de empaque por error de planeación"),
+        new Reason(3, "R03", "To change FG P/N with reflash", "REFLASH", true, "Cambio de número de parte FG con reflasheo"),
+        new Reason(4, "R04", "To inspect due to possible pallet damage", "INSPECTION", false, "Inspección por posible daño del pallet"),
+        new Reason(5, "R05", "To complete a partial pallet", "COMPLETION", false, "Completar un pallet parcial"),
+        new Reason(6, "R06", "Inspect due to Customer Quality", "INSPECTION", false, "Inspección por calidad del cliente"),
+        new Reason(7, "R07", "Inspect due to Manufacturing Quality", "INSPECTION", false, "Inspección por calidad de manufactura"),
+        new Reason(8, "R08", "Inspect due to Supplier Quality", "INSPECTION", false, "Inspección por calidad del proveedor"),
+        new Reason(9, "R09", "Inspect due to incomplete box or pallet", "INSPECTION", false, "Inspección por caja o pallet incompleto"),
+        new Reason(10, "R10", "Inspect due to mistakes in standard pack", "PACKAGING", false, "Inspección por errores en el empaque estándar"),
     };
 
     public static IReadOnlyList<Department> Departments { get; } = BuildDepartments();

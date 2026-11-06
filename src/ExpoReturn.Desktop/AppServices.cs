@@ -15,6 +15,8 @@ public sealed class AppServices
     public required IClock Clock { get; init; }
     public required PalletReturnService Pallets { get; init; }
     public required ReportingService Reporting { get; init; }
+    public required InMemoryAlertAcknowledgementStore AlertAcks { get; init; }
+    public UserPreferences Preferences { get; } = UserPreferences.Load();
 
     public string DataSourceLabel { get; set; } = "Datos de demostración (sintéticos)";
 
@@ -30,12 +32,14 @@ public sealed class AppServices
             Repository = repo, Audit = audit, Champions = champions, Clock = clock,
             Pallets = new PalletReturnService(repo, audit, clock),
             Reporting = new ReportingService(repo, clock),
+            AlertAcks = new InMemoryAlertAcknowledgementStore(),
         };
     }
 
     public void ResetDemo()
     {
         Audit.Clear();
+        AlertAcks.Clear();
         Champions.Replace(new ChampionsDirectory().All());
         SampleData.Seed(Repository, Audit, Champions, Clock);
         DataSourceLabel = "Datos de demostración (sintéticos)";
@@ -45,6 +49,7 @@ public sealed class AppServices
     {
         var result = LegacyExcelImporter.Import(path, Clock.Today);
         Audit.Clear();
+        AlertAcks.Clear();
         Repository.ReplaceAll(result.Pallets);
         Champions.Replace(result.Champions);
         DataSourceLabel = $"Excel importado (sólo lectura, en memoria): {System.IO.Path.GetFileName(path)}";

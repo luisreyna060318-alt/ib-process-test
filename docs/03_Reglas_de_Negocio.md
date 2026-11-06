@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 03 · Reglas de Negocio, Validaciones y Fórmulas Automatizadas
 
@@ -34,30 +34,30 @@ Severidad: **E** = bloquea el guardado (HTTP 422) · **W** = permite guardar, pe
 
 ### 2.2 Etapa 1 · Solicitud y apertura (QMM / solicitante)
 
-| **Código** | **Sev.** | **Regla**                                                                                                                                                         |
-|------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| VAL-010    | E        | `ReturnedMaterial` cumple `^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$`. La captura `0203306644-250` se normaliza sola a `0203.306.644-250`             |
-| VAL-011    | W        | El material existe en `Material_Cost_MM60` con precio \> 0. Si no, `UnitCostSource = PENDING`, alerta COST_PENDING y SapUsdTotal en 0 (sustituye a "COSTEAR")     |
-| VAL-012    | E        | `QtyImported` entero \> 0                                                                                                                                         |
-| VAL-013    | W        | `OriginalHU` de 10 dígitos numéricos. Es advertencia porque en el Excel real 218 registros traen el lote en esta columna \[VALIDAR P-10\]. Se exige HU **o** lote |
-| VAL-014    | E        | `OriginalBatch` alfanumérico de ≤ 10 caracteres (p. ej. `AC20887866`); no se aceptan fechas ni espacios                                                           |
-| VAL-015    | W        | `ReasonId` del catálogo (selector estricto)                                                                                                                       |
-| VAL-016    | W        | `RequestingDepartmentId` de un departamento con `CanRequest = 1`                                                                                                  |
-| VAL-017    | W        | `QmmResponsibleUserId` es Champion/Proxy QMM vigente del VS                                                                                                       |
-| VAL-018    | W        | Ya existe un registro **abierto** con el mismo `OriginalHU`                                                                                                       |
+| **Código** | **Sev.** | **Regla**                                                                                                                                                     |
+|------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| VAL-010    | E        | `ReturnedMaterial` cumple `^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$`. La captura `0203306644-250` se normaliza sola a `0203.306.644-250`         |
+| VAL-011    | W        | El material existe en `Material_Cost_MM60` con precio \> 0. Si no, `UnitCostSource = PENDING`, alerta COST_PENDING y SapUsdTotal en 0 (sustituye a "COSTEAR") |
+| VAL-012    | E        | `QtyImported` entero \> 0                                                                                                                                     |
+| VAL-013    | W        | `OriginalHU` de 10 dígitos numéricos. Es advertencia porque en la práctica esta columna suele traer el lote \[VALIDAR con QMM y LOW\]. Se exige HU **o** lote |
+| VAL-014    | E        | `OriginalBatch` alfanumérico de ≤ 10 caracteres (p. ej. `AC20887866`); no se aceptan fechas ni espacios                                                       |
+| VAL-015    | W        | `ReasonId` del catálogo (selector estricto)                                                                                                                   |
+| VAL-016    | W        | `RequestingDepartmentId` de un departamento con `CanRequest = 1`                                                                                              |
+| VAL-017    | W        | `QmmResponsibleUserId` es Champion/Proxy QMM vigente del VS                                                                                                   |
+| VAL-018    | W        | Ya existe un registro **abierto** con el mismo `OriginalHU`                                                                                                   |
 
 **Etapa 1 completa** = VS, QMM Responsible, Requesting department, Requestor, Reason, P/N, Qty, HU y Batch → estatus `REQUESTED`.
 
 ### 2.3 Etapa 2 · Aduanas y logística de entrada (GS/OSD43, QMM, LOP)
 
-| **Código** | **Sev.** | **Regla**                                                                                                                                                                |
-|------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| VAL-020    | E        | Requiere la Etapa 1 completa                                                                                                                                             |
-| VAL-021    | W        | `DateReturnedToWhs ≤ ImportDate ≤ ImportDateElpJup1`. Es advertencia porque hay 67 registros reales con la importación anterior a "Date PO" \[VALIDAR P-11\]             |
-| VAL-022    | E        | `ImportDateElpJup1` requiere `ImportInvoice` e `ImportDate` (y ya no se concatenan en una celda)                                                                         |
-| VAL-023    | W        | `ImportInvoice` cumple `^MPS\d{8}$` y su año (`MPS``26`…) coincide con el de `ImportDate` (este cruce habría detectado el caso VS1: JAN.20.**2025** con MPS**26**000009) |
-| VAL-024    | E        | `ReturnPONumber` de 8 dígitos; la posición va en `ReturnPOItem`                                                                                                          |
-| VAL-025    | W        | `DeliveryNumber` vacío y `DutyPaymentStatus` vacío después de 2 días del cruce                                                                                           |
+| **Código** | **Sev.** | **Regla**                                                                                                                                                                      |
+|------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| VAL-020    | E        | Requiere la Etapa 1 completa                                                                                                                                                   |
+| VAL-021    | W        | `DateReturnedToWhs ≤ ImportDate ≤ ImportDateElpJup1`. Es advertencia porque la fecha PO puede ser la de la PO de retorno, posterior a la importación \[VALIDAR con QMM y LOP\] |
+| VAL-022    | E        | `ImportDateElpJup1` requiere `ImportInvoice` e `ImportDate` (y ya no se concatenan en una celda)                                                                               |
+| VAL-023    | W        | `ImportInvoice` cumple `^MPS\d{8}$` y su año (`MPS``26`…) coincide con el de `ImportDate` (este cruce habría detectado el caso VS1: JAN.20.**2025** con MPS**26**000009)       |
+| VAL-024    | E        | `ReturnPONumber` de 8 dígitos; la posición va en `ReturnPOItem`                                                                                                                |
+| VAL-025    | W        | `DeliveryNumber` vacío y `DutyPaymentStatus` vacío después de 2 días del cruce                                                                                                 |
 
 Al capturar `ImportDateElpJup1` → estatus `IMPORTED`, `LegalDueDate = ImportDateElpJup1 + IMMEX_LEGAL_TERM_DAYS` y arranca el aging.
 
@@ -71,22 +71,22 @@ Al capturar `ImportDateElpJup1` → estatus `IMPORTED`, `LegalDueDate = ImportDa
 | VAL-033    | E        | `OldMaterialDeliveredQty + ScrapQty ≤ QtyImported` (no se puede sacar más de lo importado)                                                                                                                                                            |
 | VAL-034    | E        | **Al cerrar MFO** (capturar `PhysicalDeliveredQty`): `Old + Scrap = QtyImported`. Si no cuadra, el usuario debe marcar **"Declarar faltante"** y elegir una categoría DISCREPANCY. El registro pasa a `DUTY_RISK` con `QtyMissing` visible (caso VS9) |
 | VAL-035    | E        | `ScrapQty > 0` ⇒ `ScrapDate` obligatorio y ≥ `ImportDateElpJup1`                                                                                                                                                                                      |
-| VAL-036    | W        | `NewHU` de 10 dígitos. Es advertencia porque hay 103 registros reales de 9 dígitos, sobre todo en VS7 \[VALIDAR P-10\]                                                                                                                                |
+| VAL-036    | W        | `NewHU` de 10 dígitos. Es advertencia porque existen HU nuevos de 9 dígitos \[VALIDAR con QMM y LOW\]                                                                                                                                                 |
 | VAL-037    | E        | `DateSentBack ≥ ImportDateElpJup1`                                                                                                                                                                                                                    |
 | VAL-038    | W        | `IbOrderNumber`/`IbOrderTypeCode` vacíos al cerrar MFO                                                                                                                                                                                                |
 
 ### 2.5 Etapa 4 · Cierre aduanal de salida y confirmación de scrap
 
-| **Código** | **Sev.** | **Regla**                                                                                                                                                                                                                                                                      |
-|------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| VAL-040    | E        | `LowExport*` requiere `PhysicalDeliveredQty` y `Old > 0`                                                                                                                                                                                                                       |
-| VAL-041    | E        | Confirmación HSE requiere `ScrapQty > 0` (caso VS9: HSE confirmó 0.5 kg con scrap en 0)                                                                                                                                                                                        |
-| VAL-042    | E        | Confirmación HSE requiere `ScrapDate`                                                                                                                                                                                                                                          |
-| VAL-043    | E        | `HseConfirmationDate ≥ ScrapDate`                                                                                                                                                                                                                                              |
-| VAL-044    | E        | `ScrapGrNumber` numérico de 10 dígitos (lo captura MFO)                                                                                                                                                                                                                        |
-| VAL-045    | E        | `HseScrapKg > 0` · el bloque GR + Kg + Fecha se captura completo o no se captura                                                                                                                                                                                               |
-| VAL-046    | E        | `CustomsExportReference` debe ser `PRyy-#####` (exportación), `F4` (cambio de régimen: se cierra con duty pagado) o `V1` (pedimento virtual / envío nacional) \[VALIDAR P-09\]. Textos como "scrap marzo" o "sc1", fórmulas o cantidades **no cierran** el pallet (H-02, H-05) |
-| VAL-047    | W        | La exportación aduanal tarda más de `INTERNAL_SLA_EXPORT_DAYS` desde la entrega a LOW                                                                                                                                                                                          |
+| **Código** | **Sev.** | **Regla**                                                                                                                                                                                                                                                                              |
+|------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| VAL-040    | E        | `LowExport*` requiere `PhysicalDeliveredQty` y `Old > 0`                                                                                                                                                                                                                               |
+| VAL-041    | E        | Confirmación HSE requiere `ScrapQty > 0` (caso VS9: HSE confirmó 0.5 kg con scrap en 0)                                                                                                                                                                                                |
+| VAL-042    | E        | Confirmación HSE requiere `ScrapDate`                                                                                                                                                                                                                                                  |
+| VAL-043    | E        | `HseConfirmationDate ≥ ScrapDate`                                                                                                                                                                                                                                                      |
+| VAL-044    | E        | `ScrapGrNumber` numérico de 10 dígitos (lo captura MFO)                                                                                                                                                                                                                                |
+| VAL-045    | E        | `HseScrapKg > 0` · el bloque GR + Kg + Fecha se captura completo o no se captura                                                                                                                                                                                                       |
+| VAL-046    | E        | `CustomsExportReference` debe ser `PRyy-#####` (exportación), `F4` (cambio de régimen: se cierra con duty pagado) o `V1` (pedimento virtual / envío nacional) \[VALIDAR con GS/OSD43\]. Textos como "scrap marzo" o "sc1", fórmulas o cantidades **no cierran** el pallet (H-02, H-05) |
+| VAL-047    | W        | La exportación aduanal tarda más de `INTERNAL_SLA_EXPORT_DAYS` desde la entrega a LOW                                                                                                                                                                                                  |
 
 ### 2.6 Etapa 5 · Clasificación y cierre con discrepancia
 
@@ -125,20 +125,20 @@ Cantidades de conciliación (todas 0 si `¬imported`):
 | **Cantidad**       | **Fórmula**                  | **Significado**                                             |
 |--------------------|------------------------------|-------------------------------------------------------------|
 | `QtyOpenFloor`     | `mfoClosed ? 0 : remainder`  | Material que sigue en piso/cuarentena MFO                   |
-| `QtyMissing`       | `mfoClosed ? remainder : 0`  | MFO cerró pero faltan piezas (**en v1 desaparecían**, H-03) |
+| `QtyMissing`       | `mfoClosed ? remainder : 0`  | MFO cerró pero faltan piezas (**en el Excel desaparecían**) |
 | `QtyPendingExport` | `exported ? 0 : Old`         | Entregado a LOW sin referencia aduanal                      |
 | `QtyPendingHse`    | `scrapConfirmed ? 0 : Scrap` | Scrap declarado sin confirmación oficial de HSE             |
 
 Indicadores USD (cada uno se redondea a 2 decimales con `MidpointRounding.AwayFromZero`):
 
-| **Indicador**            | **Fórmula v2**                           | **Diferencia contra v1**                                                      |
-|--------------------------|------------------------------------------|-------------------------------------------------------------------------------|
-| **MFO INVENTORY USD**    | `QtyOpenFloor × Cost`                    | Igual a v1 mientras MFO no cierra                                             |
-| **HSE SCRAP USD**        | `QtyPendingHse × Cost`                   | Se libera con la **confirmación HSE**, no con el pedimento (H-04)             |
-| **MFO-LOW FAILURE USD**  | `(QtyPendingExport + QtyMissing) × Cost` | Incluye el faltante e ignora textos y fórmulas en Customs Export (H-02, H-03) |
-| **BALANCE GENERAL USD**  | suma de los tres                         |                                                                               |
-| `DutyExposureUSD`        | `BALANCE × DUTY_RATE(ImportDateElpJup1)` | Exposición potencial si nada más se concilia                                  |
-| `DutiesToPayUSD` (vista) | `MFO-LOW FAILURE × DUTY_RATE`            | Misma definición que BALANCE\_ del Excel, para comparar                       |
+| **Indicador**            | **Fórmula v2**                           | **Diferencia contra v1**                                         |
+|--------------------------|------------------------------------------|------------------------------------------------------------------|
+| **MFO INVENTORY USD**    | `QtyOpenFloor × Cost`                    | Igual a v1 mientras MFO no cierra                                |
+| **HSE SCRAP USD**        | `QtyPendingHse × Cost`                   | Se libera con la **confirmación HSE**, no con el pedimento       |
+| **MFO-LOW FAILURE USD**  | `(QtyPendingExport + QtyMissing) × Cost` | Incluye el faltante e ignora textos y fórmulas en Customs Export |
+| **BALANCE GENERAL USD**  | suma de los tres                         |                                                                  |
+| `DutyExposureUSD`        | `BALANCE × DUTY_RATE(ImportDateElpJup1)` | Exposición potencial si nada más se concilia                     |
+| `DutiesToPayUSD` (vista) | `MFO-LOW FAILURE × DUTY_RATE`            | Misma definición que BALANCE\_ del Excel, para comparar          |
 
 **Invariante (prueba automática):** `BALANCE = SapUsdTotal − (exported ? Old : 0) × Cost − (scrapConfirmed ? Scrap : 0) × Cost` (± 0.02 por redondeo), con todos los indicadores ≥ 0.
 
@@ -261,15 +261,15 @@ Se manda un **resumen diario** por correo (y opcionalmente al canal de Teams del
 
 ### 5.3 BALANCE\_ por periodo fiscal
 
-`rpt.vw_Balance_ByVS_Period` agrupa por **VS × periodo fiscal del cruce** (`ImportDateElpJup1`) y entrega:
+El balance se agrupa por **VS × periodo fiscal del cruce** (`ImportDateElpJup1`) y entrega:
 
 `TotalImportedUSD`, `MfoInventoryUSD`, `HseScrapUSD`, `MfoLowFailureUSD`, `ExportedUSD = Total − (Inv + HSE + Failure)`, `BalanceGeneralUSD`, `DutiesToPayUSD = Σ Failure × tasa vigente`, `DutyExposureUSD` y `DutyExposureAtRiskUSD`.
 
-Las ventanas heredadas ("AFTER JUNE 2025", "+ NOV 2025", "OCT 24 – MAY 25") están en `cfg.Reporting_Windows`, para que los primeros reportes de Power BI se puedan comparar 1:1 contra el Excel.
+Las ventanas heredadas ("AFTER JUNE 2025", "+ NOV 2025", "OCT 24 – MAY 25") están en `cfg.Reporting_Windows`, para poder comparar los primeros reportes contra el Excel.
 
 ## 6. Casos golden y pruebas de aceptación
 
-Salen de los 5 registros reales de la muestra. Se codifican en `ExpoReturn.Domain.Tests` (`[Theory]`) y se vuelven a validar con el histórico completo durante la migración.
+Casos de referencia del proceso. Están codificados como pruebas automáticas en `ExpoReturn.Domain.Tests`.
 
 | **Caso**      | **Datos clave**                                                                                 | **v1 Balance (Excel)** | **v2 Inv / HSE / Failure** | **v2 Balance** | **v2 Duty exp.** | **Estatus v2**       | **Validaciones disparadas**                                                                                                      |
 |---------------|-------------------------------------------------------------------------------------------------|------------------------|----------------------------|----------------|------------------|----------------------|----------------------------------------------------------------------------------------------------------------------------------|

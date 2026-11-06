@@ -19,6 +19,7 @@
     <local:StatusToBrushConverter x:Key="StatusBrush" />
     <local:SeverityToBrushConverter x:Key="SeverityBrush" />
     <local:BoolToVisibilityConverter x:Key="BoolToVis" />
+    <local:FieldLabelConverter x:Key="FieldNameConv" />
 
     <!-- ===== Tipografía =====
          Sin estilo implícito para TextBlock: el color y la fuente se heredan de la ventana. Así el texto

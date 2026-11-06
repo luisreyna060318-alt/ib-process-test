@@ -34,7 +34,21 @@ public interface IAuditTrail
     IReadOnlyList<AuditEntry> All();
 }
 
-public sealed record Person(string Name, RoleCode Role, int ValueStreamId, string Assignment);
+public sealed record Person(string Name, RoleCode Role, int ValueStreamId, string Assignment,
+                            DateTime? ValidFrom = null, DateTime? ValidTo = null)
+{
+    public bool IsActiveOn(DateTime day) => (ValidFrom is null || ValidFrom.Value.Date <= day.Date) && (ValidTo is null || ValidTo.Value.Date >= day.Date);
+}
+
+/// <summary>Atención de una alerta (UX-B09): quién la atendió, cuándo y con qué comentario.</summary>
+public sealed record AlertAcknowledgement(int PalletId, AlertType Type, string NtUser, string Comment, DateTime AtUtc);
+
+public interface IAlertAcknowledgementStore
+{
+    void Acknowledge(AlertAcknowledgement ack);
+    AlertAcknowledgement? Find(int palletId, AlertType type);
+    void Clear();
+}
 
 /// <summary>Matriz Champions/Proxies por VS (hoja "Champions VS" del Excel real).</summary>
 public interface IChampionsDirectory

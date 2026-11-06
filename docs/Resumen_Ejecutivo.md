@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # Resumen Ejecutivo
 
@@ -11,16 +11,15 @@ Hoy este control vive en un archivo de Excel compartido en SharePoint (**MATRIZ 
 
 ## Problema
 
-El análisis del archivo **real** (625 registros, ≈ USD 7.4 M importados temporalmente; Sección 00) encontró defectos que **ya distorsionan las cifras que se reportan**:
+El control en Excel tiene problemas de gobernanza que afectan la confiabilidad de las cifras y el cumplimiento:
 
-| **Hallazgo**                                                                                                                         | **Efecto en el negocio**                                                                                             |
-|--------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| Las fórmulas financieras de la hoja VS7 leen los datos de VS4                                                                        | VS7 muestra USD 538.6 k de balance. Con sus propios datos son ≈ USD 1.24 M: **≈ USD 700 k de exposición no visible** |
-| La hoja BALANCE y los resúmenes de VS4/VS7 están en error (`#REF!`, `#VALUE!`, `#DIV/0!`)                                            | **No existe hoy una cifra consolidada confiable de Duties to Pay**                                                   |
-| 57 registros de VS4 tienen una fórmula en *Customs Export* que los hace parecer exportados                                           | Falsos cierres sin pedimento                                                                                         |
-| 54 registros con faltante de piezas que desaparece del balance                                                                       | Riesgo de pago de aranceles que nadie ve                                                                             |
-| Motivo y departamento solicitante vacíos en los 625 registros; la columna de HU guarda lotes; fechas en texto con formatos mezclados | No se puede medir el aging IMMEX ni analizar por motivo o área en Power BI                                           |
-| Sin bitácora de cambios, sin control por área y sin alertas de vencimiento                                                           | No hay trazabilidad para una auditoría aduanal ni detección temprana del riesgo                                      |
+| **Problema**                                                                                                             | **Efecto en el negocio**                                                        |
+|--------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| Edición simultánea de varios Champions y Proxies sobre un archivo compartido                                             | Riesgo de corrupción del archivo y de pérdida de cambios                        |
+| Fórmulas y rangos de tabla que se rompen al insertar filas o columnas; columnas financieras que se ocultan por accidente | Indicadores financieros y de aranceles poco confiables                          |
+| Captura sin validación estricta (texto libre en departamentos, nombres, motivos y fechas)                                | No se puede medir la antigüedad IMMEX ni analizar por motivo o área en Power BI |
+| Cierres capturados como texto, sin evidencia documental (pedimento, confirmación de HSE)                                 | Pallets que parecen conciliados sin estarlo                                     |
+| Sin bitácora de cambios, sin control por área y sin alertas de vencimiento                                               | No hay trazabilidad para una auditoría aduanal ni detección temprana del riesgo |
 
 ## Propuesta
 
@@ -50,44 +49,3 @@ Reemplazar el Excel por una **aplicación corporativa** con estas característic
 | Trazabilidad para auditorías                     | 100 % de los cambios registrados por usuario y campo                               |
 | Edición simultánea sin riesgo                    | Se acaba la corrupción del archivo y la ruptura de rangos o columnas               |
 | Base para la Fase Web                            | Las reglas y los datos se reutilizan al 100 %                                      |
-
-## Plan y tiempos (estimación)
-
-| **Fase**                            | **Duración estimada**                                                                  | **Resultado**                                               |
-|-------------------------------------|----------------------------------------------------------------------------------------|-------------------------------------------------------------|
-| 0 · Gobierno y validación de reglas | 2 semanas                                                                              | Registro en SOURCE, reglas firmadas por las áreas           |
-| 1 · Fundaciones técnicas            | 4 semanas                                                                              | Base de datos, API y motor de cálculo probados              |
-| 2 · MVP de escritorio               | 5 semanas                                                                              | Aplicación con los 6 bloques, permisos, auditoría y alertas |
-| 3 · Migración y piloto VS9          | 2 semanas de corrida en paralelo con el Excel (la preparación arranca desde la Fase 1) | Histórico migrado y conciliado al centavo contra el Excel   |
-| 4 · Go-Live VS1–VS9                 | 3 semanas de hypercare                                                                 | Excel en sólo lectura; la aplicación es la fuente oficial   |
-| 5 · Versión Web                     | 6–8 semanas                                                                            | Acceso desde el navegador                                   |
-
-Equipo estimado: 1 desarrollador .NET senior, 1 analista de proceso QMM a medio tiempo, y apoyo puntual de DBA/IT (servidor, SPN, Software Center) y de los Champions de cada VS para depurar el histórico. **Go-live estimado: ~4 meses después de aprobar la Fase 0.**
-
-## Borrador de la aplicación (disponible)
-
-Para recoger opiniones reales antes de construir la versión definitiva existe un **borrador funcional de escritorio** (.NET 8 / WPF, sin base de datos). Incluye:
-
-- la bandeja de retornos;
-
-- el formulario con los 6 bloques por área, con permisos por rol y Value Stream;
-
-- el cálculo en vivo de indicadores y estatus;
-
-- las validaciones;
-
-- el tablero de Balance / Duties, las alertas, la matriz de Champions y la bitácora.
-
-Puede **importar el Excel real en memoria (sólo lectura)** para ver los datos actuales con las reglas nuevas, y trae un botón para que cada revisor deje sus comentarios.
-
-## Decisiones que se solicitan
-
-1.  **Aprobar el alcance y la arquitectura** propuestos (escritorio primero, preparada para Web).
-
-2.  **Nombrar al dueño del proceso y del dato** (ME/QMM-JuP1 · Process Excellence) para el registro en SOURCE.
-
-3.  **Designar responsables** que confirmen los pendientes de negocio de la Sección 04 §8: plazo legal IMMEX, tasa de duty, catálogo de motivos, tipos de orden PPI y valuación del reflash.
-
-4.  **Asignar recursos** (desarrollo, DBA/IT) y **confirmar el VS piloto** (se propone VS9).
-
-5.  **Aprobar el congelamiento del Excel** (sólo lectura) en la fecha de go-live de cada VS.

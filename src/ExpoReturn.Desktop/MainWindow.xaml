@@ -6,6 +6,9 @@
         Title="{Binding AppTitle}" Height="860" Width="1480" MinWidth="1150" MinHeight="680"
         WindowStartupLocation="CenterScreen" Background="{StaticResource AppBackground}"
         FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}">
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewReturnCommand}" />
+    </Window.InputBindings>
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:PalletListViewModel}"><v:PalletListView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PalletDetailViewModel}"><v:PalletDetailView /></DataTemplate>
@@ -33,7 +36,7 @@
                         ToolTip="Carga la MATRIZ DE RASTREO 2.0 en memoria (sólo lectura) para ver datos reales" />
                 <Button Content="Restaurar datos demo" Command="{Binding ResetDemoCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8" />
                 <Button Content="✎  Enviar comentario" Command="{Binding OpenFeedbackCommand}" Style="{StaticResource PrimaryButton}" Background="#2E75B6" BorderBrush="#2E75B6" Margin="0" />
-                <TextBlock Text="v0.1.2 · borrador" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
+                <TextBlock Text="v0.1.3 · borrador" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
             </StackPanel>
             <ListBox ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}" Background="Transparent" BorderThickness="0"
                      ItemContainerStyle="{StaticResource NavItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">

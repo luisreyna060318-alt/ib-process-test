@@ -1,65 +1,21 @@
 {
-  "output": "entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx",
+  "output": "entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx",
   "imageDir": "docs/img",
   "title": "Expo & Return FG Follow Up",
-  "subtitle": "Especificación de Requerimientos de Software, Arquitectura y Plan de Implementación",
+  "subtitle": "Especificación de Requerimientos de Software y Arquitectura",
   "scope": "Digitalización de la Matriz de Rastreo de Productos Terminados Importados Temporalmente 2.0",
   "organization": "Bosch Mobility Electronics · Planta Juárez 1 (JuP1 · SAP 8640) · ME/QMM · Process Excellence (Q2E)",
-  "version": "0.2",
+  "version": "0.3",
   "status": "Borrador para revisión",
-  "date": "2026-11-05",
+  "date": "2026-11-06",
   "classification": "Confidencial interno",
   "author": "[Nombre del autor] · ME/QMM-JuP1",
-  "approvers": [
-    [
-      "Jefe ME/QMM-JuP1",
-      "[Nombre]"
-    ],
-    [
-      "Process Excellence (Q2E)",
-      "[Nombre]"
-    ],
-    [
-      "Comercio Exterior GS/OSD43",
-      "[Nombre]"
-    ],
-    [
-      "Manufactura (MFO)",
-      "[Nombre]"
-    ],
-    [
-      "Logística (LOP / LOW)",
-      "[Nombre]"
-    ],
-    [
-      "HSE",
-      "[Nombre]"
-    ],
-    [
-      "IT / Infraestructura JuP1",
-      "[Nombre]"
-    ]
-  ],
-  "history": [
-    [
-      "0.1",
-      "2026-11-05",
-      "[Autor]",
-      "Versión inicial para revisión con la jefatura"
-    ],
-    [
-      "0.2",
-      "2026-11-05",
-      "[Autor]",
-      "Diagnóstico con el Excel real (625 registros); SAP fuera de alcance; borrador .NET; reglas ajustadas (F4/V1, HU/lote, Date PO); el Word pasa a ser la fuente de verdad"
-    ]
-  ],
   "chapters": [
     "docs/Resumen_Ejecutivo.md",
-    "docs/00_Diagnostico_AS-IS_Matriz_2.0.md",
     "docs/01_Arquitectura_Solucion.md",
     "docs/02_Modelo_Entidad_Relacion.md",
-    "docs/03_Reglas_de_Negocio.md",
-    "docs/04_Plan_Migracion_Implementacion.md"
-  ]
+    "docs/03_Reglas_de_Negocio.md"
+  ],
+  "coverAttributes": false,
+  "documentControl": false
 }

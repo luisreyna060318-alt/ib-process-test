@@ -1,9 +1,9 @@
-<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/SRS_ExpoReturn_FG_JuP1_v0.3.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 02 · Modelo Entidad-Relación (SQL Server)
 
 
-> DDL ejecutable: `database/01_schema.sql` · Semillas: `02_seed_catalogs.sql` · Vistas Power BI: `03_views_powerbi.sql` · Staging de migración: `04_staging_migration.sql`
+> DDL ejecutable: `database/01_schema.sql` · Semillas: `02_seed_catalogs.sql` · Staging de migración: `04_staging_migration.sql`
 
 ## 1. Esquemas
 
@@ -160,18 +160,7 @@ Cada fila del Excel (en cualquiera de las 5 hojas) se convierte en un renglón; 
 | `trk.Status_History`                                  | Lead time por etapa                                                                                                                                                                                             |
 | `trk.Alerts`                                          | Alertas IMMEX/SLA abiertas o resueltas (una abierta por tipo y pallet)                                                                                                                                          |
 
-## 4. Vistas para Power BI (`rpt`)
-
-| **Vista**                           | **Grano**                                                                                                  | **Sustituye en el Excel**                                                                                                          |
-|-------------------------------------|------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| `rpt.vw_PalletReturns`              | 1 renglón por pallet, nombres de negocio, aging, días al vencimiento, periodo fiscal, tasa de duty vigente | Las 5 hojas VS                                                                                                                     |
-| `rpt.vw_Balance_ByVS_Period`        | VS × periodo fiscal                                                                                        | Bloque "AFTER JUNE 2025" y hoja BALANCE\_ (Total Imported, MFO Inventory, HSE Scrap, MFO-LOW Failure, Exported, **Duties to Pay**) |
-| `rpt.vw_QtyReconciliation_ByWindow` | Ventana × VS                                                                                               | Bloque "FINISH GOOD RETURN (QTY)" (Import, Exported, Physical Inventory, Missing, Not Reported Scrap)                              |
-| `rpt.vw_DutyRisk_Open`              | Pallet en riesgo                                                                                           | (no existía) lista de acción diaria                                                                                                |
-| `rpt.vw_AuditTrail`                 | Cambio de campo                                                                                            | (no existía)                                                                                                                       |
-| `rpt.vw_StageLeadTime`              | Pallet × estatus                                                                                           | (no existía) tiempo por etapa                                                                                                      |
-
-## 5. Índices y desempeño
+## 4. Índices y desempeño
 
 - `IX_PRT_VS_Status (ValueStreamId, WorkflowStatusId)`: rejilla principal por VS.
 

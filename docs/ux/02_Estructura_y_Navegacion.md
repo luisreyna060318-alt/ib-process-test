@@ -1,4 +1,4 @@
-<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.1.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
+<!-- GENERADO desde entregables/UX_Manual_Pantallas_ExpoReturn_v0.2.docx el 2026-11-06 con tools/docx/docx_to_md.py. La fuente de verdad es el Word: haga los cambios en el .docx y vuelva a generar. -->
 
 # 02 · Estructura y navegación
 
@@ -12,7 +12,7 @@
 | PNT-00 | Marco común (barra lateral y barra superior) | Siempre visible                                                            | Marco                         |
 | PNT-01 | Bandeja de retornos                          | Barra lateral (pantalla inicial)                                           | Lista                         |
 | PNT-02 | Detalle / Nuevo retorno (6 pestañas)         | Bandeja (doble clic o *Abrir detalle*), Alertas (*Abrir*), *Nuevo retorno* | Formulario                    |
-| PNT-03 | Balance / Duties                             | Barra lateral                                                              | Tablero                       |
+| PNT-03 | Balance / Aranceles                          | Barra lateral                                                              | Tablero                       |
 | PNT-04 | Alertas                                      | Barra lateral                                                              | Lista de acción               |
 | PNT-05 | Champions VS                                 | Barra lateral                                                              | Consulta                      |
 | PNT-06 | Bitácora                                     | Barra lateral                                                              | Consulta                      |
@@ -28,11 +28,3 @@ Todas las pantallas comparten la misma estructura, para que el usuario siempre s
 | **Barra lateral** (izquierda, azul oscuro) | Nombre de la aplicación, menú de 6 opciones, botones *Importar Excel 2.0…*, *Restaurar datos demo*, *Enviar comentario* y la versión | La opción activa se resalta con un fondo más claro y una línea azul a la izquierda    |
 | **Barra superior** (blanca)                | Aviso de borrador, origen de los datos (demo o Excel importado) y selector de **usuario simulado** (nombre · rol · Value Streams)    | Al cambiar el usuario, la pantalla abierta recalcula qué campos puede editar          |
 | **Área de trabajo**                        | Título de la pantalla, descripción breve y contenido                                                                                 | Encabezados de tabla en azul oscuro con texto blanco; tarjetas blancas con borde gris |
-
-## Navegación y protección de cambios
-
-- Si hay **cambios sin guardar** en un retorno y el usuario intenta salir (menú, *← Bandeja*, importar o restaurar), la aplicación pregunta antes de descartarlos.
-
-- Los cambios **sólo se aplican al presionar Guardar**. *Descartar cambios* regresa a la última versión guardada.
-
-- Después de *Restaurar datos demo* o de importar el Excel, la aplicación vuelve a la Bandeja.

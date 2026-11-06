@@ -62,7 +62,16 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     [ObservableProperty] private DateTime? _legalDueDate;
     [ObservableProperty] private int? _daysToLegalDue;
 
+    /// <summary>Errores y avisos que no son "dato obligatorio pendiente".</summary>
     public ObservableCollection<ValidationIssue> Issues { get; } = new();
+    /// <summary>UX-B01: avisos de datos obligatorios para pasar a Solicitado (se agrupan y se pliegan).</summary>
+    public ObservableCollection<ValidationIssue> PendingIssues { get; } = new();
+    public HelpMap Help => HelpMap.Instance;
+    /// <summary>UX-B02: en el alta el folio aún no existe.</summary>
+    public string FolioDisplay => IsNew ? "Se asignará al guardar" : Edit.FolioCode;
+    public string PendingHeader => $"Pendientes para pasar a Solicitado ({PendingIssues.Count})";
+    public bool HasPending => PendingIssues.Count > 0;
+    [ObservableProperty] private bool _pendingExpanded;
     public ObservableCollection<AuditEntry> AuditEntries { get; } = new();
 
     public bool IsNew => _original is null;
@@ -80,7 +89,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     }
     public int? DaysInJuP1 => Edit.DaysInJuP1(Services.Clock.Today);
     public int ErrorCount => Issues.Count(i => i.Severity == Severity.Error);
-    public int WarningCount => Issues.Count(i => i.Severity == Severity.Warning);
+    public int WarningCount => Issues.Count(i => i.Severity == Severity.Warning) + PendingIssues.Count;
     public int QtyExported => ClosureDocument.Closes(Edit.ClosureType) ? Edit.OldMaterialDeliveredQty ?? 0 : 0;
     public int QtyScrapConfirmed => Edit.HseConfirmationDate is not null ? Edit.ScrapQty ?? 0 : 0;
     public string RoleText => $"Editando como: {User.Role.DisplayName()}";
@@ -146,10 +155,19 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         DutyRiskReason = e.Risk.Reason;
         LegalDueDate = e.Risk.LegalDueDate;
         DaysToLegalDue = e.Risk.DaysToLegalDue;
-        Issues.Clear();
-        foreach (var i in e.Issues.OrderBy(i => i.Severity)) Issues.Add(i);
+        FillIssues(e.Issues);
         foreach (var name in new[] { nameof(PreviewStatusName), nameof(ClosureText), nameof(NormalizedMaterialHint), nameof(DaysInJuP1),
-                                     nameof(ErrorCount), nameof(WarningCount), nameof(QtyExported), nameof(QtyScrapConfirmed) })
+                                     nameof(QtyExported), nameof(QtyScrapConfirmed), nameof(FolioDisplay) })
+            OnPropertyChanged(name);
+    }
+
+    private void FillIssues(IEnumerable<ValidationIssue> issues)
+    {
+        Issues.Clear();
+        PendingIssues.Clear();
+        foreach (var i in issues.OrderBy(i => i.Severity))
+            (i.IsRequiredPending ? PendingIssues : Issues).Add(i);
+        foreach (var name in new[] { nameof(ErrorCount), nameof(WarningCount), nameof(PendingHeader), nameof(HasPending) })
             OnPropertyChanged(name);
     }
 
@@ -172,8 +190,11 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         var result = Services.Pallets.Save(Edit, User, SaveReason);
         if (!result.Success)
         {
-            ShowMessage(result.Summary, true);
-            if (result.Issues.Count > 0) { Issues.Clear(); foreach (var i in result.Issues.OrderBy(i => i.Severity)) Issues.Add(i); OnPropertyChanged(nameof(ErrorCount)); }
+            ShowMessage(result.DeniedFields.Count > 0
+                ? $"Sin permiso para modificar: {string.Join(", ", result.DeniedFields.Select(FieldLabels.Get))}"
+                : result.Summary, true);
+            if (result.Issues.Count > 0) FillIssues(result.Issues);
+            PendingExpanded = true;
             return;
         }
         Edit.PropertyChanged -= OnEditChanged;
@@ -185,7 +206,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         Perm = new PermissionMap(CanEdit);
         Reevaluate();
         LoadAudit();
-        foreach (var n in new[] { nameof(Title), nameof(IsNew), nameof(EditableSummary), nameof(IsReadOnlyRecord) }) OnPropertyChanged(n);
+        foreach (var n in new[] { nameof(Title), nameof(IsNew), nameof(EditableSummary), nameof(IsReadOnlyRecord), nameof(FolioDisplay) }) OnPropertyChanged(n);
         ShowMessage($"Guardado. Folio {Edit.FolioCode} · Estatus: {Edit.StatusName}.", false);
     }
 
@@ -218,6 +239,13 @@ public sealed partial class PalletDetailViewModel : PageViewModel
             : Fields.Stage2.Contains(issue.Field) ? 1
             : Fields.Stage3.Contains(issue.Field) ? 2
             : Fields.Stage4.Contains(issue.Field) ? 3 : 4;
+    }
+
+    /// <summary>UX-B12: Ctrl+1…6 cambia de pestaña.</summary>
+    [RelayCommand]
+    private void GoToTab(string? index)
+    {
+        if (int.TryParse(index, out var i) && i is >= 1 and <= 6) SelectedTab = i - 1;
     }
 
     private void ShowMessage(string text, bool isError)

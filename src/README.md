@@ -1,4 +1,4 @@
-# Borrador de la aplicación (v0.1): Expo & Return FG Follow Up
+# Borrador de la aplicación (v0.1.3): Expo & Return FG Follow Up
 
 Prototipo **ejecutable** para recoger opiniones reales de los usuarios antes de construir la versión definitiva. Respeta la arquitectura del documento (Sección 01): Domain → Application → Infrastructure → Desktop. **No usa base de datos**: todo vive en memoria y se pierde al cerrar.
 
@@ -40,23 +40,35 @@ dotnet test
 
 | Pantalla | Qué permite revisar |
 |---|---|
-| **Bandeja de retornos** | Lista filtrable por VS, estatus, texto y Duty Risk; KPIs (abiertos, balance, exposición); orden por proximidad al vencimiento IMMEX |
-| **Detalle / Nuevo retorno** | Las 6 pestañas (Solicitud · Aduana/entrada · Ejecución MFO/LOW · Cierre salida/HSE · Balance y estatus · Auditoría). Los campos se habilitan según el **rol y el VS** del usuario. Indicadores, estatus y conciliación de cantidades se **recalculan mientras se escribe**. Las validaciones son navegables: un clic lleva a la pestaña del campo |
-| **Balance / Duties** | Sustituto de la hoja BALANCE: por VS y año fiscal, con barras por VS y por estatus |
-| **Alertas** | Plazo IMMEX por vencer o vencido, faltantes, SLA de retrabajo, exportación y HSE, costo pendiente |
-| **Champions VS** | Matriz Champion/Proxy por VS y área, y los campos que edita cada rol |
-| **Bitácora** | Quién cambió qué campo, cuándo y con qué valor anterior y nuevo |
+| **Bandeja de retornos** | Lista filtrable por VS, estatus, texto y riesgo arancelario; indicadores (abiertos, balance, exposición); orden por proximidad al vencimiento IMMEX; **filtros recordados por usuario**; **exportar a Excel de sólo lectura**; la columna "Calidad de datos" sólo aparece con datos importados |
+| **Detalle / Nuevo retorno** | Etiquetas en español con **ayuda por campo** (nombre en el Excel 2.0, regla y ejemplo) y **asterisco en obligatorios**; los avisos de datos obligatorios se agrupan en "Pendientes para pasar a Solicitado"; el folio muestra "Se asignará al guardar" en el alta. Las 6 pestañas (Solicitud · Aduana/entrada · Ejecución MFO/LOW · Cierre salida/HSE · Balance y estatus · Auditoría). Los campos se habilitan según el **rol y el VS** del usuario. Indicadores, estatus y conciliación de cantidades se **recalculan mientras se escribe**. Las validaciones son navegables: un clic lleva a la pestaña del campo |
+| **Balance / Aranceles** | Sustituto de la hoja BALANCE: por VS y año fiscal, con barras por VS y por estatus. **Clic en un VS o estatus abre la bandeja filtrada** |
+| **Alertas** | Plazo IMMEX por vencer o vencido, faltantes, plazos internos de retrabajo, exportación y HSE, costo pendiente. **Agrupadas por área responsable; "Marcar atendida" con comentario** (queda en la bitácora) |
+| **Champions VS** | Matriz Champion/Proxy por VS y área, y los campos que edita cada rol. **El Admin QMM/PE la edita con vigencia** (alta, baja con cierre de vigencia) |
+| **Bitácora** | Quién cambió qué campo, cuándo y con qué valor anterior y nuevo. **Filtros por folio, usuario, campo y fechas** |
 | **Importar Excel 2.0…** | Carga la MATRIZ DE RASTREO real **en memoria y en sólo lectura**: muestra los 625 registros con las reglas nuevas y la columna "Calidad de datos" con los problemas detectados. Nada se escribe en el Excel |
 | **Enviar comentario** | Guarda la opinión del revisor (pantalla, rol, tipo, texto) en `%LOCALAPPDATA%\ExpoReturnBorrador\comentarios.csv` |
 
+## Atajos de teclado
+
+| Atajo | Dónde | Acción |
+|---|---|---|
+| Ctrl+N | Cualquier pantalla | Nuevo retorno |
+| Ctrl+F | Bandeja | Ir a la búsqueda |
+| Enter | Bandeja | Abrir el renglón seleccionado |
+| Ctrl+E | Bandeja | Exportar a Excel (sólo lectura) |
+| Ctrl+S | Detalle | Guardar |
+| Ctrl+1 … Ctrl+6 | Detalle | Ir a la pestaña 1 a 6 |
+| Esc | Detalle | Regresar a la bandeja (pregunta si hay cambios sin guardar) |
+
 ## Guion de revisión sugerido (10 minutos)
 
-1. **Bandeja:** filtrar por "Duty Risk" y abrir un folio. Revisar la razón del riesgo en el encabezado.
+1. **Bandeja:** filtrar por "Sólo riesgo arancelario" y abrir un folio. Revisar la razón del riesgo en el encabezado.
 2. Cambiar el **usuario simulado** (arriba a la derecha) a *Comercio Exterior GS/OSD43*. Sólo se habilitan los campos de aduana; el resto queda en gris.
-3. Abrir un registro en **Pendiente exportación** y capturar en *Customs Export* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
-4. Con el usuario *Manufactura (MFO)* de VS7, abrir un registro *En retrabajo* de VS7 y capturar `Old Material` menor a lo importado y luego `Physical delivered`. Aparece VAL-034 (faltante); marcar "Declarar faltante" lleva a Duty Risk.
+3. Abrir un registro en **Pendiente exportación** y capturar en *Exportación aduanal* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
+4. Con el usuario *Manufactura (MFO)* de VS7, abrir un registro *En retrabajo* de VS7 y capturar *Material original devuelto a LOW* menor a lo importado y luego *Entregado físicamente a LOW*. Aparece VAL-034 (faltante); marcar "Declarar faltante" lleva a *Riesgo arancelario*.
 5. **Nuevo retorno** con el usuario *QMM*. Capturar un P/N sin puntos (`0265957012-24W`): se normaliza solo. Guardar y ver el folio asignado y la bitácora.
-6. **Importar Excel 2.0…** con el archivo real y revisar Balance / Duties y la columna "Calidad de datos".
+6. **Importar Excel 2.0…** con el archivo real y revisar Balance / Aranceles y la columna "Calidad de datos".
 7. **Enviar comentario** en cada pantalla con lo que falte, sobre o confunda.
 
 ## Limitaciones conocidas del borrador
@@ -77,4 +89,4 @@ dotnet test
 | `ExpoReturn.Application` | Roles y matriz de permisos por campo (`FieldPermissions`), `PalletReturnService` (permisos → validación → recálculo → auditoría), `ReportingService` (Balance y alertas) |
 | `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `SampleData` (sintético), `ChampionsDirectory`, `LegacyExcelImporter` (ClosedXML) |
 | `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `ShellViewModel`, vistas y `Themes/Theme.xaml` |
-| `tests/ExpoReturn.Domain.Tests` | 32 pruebas: casos golden, invariante de balance, normalizadores, fechas heredadas, permisos e importación del Excel real |
+| `tests/ExpoReturn.Domain.Tests` | 36 pruebas: casos golden, invariante de balance, normalizadores, fechas heredadas, permisos e importación del Excel real |
