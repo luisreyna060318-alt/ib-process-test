@@ -52,13 +52,16 @@ public static class SampleData
         {
             audit.Record(new[]
             {
-                new AuditEntry(p.Id, p.FolioCode, "Registro", null, "Alta de solicitud", "DEMO\\QMM", p.CreatedAtUtc, null),
+                new AuditEntry(p.Id, p.FolioCode, "Registro", null, "Alta de solicitud", p.CreatedBy, p.CreatedAtUtc, null),
             });
             if (p.ImportDateElpJup1 is not null)
                 audit.Record(new[] { new AuditEntry(p.Id, p.FolioCode, nameof(PalletReturn.ImportDateElpJup1), null,
-                    p.ImportDateElpJup1.Value.ToString("yyyy-MM-dd"), "DEMO\\GS", p.ImportDateElpJup1.Value.ToUniversalTime().AddHours(10), null) });
+                    p.ImportDateElpJup1.Value.ToString("yyyy-MM-dd"), GsUser(champions, p.ValueStreamId), p.ImportDateElpJup1.Value.ToUniversalTime().AddHours(10), null) });
         }
     }
+
+    private static string GsUser(IChampionsDirectory champions, int vs) =>
+        ChampionsDirectory.DemoNtUser(champions.All().FirstOrDefault(c => c.Role == RoleCode.Gs && c.ValueStreamId == vs && !c.IsPlaceholder)?.Name ?? "gs osd43");
 
     private static PalletReturn Build(Scenario sc, int vs, int folio, int n, DateTime today, IChampionsDirectory champions)
     {
@@ -91,7 +94,7 @@ public static class SampleData
             OriginalHU = (2107100000 + n * 37).ToString(),
             OriginalBatch = $"AA{23700000 + n * 11}",
             CreatedAtUtc = cross.AddDays(-3).ToUniversalTime(),
-            CreatedBy = "DEMO\\QMM",
+            CreatedBy = ChampionsDirectory.DemoNtUser(qmm),
         };
         if (sc == Scenario.Draft) { p.ReasonId = null; p.RequestorName = null; return p; }
 

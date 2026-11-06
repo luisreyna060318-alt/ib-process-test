@@ -72,7 +72,7 @@ public class ParsingAndImportTests
         Assert.False(denied.Success);
         Assert.Contains(nameof(PalletReturn.ImportInvoice), denied.DeniedFields);
 
-        var gs = new UserContext("T\\GS", "GS", RoleCode.Gs, Array.Empty<int>());
+        var gs = new UserContext("T\\GS", "GS", RoleCode.Gs, new[] { open.ValueStreamId });
         var edit2 = open.Clone(); edit2.ImportPedimento = "26 07 3807 6000123";
         var ok = svc.Save(edit2, gs);
         Assert.True(ok.Success, ok.Summary);

@@ -18,14 +18,25 @@ public static class RoleInfo
         RoleCode.Hse => "HSE",
         _ => "Consulta",
     };
+
+    /// <summary>Nombre corto del área en la matriz Champions VS.</summary>
+    public static string ShortName(this RoleCode r) => r switch
+    {
+        RoleCode.Mfo => "MFO", RoleCode.Qmm => "QMM", RoleCode.Requestor => "MFQ", RoleCode.Gs => "GS / OSD43",
+        RoleCode.Lop => "LOP", RoleCode.Low => "LOW", RoleCode.Hse => "HSE", RoleCode.AdminQmmPe => "Admin", _ => "Consulta",
+    };
 }
 
 /// <summary>Usuario actual. En producción sale de Active Directory + Champions_Matrix; en el borrador se simula.</summary>
 public sealed record UserContext(string NtUser, string DisplayName, RoleCode Role, IReadOnlyList<int> ValueStreams)
 {
     public bool IsAdmin => Role == RoleCode.AdminQmmPe;
-    public bool CoversValueStream(int vs) => IsAdmin || ValueStreams.Count == 0 || ValueStreams.Contains(vs);
-    public string Label => $"{DisplayName} · {Role.DisplayName()} · {(ValueStreams.Count == 0 || IsAdmin ? "Todos los VS" : string.Join(", ", ValueStreams.Select(v => $"VS{v}")))}";
+    /// <summary>Sólo Admin y Consulta ven todos los VS; las demás áreas quedan delimitadas por la matriz Champions VS.</summary>
+    public bool SeesAllValueStreams => Role is RoleCode.AdminQmmPe or RoleCode.Viewer;
+    public bool CoversValueStream(int vs) => IsAdmin || ValueStreams.Contains(vs);
+    public string ValueStreamText => SeesAllValueStreams ? "Todos los VS"
+        : ValueStreams.Count == 0 ? "Sin VS asignado" : string.Join(", ", ValueStreams.Select(v => $"VS{v}"));
+    public string Label => $"{DisplayName} · {Role.DisplayName()} · {ValueStreamText}";
 }
 
 /// <summary>Campos editables (nombres = propiedades de PalletReturn = columnas SQL).</summary>

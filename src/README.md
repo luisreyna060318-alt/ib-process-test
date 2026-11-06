@@ -1,4 +1,4 @@
-# Borrador de la aplicación (v0.1.3): Expo & Return FG Follow Up
+# Borrador de la aplicación (v0.1.4): Expo & Return FG Follow Up
 
 Prototipo **ejecutable** para recoger opiniones reales de los usuarios antes de construir la versión definitiva. Respeta la arquitectura del documento (Sección 01): Domain → Application → Infrastructure → Desktop. **No usa base de datos**: todo vive en memoria y se pierde al cerrar.
 
@@ -44,7 +44,7 @@ dotnet test
 | **Detalle / Nuevo retorno** | Etiquetas en español con **ayuda por campo** (nombre en el Excel 2.0, regla y ejemplo) y **asterisco en obligatorios**; los avisos de datos obligatorios se agrupan en "Pendientes para pasar a Solicitado"; el folio muestra "Se asignará al guardar" en el alta. Las 6 pestañas (Solicitud · Aduana/entrada · Ejecución MFO/LOW · Cierre salida/HSE · Balance y estatus · Auditoría). Los campos se habilitan según el **rol y el VS** del usuario. Indicadores, estatus y conciliación de cantidades se **recalculan mientras se escribe**. Las validaciones son navegables: un clic lleva a la pestaña del campo |
 | **Balance / Aranceles** | Sustituto de la hoja BALANCE: por VS y año fiscal, con barras por VS y por estatus. **Clic en un VS o estatus abre la bandeja filtrada** |
 | **Alertas** | Plazo IMMEX por vencer o vencido, faltantes, plazos internos de retrabajo, exportación y HSE, costo pendiente. **Agrupadas por área responsable; "Marcar atendida" con comentario** (queda en la bitácora) |
-| **Champions VS** | Matriz Champion/Proxy por VS y área, y los campos que edita cada rol. **El Admin QMM/PE la edita con vigencia** (alta, baja con cierre de vigencia) |
+| **Champions VS** | Matriz Champion/Proxy por VS y área (QMM, MFQ, GS/OSD43, LOP, MFO, LOW, HSE) y los campos que edita cada rol. **La matriz delimita en qué VS edita cada usuario, en todas las áreas**; una persona puede estar en varios VS. El Admin QMM/PE agrega asignaciones y da de baja (sin fechas de vigencia; la bitácora guarda cada alta y baja). Al guardar se actualizan los usuarios simulados y sus permisos |
 | **Bitácora** | Quién cambió qué campo, cuándo y con qué valor anterior y nuevo. **Filtros por folio, usuario, campo y fechas** |
 | **Importar Excel 2.0…** | Carga la MATRIZ DE RASTREO real **en memoria y en sólo lectura**: muestra los 625 registros con las reglas nuevas y la columna "Calidad de datos" con los problemas detectados. Nada se escribe en el Excel |
 | **Enviar comentario** | Guarda la opinión del revisor (pantalla, rol, tipo, texto) en `%LOCALAPPDATA%\ExpoReturnBorrador\comentarios.csv` |
@@ -64,17 +64,18 @@ dotnet test
 ## Guion de revisión sugerido (10 minutos)
 
 1. **Bandeja:** filtrar por "Sólo riesgo arancelario" y abrir un folio. Revisar la razón del riesgo en el encabezado.
-2. Cambiar el **usuario simulado** (arriba a la derecha) a *Comercio Exterior GS/OSD43*. Sólo se habilitan los campos de aduana; el resto queda en gris.
-3. Abrir un registro en **Pendiente exportación** y capturar en *Exportación aduanal* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
-4. Con el usuario *Manufactura (MFO)* de VS7, abrir un registro *En retrabajo* de VS7 y capturar *Material original devuelto a LOW* menor a lo importado y luego *Entregado físicamente a LOW*. Aparece VAL-034 (faltante); marcar "Declarar faltante" lleva a *Riesgo arancelario*.
+2. Cambiar el **usuario simulado** (arriba a la derecha) a *Patricia Lozano · Comercio Exterior · VS1, VS4, VS5*. En esos VS sólo se habilitan los campos de aduana; en VS7 y VS9 todo queda en gris porque no está asignada en la matriz.
+3. Abrir un registro en **Pendiente exportación** de VS1, VS4 o VS5 y capturar en *Exportación aduanal* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
+4. Con *Paola Esquer · Manufactura (MFO) · VS7*, abrir un registro *En retrabajo* de VS7 y capturar *Material original devuelto a LOW* menor a lo importado y luego *Entregado físicamente a LOW*. Aparece VAL-034 (faltante); marcar "Declarar faltante" lleva a *Riesgo arancelario*.
 5. **Nuevo retorno** con el usuario *QMM*. Capturar un P/N sin puntos (`0265957012-24W`): se normaliza solo. Guardar y ver el folio asignado y la bitácora.
-6. **Importar Excel 2.0…** con el archivo real y revisar Balance / Aranceles y la columna "Calidad de datos".
-7. **Enviar comentario** en cada pantalla con lo que falte, sobre o confunda.
+6. Con el usuario *Admin*, en **Champions VS** seleccionar a *Andrea Salinas · QMM · VS7*, **Dar de baja** y **Guardar cambios**. En el selector de usuario Andrea queda sólo con VS1 y la bitácora registra la baja.
+7. **Importar Excel 2.0…** con el archivo real y revisar Balance / Aranceles y la columna "Calidad de datos".
+8. **Enviar comentario** en cada pantalla con lo que falte, sobre o confunda.
 
 ## Limitaciones conocidas del borrador
 
 * Sin base de datos ni Web API: los cambios se pierden al cerrar.
-* El usuario es **simulado** (lista de usuarios demo). En producción sale de Active Directory y de la matriz Champions_VS.
+* El usuario es **simulado**: la lista sale de la matriz Champions VS (cada persona con su área y todos sus VS), más Admin y Consulta. En producción el usuario sale de Active Directory y sus VS de la misma matriz.
 * Los nombres de los datos demo son **ficticios**. Con el Excel importado se usan los Champions reales de la hoja "Champions VS", sólo en memoria.
 * El costo MM60 de un P/N nuevo se toma de los registros existentes. En producción vendrá del maestro `cat.Material_Cost_MM60`.
 * Las alertas se ven en pantalla; el envío por correo o Teams es de la fase de producción.
@@ -89,4 +90,4 @@ dotnet test
 | `ExpoReturn.Application` | Roles y matriz de permisos por campo (`FieldPermissions`), `PalletReturnService` (permisos → validación → recálculo → auditoría), `ReportingService` (Balance y alertas) |
 | `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `SampleData` (sintético), `ChampionsDirectory`, `LegacyExcelImporter` (ClosedXML) |
 | `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `ShellViewModel`, vistas y `Themes/Theme.xaml` |
-| `tests/ExpoReturn.Domain.Tests` | 36 pruebas: casos golden, invariante de balance, normalizadores, fechas heredadas, permisos e importación del Excel real |
+| `tests/ExpoReturn.Domain.Tests` | 38 pruebas: casos golden, invariante de balance, normalizadores, fechas heredadas, permisos e importación del Excel real |

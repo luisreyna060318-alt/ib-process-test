@@ -51,7 +51,7 @@ public sealed class AppServices
         Audit.Clear();
         AlertAcks.Clear();
         Repository.ReplaceAll(result.Pallets);
-        Champions.Replace(result.Champions);
+        if (result.Champions.Count > 0) Champions.Replace(result.Champions);
         DataSourceLabel = $"Excel importado (sólo lectura, en memoria): {System.IO.Path.GetFileName(path)}";
         return result;
     }

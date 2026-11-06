@@ -34,10 +34,15 @@ public interface IAuditTrail
     IReadOnlyList<AuditEntry> All();
 }
 
-public sealed record Person(string Name, RoleCode Role, int ValueStreamId, string Assignment,
-                            DateTime? ValidFrom = null, DateTime? ValidTo = null)
+/// <summary>
+/// Una asignación de la matriz Champions VS: persona × área × VS × Champion/Proxy. Una persona puede tener
+/// varias (una por VS). La matriz delimita en qué VS edita cada usuario, en todas las áreas.
+/// </summary>
+public sealed record Person(string Name, RoleCode Role, int ValueStreamId, string Assignment)
 {
-    public bool IsActiveOn(DateTime day) => (ValidFrom is null || ValidFrom.Value.Date <= day.Date) && (ValidTo is null || ValidTo.Value.Date >= day.Date);
+    public string Describe => $"{Name} · {Role.ShortName()} · VS{ValueStreamId} · {Assignment}";
+    /// <summary>Celdas sin persona asignada en el Excel ("TBD", "N/A"…): no generan usuario.</summary>
+    public bool IsPlaceholder => Name.Trim().ToUpperInvariant() is "" or "TBD" or "N/A" or "NA" or "-" or "POR DEFINIR";
 }
 
 /// <summary>Atención de una alerta (UX-B09): quién la atendió, cuándo y con qué comentario.</summary>

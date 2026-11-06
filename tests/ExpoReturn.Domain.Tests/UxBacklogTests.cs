@@ -6,7 +6,7 @@ using Xunit;
 
 namespace ExpoReturn.Domain.Tests;
 
-/// <summary>Lógica no visual de los pendientes UX-B01, UX-B06 y UX-B10.</summary>
+/// <summary>Lógica no visual de los pendientes UX-B01, UX-B06 y UX-B10 (matriz Champions VS).</summary>
 public class UxBacklogTests
 {
     [Fact]
@@ -21,16 +21,51 @@ public class UxBacklogTests
     }
 
     [Fact]
-    public void Champions_with_closed_validity_are_not_offered_as_qmm_responsible()
+    public void Simulated_users_take_their_value_streams_from_the_matrix()
     {
         var dir = new ChampionsDirectory();
         dir.Replace(new[]
         {
-            new Person("Vigente", RoleCode.Qmm, 7, "Champion", DateTime.Today.AddDays(-30)),
-            new Person("Dado de baja", RoleCode.Qmm, 7, "Proxy", DateTime.Today.AddDays(-90), DateTime.Today.AddDays(-1)),
-            new Person("Futuro", RoleCode.Qmm, 7, "Proxy", DateTime.Today.AddDays(10)),
+            new Person("Ana Uno", RoleCode.Qmm, 1, "Champion"),
+            new Person("Ana Uno", RoleCode.Qmm, 7, "Proxy"),
+            new Person("Gus Dos", RoleCode.Gs, 4, "Champion"),
+            new Person("TBD", RoleCode.Mfo, 7, "Proxy"),
         });
-        Assert.Equal(new[] { "Vigente" }, dir.QmmFor(7));
+        var users = dir.DemoUsers();
+        var ana = Assert.Single(users, u => u.DisplayName == "Ana Uno");
+        Assert.Equal(new[] { 1, 7 }, ana.ValueStreams);
+        Assert.Equal("DEMO\\ana.uno", ana.NtUser);
+
+        var gs = Assert.Single(users, u => u.Role == RoleCode.Gs);       // Comercio Exterior también lo delimita la matriz
+        Assert.True(gs.CoversValueStream(4));
+        Assert.False(gs.CoversValueStream(1));
+        Assert.DoesNotContain(users, u => u.DisplayName == "TBD");
+        Assert.Contains(users, u => u.IsAdmin && u.CoversValueStream(9));
+        Assert.Equal(new[] { "Ana Uno" }, dir.QmmFor(7));
+    }
+
+    [Fact]
+    public void Removing_an_assignment_updates_users_and_notifies()
+    {
+        var dir = new ChampionsDirectory();
+        var changed = 0;
+        dir.Changed += (_, _) => changed++;
+        var andrea = dir.DemoUsers().Single(u => u.DisplayName == "Andrea Salinas");
+        Assert.Equal(new[] { 1, 7 }, andrea.ValueStreams);                // una persona en varios VS
+
+        dir.Replace(dir.All().Where(p => !(p.Name == "Andrea Salinas" && p.ValueStreamId == 7)));
+        Assert.Equal(1, changed);
+        Assert.Equal(new[] { 1 }, dir.DemoUsers().Single(u => u.DisplayName == "Andrea Salinas").ValueStreams);
+        Assert.DoesNotContain("Andrea Salinas", dir.QmmFor(7));
+    }
+
+    [Fact]
+    public void A_user_without_value_stream_cannot_edit()
+    {
+        var pallet = new PalletReturn { ValueStreamId = 4 };
+        var noVs = new UserContext("T\\LOW", "Sin VS", RoleCode.Low, Array.Empty<int>());
+        Assert.False(FieldPermissions.CanEdit(noVs, pallet, nameof(PalletReturn.LowExportNumber)));
+        Assert.Equal("Sin VS asignado", noVs.ValueStreamText);
     }
 
     [Fact]

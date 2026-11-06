@@ -147,7 +147,7 @@ public sealed partial class AlertsViewModel : PageViewModel
 // =====================================================================
 // PNT-05 · Champions VS  (UX-B10: edición por Admin QMM/PE con vigencia)
 // =====================================================================
-public sealed record ChampionRow(string ValueStream, string Mfo, string Qmm, string Low, string Gs, string Mfq);
+public sealed record ChampionRow(string ValueStream, string Qmm, string Mfq, string Gs, string Lop, string Mfo, string Low, string Hse);
 
 public sealed partial class ChampionEditRow : ObservableObject
 {
@@ -155,25 +155,28 @@ public sealed partial class ChampionEditRow : ObservableObject
     [ObservableProperty] private RoleCode _role = RoleCode.Qmm;
     [ObservableProperty] private int _valueStreamId = 1;
     [ObservableProperty] private string _assignment = "Champion";
-    [ObservableProperty] private DateTime? _validFrom;
-    [ObservableProperty] private DateTime? _validTo;
 
-    public static ChampionEditRow From(Person p) => new()
-    {
-        Name = p.Name, Role = p.Role, ValueStreamId = p.ValueStreamId, Assignment = p.Assignment, ValidFrom = p.ValidFrom, ValidTo = p.ValidTo,
-    };
-    public Person ToPerson() => new(Name.Trim(), Role, ValueStreamId, Assignment, ValidFrom, ValidTo);
+    public static ChampionEditRow From(Person p) => new() { Name = p.Name, Role = p.Role, ValueStreamId = p.ValueStreamId, Assignment = p.Assignment };
+    public Person ToPerson() => new(Name.Trim(), Role, ValueStreamId, Assignment);
 }
 
+/// <summary>
+/// PNT-05 · Matriz Champions VS. Delimita en qué VS edita cada usuario, en TODAS las áreas (QMM, MFQ, GS/OSD43, LOP,
+/// MFO, LOW, HSE). Una persona puede tener varias asignaciones (un renglón por VS). Sin vigencias en pantalla:
+/// "Dar de baja" quita la asignación al guardar y la bitácora conserva la historia.
+/// </summary>
 public sealed partial class ChampionsViewModel : PageViewModel
 {
+    private static readonly RoleCode[] MatrixRoles =
+        { RoleCode.Qmm, RoleCode.Requestor, RoleCode.Gs, RoleCode.Lop, RoleCode.Mfo, RoleCode.Low, RoleCode.Hse };
+
+    private readonly List<Person> _pendingRemovals = new();
+
     public ChampionsViewModel(AppServices services, UserContext user) : base(services, user) => Refresh();
 
     public override string Title => "Champions VS";
     public bool CanEdit => User.IsAdmin;
-    public IReadOnlyList<LookupItem> RoleOptions { get; } = new[] { RoleCode.Mfo, RoleCode.Qmm, RoleCode.Low, RoleCode.Gs, RoleCode.Requestor, RoleCode.Lop, RoleCode.Hse }
-        .Select(r => new LookupItem(r, r switch { RoleCode.Mfo => "MFO", RoleCode.Qmm => "QMM", RoleCode.Low => "LOW", RoleCode.Gs => "GS / OSD43",
-                                                     RoleCode.Requestor => "MFQ", RoleCode.Lop => "LOP", _ => "HSE" })).ToList();
+    public IReadOnlyList<LookupItem> RoleOptions { get; } = MatrixRoles.Select(r => new LookupItem(r, r.ShortName())).ToList();
     public IReadOnlyList<int> ValueStreamOptions { get; } = Catalogs.ValueStreams.Select(v => v.Id).ToList();
     public IReadOnlyList<string> AssignmentOptions { get; } = new[] { "Champion", "Proxy" };
 
@@ -191,51 +194,70 @@ public sealed partial class ChampionsViewModel : PageViewModel
 
     public override void Refresh()
     {
-        var today = Services.Clock.Today;
-        var people = Services.Champions.All().Where(p => p.IsActiveOn(today)).ToList();
-        string Cell(int vs, RoleCode role) => string.Join("  /  ", people.Where(p => p.ValueStreamId == vs && p.Role == role)
+        var people = Services.Champions.All();
+        string Cell(int vs, RoleCode role) => string.Join("\n", people.Where(p => p.ValueStreamId == vs && p.Role == role)
             .OrderBy(p => p.Assignment == "Champion" ? 0 : 1).Select(p => $"{p.Name} ({p.Assignment})"));
-        Rows = people.Select(p => p.ValueStreamId).Distinct().OrderBy(v => v)
-            .Select(vs => new ChampionRow($"VS{vs}", Cell(vs, RoleCode.Mfo), Cell(vs, RoleCode.Qmm), Cell(vs, RoleCode.Low), Cell(vs, RoleCode.Gs), Cell(vs, RoleCode.Requestor)))
+        Rows = Catalogs.ValueStreams.Select(v => v.Id)
+            .Select(vs => new ChampionRow($"VS{vs}", Cell(vs, RoleCode.Qmm), Cell(vs, RoleCode.Requestor), Cell(vs, RoleCode.Gs),
+                                          Cell(vs, RoleCode.Lop), Cell(vs, RoleCode.Mfo), Cell(vs, RoleCode.Low), Cell(vs, RoleCode.Hse)))
             .ToList();
+        _pendingRemovals.Clear();
         EditRows.Clear();
-        foreach (var p in Services.Champions.All().OrderBy(p => p.ValueStreamId).ThenBy(p => p.Role).ThenBy(p => p.Assignment))
+        foreach (var p in people.OrderBy(p => Array.IndexOf(MatrixRoles, p.Role)).ThenBy(p => p.Name, StringComparer.CurrentCulture).ThenBy(p => p.ValueStreamId))
             EditRows.Add(ChampionEditRow.From(p));
     }
 
     [RelayCommand]
     private void AddPerson()
     {
-        var row = new ChampionEditRow { ValidFrom = Services.Clock.Today };
+        // Si hay un renglón seleccionado se copia persona y área: así se asigna a otro VS con un clic.
+        var row = SelectedEdit is null ? new ChampionEditRow()
+            : new ChampionEditRow { Name = SelectedEdit.Name, Role = SelectedEdit.Role, Assignment = SelectedEdit.Assignment, ValueStreamId = SelectedEdit.ValueStreamId };
         EditRows.Add(row);
         SelectedEdit = row;
+        Message = row.Name.Length > 0
+            ? $"Nuevo renglón para {row.Name}: elija el VS adicional y guarde."
+            : "Capture nombre, área, VS y asignación del nuevo renglón y guarde.";
     }
 
-    /// <summary>Dar de baja = cerrar la vigencia (no se borra: se conserva la historia).</summary>
+    /// <summary>Dar de baja: quita la asignación seleccionada (persona en ese VS). Se aplica al guardar y queda en la bitácora.</summary>
     [RelayCommand]
     private void EndPerson()
     {
-        if (SelectedEdit is null) return;
-        SelectedEdit.ValidTo = Services.Clock.Today.AddDays(-1);
+        if (SelectedEdit is null) { Message = "Seleccione el renglón (persona y VS) que quiere dar de baja."; return; }
+        var row = SelectedEdit;
+        _pendingRemovals.Add(row.ToPerson());
+        EditRows.Remove(row);
+        SelectedEdit = null;
+        Message = $"Baja pendiente: {row.ToPerson().Describe}. Presione Guardar cambios para aplicarla ({_pendingRemovals.Count} baja(s) pendiente(s)).";
     }
 
     [RelayCommand]
     private void SaveChanges()
     {
         if (!CanEdit) return;
-        var invalid = EditRows.FirstOrDefault(r => string.IsNullOrWhiteSpace(r.Name) || (r.ValidTo is not null && r.ValidFrom is not null && r.ValidTo < r.ValidFrom));
-        if (invalid is not null) { Message = "Revise los renglones: el nombre es obligatorio y 'Vigente hasta' no puede ser anterior a 'Vigente desde'."; return; }
-        var before = Services.Champions.All().Select(p => p.ToString()).ToHashSet();
+        if (EditRows.Any(r => string.IsNullOrWhiteSpace(r.Name)))
+        { Message = "Revise los renglones: el nombre es obligatorio."; return; }
         var after = EditRows.Select(r => r.ToPerson()).ToList();
-        var changes = after.Count(p => !before.Contains(p.ToString())) + before.Count(b => after.All(p => p.ToString() != b));
-        Services.Champions.Replace(after);
-        Services.Audit.Record(new[] { new AuditEntry(0, "CHAMPIONS", "Matriz Champions VS", null, $"{changes} cambio(s)", User.NtUser, Services.Clock.UtcNow, null) });
-        Message = $"Matriz actualizada ({changes} cambio(s)). Aplica de inmediato a permisos y listas de Responsable QMM.";
+        var dup = after.GroupBy(p => (p.Name.ToUpperInvariant(), p.Role, p.ValueStreamId)).FirstOrDefault(g => g.Count() > 1);
+        if (dup is not null)
+        { Message = $"{dup.First().Name} aparece dos veces en {dup.First().Role.ShortName()} · VS{dup.First().ValueStreamId}. Deje un solo renglón."; return; }
+
+        var before = Services.Champions.All().ToList();
+        var removed = before.Where(b => !after.Contains(b)).ToList();
+        var added = after.Where(a => !before.Contains(a)).ToList();
+        if (removed.Count + added.Count == 0) { Message = "Sin cambios por guardar."; return; }
+
+        var now = Services.Clock.UtcNow;
+        Services.Audit.Record(removed.Select(p => new AuditEntry(0, "CHAMPIONS", "Matriz Champions VS", p.Describe, "(baja)", User.NtUser, now, "Baja"))
+            .Concat(added.Select(p => new AuditEntry(0, "CHAMPIONS", "Matriz Champions VS", null, p.Describe, User.NtUser, now, "Alta"))));
+        Services.Champions.Replace(after);      // dispara la actualización de usuarios simulados y permisos
         Refresh();
+        Message = $"Matriz actualizada: {added.Count} alta(s), {removed.Count} baja(s). Ya aplica a los usuarios simulados, sus VS y la lista de Responsable QMM.";
     }
 
     [RelayCommand]
-    private void DiscardChanges() { Message = null; Refresh(); }
+    private void DiscardChanges() { Refresh(); Message = null; }
 }
 
 // =====================================================================

@@ -28,6 +28,15 @@ public sealed partial class ShellViewModel : ObservableObject
         };
         _selectedNav = NavItems[0];
         _currentPage = new PalletListViewModel(services, _currentUser, OpenPallet);
+        services.Champions.Changed += (_, _) => RefreshUsers();
+    }
+
+    /// <summary>La matriz Champions VS cambió: se recalculan los usuarios simulados y sus VS; se conserva el usuario actual si sigue en la matriz.</summary>
+    private void RefreshUsers()
+    {
+        var current = CurrentUser;
+        Users = _services.Champions.DemoUsers();
+        CurrentUser = Users.FirstOrDefault(u => u.NtUser == current.NtUser && u.Role == current.Role) ?? Users[0];
     }
 
     public IReadOnlyList<NavItem> NavItems { get; }
@@ -35,12 +44,26 @@ public sealed partial class ShellViewModel : ObservableObject
     public string DraftNotice => "BORRADOR PARA REVISIÓN · sin base de datos: los cambios se pierden al cerrar";
 
     [ObservableProperty] private IReadOnlyList<UserContext> _users;
-    [ObservableProperty] private UserContext _currentUser;
+    private UserContext _currentUser;
+    /// <summary>
+    /// Usuario simulado. Al reemplazar la lista de usuarios, el ComboBox puede mandar null momentáneamente:
+    /// se ignora y enseguida se asigna el usuario correspondiente de la lista nueva.
+    /// </summary>
+    public UserContext CurrentUser
+    {
+        get => _currentUser;
+        set
+        {
+            if (value is null || ReferenceEquals(value, _currentUser)) return;
+            _currentUser = value;
+            OnPropertyChanged();
+            CurrentPage.User = value;
+        }
+    }
     [ObservableProperty] private NavItem? _selectedNav;
     [ObservableProperty] private PageViewModel _currentPage;
     [ObservableProperty] private string _dataSourceLabel = "Datos de demostración (sintéticos)";
 
-    partial void OnCurrentUserChanged(UserContext value) => CurrentPage.User = value;
 
     private bool _suppressNav;
 

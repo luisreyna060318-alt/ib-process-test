@@ -58,60 +58,98 @@ public sealed class InMemoryAuditTrail : IAuditTrail
 /// </summary>
 public sealed class ChampionsDirectory : IChampionsDirectory
 {
+    private static readonly RoleCode[] RoleOrder =
+        { RoleCode.Qmm, RoleCode.Requestor, RoleCode.Gs, RoleCode.Lop, RoleCode.Mfo, RoleCode.Low, RoleCode.Hse };
+
     private List<Person> _people = DefaultPeople();
+
+    /// <summary>Se dispara al reemplazar la matriz (guardar, restaurar o importar): la app recalcula usuarios y permisos.</summary>
+    public event EventHandler? Changed;
 
     public IReadOnlyList<Person> All() => _people;
     public IReadOnlyList<string> QmmFor(int vs) =>
-        _people.Where(p => p.Role == RoleCode.Qmm && p.ValueStreamId == vs && p.Name != "TBD" && p.IsActiveOn(DateTime.Today))
-               .Select(p => p.Name).Distinct().ToList();
+        _people.Where(p => p.Role == RoleCode.Qmm && p.ValueStreamId == vs && !p.IsPlaceholder)
+               .OrderBy(p => p.Assignment == "Champion" ? 0 : 1).Select(p => p.Name).Distinct().ToList();
 
     public void Replace(IEnumerable<Person> people)
     {
-        var list = people.ToList();
-        if (list.Count > 0) _people = list;
+        _people = people.ToList();
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Usuarios simulados = cada persona de la matriz con su área; sus VS son TODOS los VS donde está asignada
+    /// (Champion o Proxy). Se agregan Admin y Consulta, que ven todos los VS. En producción el usuario sale de
+    /// Active Directory y sus VS de sec.Champions_Matrix con la misma regla.
+    /// </summary>
     public IReadOnlyList<UserContext> DemoUsers()
     {
-        string Pick(RoleCode r, int vs, string fallback) =>
-            _people.FirstOrDefault(p => p.Role == r && p.ValueStreamId == vs && p.Assignment == "Champion" && p.Name != "TBD" && p.IsActiveOn(DateTime.Today))?.Name ?? fallback;
-        return new List<UserContext>
-        {
-            new("DEMO\\ADMIN", "Admin Process Excellence", RoleCode.AdminQmmPe, Array.Empty<int>()),
-            new("DEMO\\QMM7", Pick(RoleCode.Qmm, 7, "Andrea Salinas"), RoleCode.Qmm, new[] { 7 }),
-            new("DEMO\\QMM9", Pick(RoleCode.Qmm, 9, "Rodrigo Sandoval"), RoleCode.Qmm, new[] { 9 }),
-            new("DEMO\\MFQ4", "Karla Ontiveros (MFQ4)", RoleCode.Requestor, new[] { 4 }),
-            new("DEMO\\GS", Pick(RoleCode.Gs, 1, "Patricia Lozano"), RoleCode.Gs, Array.Empty<int>()),
-            new("DEMO\\LOP", "Héctor Villalobos (LOP2)", RoleCode.Lop, Array.Empty<int>()),
-            new("DEMO\\MFO7", Pick(RoleCode.Mfo, 7, "Gerardo Peralta"), RoleCode.Mfo, new[] { 7 }),
-            new("DEMO\\LOW", Pick(RoleCode.Low, 1, "Óscar Medina"), RoleCode.Low, Array.Empty<int>()),
-            new("DEMO\\HSE", "Silvia Cárdenas (HSE)", RoleCode.Hse, Array.Empty<int>()),
-            new("DEMO\\VIEW", "Consulta Gerencia", RoleCode.Viewer, Array.Empty<int>()),
-        };
+        var users = new List<UserContext> { new("DEMO\\admin.pe", "Admin Process Excellence", RoleCode.AdminQmmPe, Array.Empty<int>()) };
+        users.AddRange(_people.Where(p => !p.IsPlaceholder)
+            .GroupBy(p => (Name: p.Name.Trim(), p.Role))
+            .OrderBy(g => Array.IndexOf(RoleOrder, g.Key.Role)).ThenBy(g => g.Key.Name, StringComparer.CurrentCulture)
+            .Select(g => new UserContext(DemoNtUser(g.Key.Name), g.Key.Name, g.Key.Role,
+                                         g.Select(p => p.ValueStreamId).Distinct().OrderBy(v => v).ToList())));
+        users.Add(new("DEMO\\consulta", "Consulta Gerencia", RoleCode.Viewer, Array.Empty<int>()));
+        return users;
     }
 
+    /// <summary>Usuario de red simulado: "Andrea Salinas" → DEMO\andrea.salinas.</summary>
+    public static string DemoNtUser(string name)
+    {
+        var plain = new string(name.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
+        var parts = plain.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => new string(p.Where(char.IsLetterOrDigit).ToArray())).Where(p => p.Length > 0);
+        return "DEMO\\" + string.Join(".", parts);
+    }
+
+    /// <summary>Matriz de demostración con nombres FICTICIOS. Varias personas cubren más de un VS.</summary>
     private static List<Person> DefaultPeople()
     {
-        var data = new (int Vs, string MfoC, string MfoP, string QmmC, string QmmP)[]
-        {
-            (1, "Gerardo Peralta", "Luis Paredes", "Andrea Salinas", "Mónica Trejo"),
-            (4, "Fernanda Ruiz", "Joel Aranda", "Ivonne Castillo", "Raúl Quintana"),
-            (5, "Mauricio Peña", "Daniel Correa", "Natalia Ocampo", "César Domínguez"),
-            (7, "Paola Esquer", "TBD", "Andrea Salinas", "Julián Robles"),
-            (9, "Jorge Montes", "Abril Fuentes", "Rodrigo Sandoval", "Diana Solís"),
-        };
         var list = new List<Person>();
-        foreach (var d in data)
+        void Add(string name, RoleCode role, string assignment, params int[] vss)
         {
-            list.Add(new(d.MfoC, RoleCode.Mfo, d.Vs, "Champion"));
-            list.Add(new(d.MfoP, RoleCode.Mfo, d.Vs, "Proxy"));
-            list.Add(new(d.QmmC, RoleCode.Qmm, d.Vs, "Champion"));
-            list.Add(new(d.QmmP, RoleCode.Qmm, d.Vs, "Proxy"));
+            foreach (var vs in vss) list.Add(new(name, role, vs, assignment));
         }
-        list.Add(new("Óscar Medina", RoleCode.Low, 1, "Champion"));
-        list.Add(new("Ernesto Galván", RoleCode.Low, 1, "Proxy"));
-        list.Add(new("Patricia Lozano", RoleCode.Gs, 1, "Champion"));
-        list.Add(new("Iván Robledo", RoleCode.Gs, 1, "Proxy"));
+        // QMM
+        Add("Andrea Salinas", RoleCode.Qmm, "Champion", 1, 7);
+        Add("Mónica Trejo", RoleCode.Qmm, "Proxy", 1);
+        Add("Ivonne Castillo", RoleCode.Qmm, "Champion", 4);
+        Add("Raúl Quintana", RoleCode.Qmm, "Proxy", 4);
+        Add("Natalia Ocampo", RoleCode.Qmm, "Champion", 5);
+        Add("César Domínguez", RoleCode.Qmm, "Proxy", 5);
+        Add("Julián Robles", RoleCode.Qmm, "Proxy", 7);
+        Add("Rodrigo Sandoval", RoleCode.Qmm, "Champion", 9);
+        Add("Diana Solís", RoleCode.Qmm, "Proxy", 9);
+        // MFQ (solicitantes)
+        Add("Karla Ontiveros", RoleCode.Requestor, "Champion", 4, 5);
+        Add("Tomás Arriaga", RoleCode.Requestor, "Champion", 1, 7, 9);
+        // Comercio Exterior GS/OSD43
+        Add("Patricia Lozano", RoleCode.Gs, "Champion", 1, 4, 5);
+        Add("Rebeca Treviño", RoleCode.Gs, "Champion", 7, 9);
+        Add("Iván Robledo", RoleCode.Gs, "Proxy", 1, 4, 5, 7, 9);
+        // LOP
+        Add("Héctor Villalobos", RoleCode.Lop, "Champion", 1, 4, 5);
+        Add("Lorena Ibarra", RoleCode.Lop, "Champion", 7, 9);
+        // MFO
+        Add("Gerardo Peralta", RoleCode.Mfo, "Champion", 1);
+        Add("Luis Paredes", RoleCode.Mfo, "Proxy", 1);
+        Add("Fernanda Ruiz", RoleCode.Mfo, "Champion", 4);
+        Add("Joel Aranda", RoleCode.Mfo, "Proxy", 4);
+        Add("Mauricio Peña", RoleCode.Mfo, "Champion", 5);
+        Add("Daniel Correa", RoleCode.Mfo, "Proxy", 5);
+        Add("Paola Esquer", RoleCode.Mfo, "Champion", 7);
+        Add("TBD", RoleCode.Mfo, "Proxy", 7);
+        Add("Jorge Montes", RoleCode.Mfo, "Champion", 9);
+        Add("Abril Fuentes", RoleCode.Mfo, "Proxy", 9);
+        // LOW
+        Add("Óscar Medina", RoleCode.Low, "Champion", 1, 4, 5, 7);
+        Add("Gilberto Saucedo", RoleCode.Low, "Champion", 9);
+        Add("Ernesto Galván", RoleCode.Low, "Proxy", 1, 4, 5, 7, 9);
+        // HSE
+        Add("Silvia Cárdenas", RoleCode.Hse, "Champion", 1, 4, 5, 7, 9);
+        Add("Ramiro Olvera", RoleCode.Hse, "Proxy", 1, 4, 5, 7, 9);
         return list;
     }
 }

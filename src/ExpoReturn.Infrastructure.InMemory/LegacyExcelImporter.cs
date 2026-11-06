@@ -244,7 +244,8 @@ public static partial class LegacyExcelImporter
                 var role = area switch
                 {
                     "MFO" => RoleCode.Mfo, "QMM" => RoleCode.Qmm, "LOW" => RoleCode.Low,
-                    "OSD43" or "GS/OSD43" => RoleCode.Gs, "MFQ" => RoleCode.Requestor, _ => (RoleCode?)null,
+                    "OSD43" or "GS/OSD43" => RoleCode.Gs, "MFQ" => RoleCode.Requestor,
+                    "LOP" => RoleCode.Lop, "HSE" => RoleCode.Hse, _ => (RoleCode?)null,
                 };
                 if (role is null) continue;
                 var assignment = Clean(ws.Cell(3, c).GetString()) ?? "Champion";
