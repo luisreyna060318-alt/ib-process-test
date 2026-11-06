@@ -332,8 +332,8 @@
                                 <TextBlock Text="Obliga a QMM a clasificar la discrepancia; el pallet pasa a Duty Risk" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}">
-                                <CheckBox Content="Reportado con cono verde" IsChecked="{Binding Edit.GreenConeReported}" IsThreeState="True" IsEnabled="{Binding Perm[GreenConeReported]}" />
-                                <CheckBox Content="Reportado en plataforma" IsChecked="{Binding Edit.PlatformReported}" IsThreeState="True" IsEnabled="{Binding Perm[PlatformReported]}" />
+                                <CheckBox Content="Reportado con cono verde" IsChecked="{Binding Edit.GreenConeReported}" IsEnabled="{Binding Perm[GreenConeReported]}" />
+                                <CheckBox Content="Reportado en plataforma" IsChecked="{Binding Edit.PlatformReported}" IsEnabled="{Binding Perm[PlatformReported]}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}">
                                 <TextBlock Text="RMA" Style="{StaticResource FieldLabel}" />

@@ -51,8 +51,8 @@ public sealed class PalletReturn : NotifyBase
     private int? _scrapQty; public int? ScrapQty { get => _scrapQty; set => Set(ref _scrapQty, value); }
     private DateTime? _scrapDate; public DateTime? ScrapDate { get => _scrapDate; set => Set(ref _scrapDate, value); }
     private bool _declaredMissing; public bool DeclaredMissing { get => _declaredMissing; set => Set(ref _declaredMissing, value); }
-    private bool? _greenConeReported; public bool? GreenConeReported { get => _greenConeReported; set => Set(ref _greenConeReported, value); }
-    private bool? _platformReported; public bool? PlatformReported { get => _platformReported; set => Set(ref _platformReported, value); }
+    private bool _greenConeReported; public bool GreenConeReported { get => _greenConeReported; set => Set(ref _greenConeReported, value); }
+    private bool _platformReported; public bool PlatformReported { get => _platformReported; set => Set(ref _platformReported, value); }
     private string? _rmaNumber; public string? RmaNumber { get => _rmaNumber; set => Set(ref _rmaNumber, value); }
 
     // ---------- Etapa 4 · Cierre aduanal de salida / confirmación de scrap ----------

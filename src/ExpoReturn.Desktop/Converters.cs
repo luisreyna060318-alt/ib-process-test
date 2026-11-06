@@ -11,14 +11,14 @@ public sealed class StatusToBrushConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is WorkflowStatus s
         ? Brush(s switch
         {
-            WorkflowStatus.Draft => "#9CA3AF",
+            WorkflowStatus.Draft => "#4B5563",
             WorkflowStatus.Requested => "#64748B",
             WorkflowStatus.Imported => "#2E75B6",
             WorkflowStatus.InRework => "#4F46E5",
-            WorkflowStatus.PendingHse => "#D97706",
-            WorkflowStatus.PendingExport => "#EA580C",
+            WorkflowStatus.PendingHse => "#B45309",
+            WorkflowStatus.PendingExport => "#C2410C",
             WorkflowStatus.DutyRisk => "#DC2626",
-            WorkflowStatus.Exported => "#16A34A",
+            WorkflowStatus.Exported => "#15803D",
             WorkflowStatus.Scrapped => "#0F766E",
             WorkflowStatus.ClosedDutyPaid => "#7C3AED",
             _ => "#6B7280",
@@ -39,8 +39,8 @@ public sealed class SeverityToBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value switch
     {
-        Severity.Error => StatusToBrushConverter.Brush("#DC2626"),
-        Severity.Warning => StatusToBrushConverter.Brush("#D97706"),
+        Severity.Error => StatusToBrushConverter.Brush("#B91C1C"),
+        Severity.Warning => StatusToBrushConverter.Brush("#B45309"),
         _ => StatusToBrushConverter.Brush("#2E75B6"),
     };
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;

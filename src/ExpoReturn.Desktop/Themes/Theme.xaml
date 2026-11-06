@@ -14,17 +14,15 @@
     <SolidColorBrush x:Key="TextMuted" Color="#6B7280" />
     <SolidColorBrush x:Key="ReadOnlyFill" Color="#F3F4F6" />
     <SolidColorBrush x:Key="Danger" Color="#DC2626" />
-    <SolidColorBrush x:Key="Success" Color="#16A34A" />
+    <SolidColorBrush x:Key="Success" Color="#15803D" />
 
     <local:StatusToBrushConverter x:Key="StatusBrush" />
     <local:SeverityToBrushConverter x:Key="SeverityBrush" />
     <local:BoolToVisibilityConverter x:Key="BoolToVis" />
 
-    <!-- ===== Tipografía ===== -->
-    <Style TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontFamily" Value="Segoe UI" />
-    </Style>
+    <!-- ===== Tipografía =====
+         Sin estilo implícito para TextBlock: el color y la fuente se heredan de la ventana. Así el texto
+         dentro de botones y encabezados oscuros toma el blanco del control (antes quedaba oscuro). -->
     <Style x:Key="PageTitle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="22" />
         <Setter Property="FontWeight" Value="SemiBold" />
@@ -94,6 +92,21 @@
         <Setter Property="FontSize" Value="13" />
         <Setter Property="MinHeight" Value="30" />
         <Setter Property="SelectedDateFormat" Value="Short" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+        <Style.Triggers>
+            <!-- Deshabilitado = mismo gris que los TextBox de sólo lectura (antes parecía editable) -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                <Setter Property="Opacity" Value="0.8" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style TargetType="DatePickerTextBox">
+        <Style.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
     <Style TargetType="CheckBox">
         <Setter Property="FontSize" Value="13" />
