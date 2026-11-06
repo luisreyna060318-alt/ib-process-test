@@ -15,6 +15,142 @@
                     </Border>
                 </Button>
             </DataTemplate>
+        <!-- ===== Resaltado de permisos: campo editable por el usuario actual = verde ligero; sin permiso = gris ===== -->
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Background" Value="{StaticResource EditableFill}" />
+            <Setter Property="BorderBrush" Value="{StaticResource EditableBorder}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+                    <Setter Property="Foreground" Value="#4B5563" />
+                </Trigger>
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MultiLine" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MinHeight" Value="60" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        </Style>
+        <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
+            <Setter Property="Background" Value="{StaticResource EditableFill}" />
+            <Setter Property="BorderBrush" Value="{StaticResource EditableBorder}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+                    <Setter Property="Opacity" Value="0.8" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="DatePickerTextBox">
+            <Setter Property="Background" Value="{StaticResource EditableFill}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ComboBox: la plantilla estándar de Windows ignora Background, por eso se usa una plantilla propia sencilla -->
+        <ControlTemplate x:Key="FieldComboToggle" TargetType="ToggleButton">
+            <Border Background="Transparent">
+                <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,9,0" Data="M0,0 L4,4 L8,0"
+                      Stroke="#4B5563" StrokeThickness="1.6" />
+            </Border>
+        </ControlTemplate>
+        <ControlTemplate x:Key="FieldComboTemplate" TargetType="ComboBox">
+            <Grid SnapsToDevicePixels="True">
+                <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" />
+                <ToggleButton Template="{StaticResource FieldComboToggle}" Focusable="False" ClickMode="Press"
+                              IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+                <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" Margin="{TemplateBinding Padding}"
+                                  Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                  ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                  VerticalAlignment="Center" HorizontalAlignment="Left" />
+                <TextBox x:Name="PART_EditableTextBox" Style="{x:Null}" Visibility="Hidden" Margin="3,0,24,0" Padding="4,0"
+                         Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" FontSize="{TemplateBinding FontSize}"
+                         Foreground="{TemplateBinding Foreground}" IsReadOnly="{Binding IsReadOnly, RelativeSource={RelativeSource TemplatedParent}}" />
+                <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True"
+                       Focusable="False" PopupAnimation="Slide">
+                    <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                            Background="White" BorderBrush="#9CA3AF" BorderThickness="1">
+                        <ScrollViewer SnapsToDevicePixels="True">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsEditable" Value="True">
+                    <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource EditableFocus}" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Template" Value="{StaticResource FieldComboTemplate}" />
+            <Setter Property="Background" Value="{StaticResource EditableFill}" />
+            <Setter Property="BorderBrush" Value="{StaticResource EditableBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,4,26,4" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+                    <Setter Property="Foreground" Value="#4B5563" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- CheckBox: toda la casilla (cuadro + texto) se resalta -->
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Background" Value="{StaticResource EditableFill}" />
+            <Setter Property="BorderBrush" Value="{StaticResource EditableBorder}" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="3" Padding="7,4" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="16" Height="16" Background="White" BorderBrush="#6B7280" BorderThickness="1" CornerRadius="2" VerticalAlignment="Center">
+                                    <Path x:Name="Check" Data="M2.5,7 L5.5,10 L11.5,3.5" Stroke="{StaticResource EditableFocus}" StrokeThickness="2" Visibility="Collapsed" />
+                                </Border>
+                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource EditableFocus}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ReadOnlyFill}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+                                <Setter TargetName="Check" Property="Stroke" Value="#6B7280" />
+                                <Setter Property="Foreground" Value="#4B5563" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="Grid3" TargetType="UniformGrid">
             <Setter Property="Columns" Value="3" />
             <Setter Property="Margin" Value="0,0,0,8" />
@@ -63,6 +199,12 @@
                                 Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="Cambios sin guardar" Foreground="#991B1B" FontWeight="SemiBold" />
                         </Border>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <Border Background="{StaticResource EditableFill}" BorderBrush="{StaticResource EditableBorder}" BorderThickness="1" Width="26" Height="14" CornerRadius="2" VerticalAlignment="Center" />
+                        <TextBlock Text="Usted puede editarlo" Style="{StaticResource Hint}" FontSize="12" Margin="6,0,14,0" VerticalAlignment="Center" />
+                        <Border Background="{StaticResource ReadOnlyFill}" BorderBrush="{StaticResource BorderBrushLight}" BorderThickness="1" Width="26" Height="14" CornerRadius="2" VerticalAlignment="Center" />
+                        <TextBlock Text="Sólo lectura (otra área, otro VS o registro cerrado)" Style="{StaticResource Hint}" FontSize="12" Margin="6,0,14,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock Text="{Binding EditableSummary}" Style="{StaticResource Hint}" FontSize="12" />
                     <TextBlock Text="{Binding DutyRiskReason}" Foreground="{StaticResource Danger}" FontWeight="SemiBold" Margin="0,4,0,0"

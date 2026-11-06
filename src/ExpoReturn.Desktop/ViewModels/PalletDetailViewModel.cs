@@ -102,7 +102,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
             if (!User.IsAdmin && FieldPermissions.EditableFields(User.Role).Count == 0) return "Su rol no edita campos (sólo lectura).";
             if (!User.CoversValueStream(Edit.ValueStreamId)) return $"Su usuario no está asignado a VS{Edit.ValueStreamId} en la matriz Champions VS: sólo lectura.";
             var n = Fields.All.Count(CanEdit);
-            return n == 0 ? "Su rol no edita campos de este registro (sólo lectura)." : $"Puede editar {n} campos (resaltados en blanco). El resto pertenece a otras áreas.";
+            return n == 0 ? "Su rol no edita campos de este registro (sólo lectura)." : $"Puede editar {n} campos (resaltados en verde). El resto pertenece a otras áreas.";
         }
     }
 

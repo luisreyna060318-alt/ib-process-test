@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ExpoReturn.Application;
@@ -44,6 +46,15 @@ public sealed partial class ShellViewModel : ObservableObject
     public string DraftNotice => "BORRADOR PARA REVISIÓN · sin base de datos: los cambios se pierden al cerrar";
 
     [ObservableProperty] private IReadOnlyList<UserContext> _users;
+    /// <summary>Usuarios agrupados por área para el selector (con ~50 usuarios demo, uno por área y VS).</summary>
+    [ObservableProperty] private ICollectionView _usersView = null!;
+
+    partial void OnUsersChanged(IReadOnlyList<UserContext> value)
+    {
+        var view = new ListCollectionView(value.ToList());
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(UserContext.Group)));
+        UsersView = view;
+    }
     private UserContext _currentUser;
     /// <summary>
     /// Usuario simulado. Al reemplazar la lista de usuarios, el ComboBox puede mandar null momentáneamente:

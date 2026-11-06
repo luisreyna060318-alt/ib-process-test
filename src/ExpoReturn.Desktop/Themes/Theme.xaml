@@ -13,6 +13,10 @@
     <SolidColorBrush x:Key="TextPrimary" Color="#1F2937" />
     <SolidColorBrush x:Key="TextMuted" Color="#6B7280" />
     <SolidColorBrush x:Key="ReadOnlyFill" Color="#F3F4F6" />
+    <!-- Campo que el usuario actual SÍ puede editar (detalle del retorno): verde ligero -->
+    <SolidColorBrush x:Key="EditableFill" Color="#E6F4EA" />
+    <SolidColorBrush x:Key="EditableBorder" Color="#7CC293" />
+    <SolidColorBrush x:Key="EditableFocus" Color="#15803D" />
     <SolidColorBrush x:Key="Danger" Color="#DC2626" />
     <SolidColorBrush x:Key="Success" Color="#15803D" />
 

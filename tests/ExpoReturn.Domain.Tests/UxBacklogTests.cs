@@ -60,6 +60,17 @@ public class UxBacklogTests
     }
 
     [Fact]
+    public void Demo_matrix_has_a_dedicated_user_per_area_and_value_stream()
+    {
+        var users = new ChampionsDirectory().DemoUsers();
+        var areas = new[] { RoleCode.Qmm, RoleCode.Requestor, RoleCode.Gs, RoleCode.Lop, RoleCode.Mfo, RoleCode.Low, RoleCode.Hse };
+        foreach (var area in areas)
+            foreach (var vs in Catalogs.ValueStreams.Select(v => v.Id))
+                Assert.Contains(users, u => u.Role == area && u.ValueStreams.SequenceEqual(new[] { vs }));
+        Assert.Contains(users, u => u.ValueStreams.Count > 1);                  // y personas en varios VS
+    }
+
+    [Fact]
     public void A_user_without_value_stream_cannot_edit()
     {
         var pallet = new PalletReturn { ValueStreamId = 4 };

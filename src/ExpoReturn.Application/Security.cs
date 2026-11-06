@@ -37,6 +37,9 @@ public sealed record UserContext(string NtUser, string DisplayName, RoleCode Rol
     public string ValueStreamText => SeesAllValueStreams ? "Todos los VS"
         : ValueStreams.Count == 0 ? "Sin VS asignado" : string.Join(", ", ValueStreams.Select(v => $"VS{v}"));
     public string Label => $"{DisplayName} · {Role.DisplayName()} · {ValueStreamText}";
+    public string AreaText => SeesAllValueStreams ? Role.DisplayName() : Role.ShortName();
+    /// <summary>Grupo en el selector de usuario simulado.</summary>
+    public string Group => SeesAllValueStreams ? "General" : Role.DisplayName();
 }
 
 /// <summary>Campos editables (nombres = propiedades de PalletReturn = columnas SQL).</summary>

@@ -87,7 +87,9 @@ public sealed class ChampionsDirectory : IChampionsDirectory
         var users = new List<UserContext> { new("DEMO\\admin.pe", "Admin Process Excellence", RoleCode.AdminQmmPe, Array.Empty<int>()) };
         users.AddRange(_people.Where(p => !p.IsPlaceholder)
             .GroupBy(p => (Name: p.Name.Trim(), p.Role))
-            .OrderBy(g => Array.IndexOf(RoleOrder, g.Key.Role)).ThenBy(g => g.Key.Name, StringComparer.CurrentCulture)
+            .OrderBy(g => Array.IndexOf(RoleOrder, g.Key.Role)).ThenBy(g => g.Count() > 1 ? 1 : 0)
+            .ThenBy(g => g.Min(p => p.ValueStreamId)).ThenBy(g => g.Any(p => p.Assignment == "Champion") ? 0 : 1)
+            .ThenBy(g => g.Key.Name, StringComparer.CurrentCulture)
             .Select(g => new UserContext(DemoNtUser(g.Key.Name), g.Key.Name, g.Key.Role,
                                          g.Select(p => p.ValueStreamId).Distinct().OrderBy(v => v).ToList())));
         users.Add(new("DEMO\\consulta", "Consulta Gerencia", RoleCode.Viewer, Array.Empty<int>()));
@@ -104,7 +106,10 @@ public sealed class ChampionsDirectory : IChampionsDirectory
         return "DEMO\\" + string.Join(".", parts);
     }
 
-    /// <summary>Matriz de demostración con nombres FICTICIOS. Varias personas cubren más de un VS.</summary>
+    /// <summary>
+    /// Matriz de demostración con nombres FICTICIOS: al menos un Champion por área y por VS (dedicado a ese VS),
+    /// más Proxies; algunos cubren varios VS para mostrar que una persona puede estar asignada a más de uno.
+    /// </summary>
     private static List<Person> DefaultPeople()
     {
         var list = new List<Person>();
@@ -112,43 +117,34 @@ public sealed class ChampionsDirectory : IChampionsDirectory
         {
             foreach (var vs in vss) list.Add(new(name, role, vs, assignment));
         }
-        // QMM
-        Add("Andrea Salinas", RoleCode.Qmm, "Champion", 1, 7);
+        //            Área                 VS1                  VS4                  VS5                  VS7                   VS9
+        var champions = new (RoleCode Role, string[] Names)[]
+        {
+            (RoleCode.Qmm,       new[] { "Andrea Salinas",    "Ivonne Castillo",   "Natalia Ocampo",    "Julián Robles",      "Rodrigo Sandoval" }),
+            (RoleCode.Requestor, new[] { "Tomás Arriaga",     "Karla Ontiveros",   "Elena Barajas",     "Marcos Valenzuela",  "Sofía Rentería" }),
+            (RoleCode.Gs,        new[] { "Patricia Lozano",   "Adrián Cisneros",   "Beatriz Galindo",   "Rebeca Treviño",     "Hugo Navarrete" }),
+            (RoleCode.Lop,       new[] { "Héctor Villalobos", "Mariana Quiroz",    "Rogelio Bermúdez",  "Lorena Ibarra",      "Fabián Zamora" }),
+            (RoleCode.Mfo,       new[] { "Gerardo Peralta",   "Fernanda Ruiz",     "Mauricio Peña",     "Paola Esquer",       "Jorge Montes" }),
+            (RoleCode.Low,       new[] { "Óscar Medina",      "Alma Rosales",      "Pedro Cázares",     "Verónica Luján",     "Gilberto Saucedo" }),
+            (RoleCode.Hse,       new[] { "Silvia Cárdenas",   "Ignacio Meléndez",  "Claudia Íñiguez",   "Samuel Ochoa",       "Teresa Bustamante" }),
+        };
+        int[] vsOrder = { 1, 4, 5, 7, 9 };
+        foreach (var (role, names) in champions)
+            for (var i = 0; i < vsOrder.Length; i++) Add(names[i], role, "Champion", vsOrder[i]);
+
+        // Proxies
         Add("Mónica Trejo", RoleCode.Qmm, "Proxy", 1);
-        Add("Ivonne Castillo", RoleCode.Qmm, "Champion", 4);
         Add("Raúl Quintana", RoleCode.Qmm, "Proxy", 4);
-        Add("Natalia Ocampo", RoleCode.Qmm, "Champion", 5);
         Add("César Domínguez", RoleCode.Qmm, "Proxy", 5);
-        Add("Julián Robles", RoleCode.Qmm, "Proxy", 7);
-        Add("Rodrigo Sandoval", RoleCode.Qmm, "Champion", 9);
+        Add("Andrea Salinas", RoleCode.Qmm, "Proxy", 7);          // Champion en VS1 y Proxy en VS7
         Add("Diana Solís", RoleCode.Qmm, "Proxy", 9);
-        // MFQ (solicitantes)
-        Add("Karla Ontiveros", RoleCode.Requestor, "Champion", 4, 5);
-        Add("Tomás Arriaga", RoleCode.Requestor, "Champion", 1, 7, 9);
-        // Comercio Exterior GS/OSD43
-        Add("Patricia Lozano", RoleCode.Gs, "Champion", 1, 4, 5);
-        Add("Rebeca Treviño", RoleCode.Gs, "Champion", 7, 9);
-        Add("Iván Robledo", RoleCode.Gs, "Proxy", 1, 4, 5, 7, 9);
-        // LOP
-        Add("Héctor Villalobos", RoleCode.Lop, "Champion", 1, 4, 5);
-        Add("Lorena Ibarra", RoleCode.Lop, "Champion", 7, 9);
-        // MFO
-        Add("Gerardo Peralta", RoleCode.Mfo, "Champion", 1);
         Add("Luis Paredes", RoleCode.Mfo, "Proxy", 1);
-        Add("Fernanda Ruiz", RoleCode.Mfo, "Champion", 4);
         Add("Joel Aranda", RoleCode.Mfo, "Proxy", 4);
-        Add("Mauricio Peña", RoleCode.Mfo, "Champion", 5);
         Add("Daniel Correa", RoleCode.Mfo, "Proxy", 5);
-        Add("Paola Esquer", RoleCode.Mfo, "Champion", 7);
-        Add("TBD", RoleCode.Mfo, "Proxy", 7);
-        Add("Jorge Montes", RoleCode.Mfo, "Champion", 9);
+        Add("TBD", RoleCode.Mfo, "Proxy", 7);                      // como en el Excel: vacante, no genera usuario
         Add("Abril Fuentes", RoleCode.Mfo, "Proxy", 9);
-        // LOW
-        Add("Óscar Medina", RoleCode.Low, "Champion", 1, 4, 5, 7);
-        Add("Gilberto Saucedo", RoleCode.Low, "Champion", 9);
+        Add("Iván Robledo", RoleCode.Gs, "Proxy", 1, 4, 5, 7, 9);
         Add("Ernesto Galván", RoleCode.Low, "Proxy", 1, 4, 5, 7, 9);
-        // HSE
-        Add("Silvia Cárdenas", RoleCode.Hse, "Champion", 1, 4, 5, 7, 9);
         Add("Ramiro Olvera", RoleCode.Hse, "Proxy", 1, 4, 5, 7, 9);
         return list;
     }
