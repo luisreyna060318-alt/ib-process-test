@@ -60,15 +60,6 @@ public static partial class LegacyExcelImporter
         ["COMMENTS"] = "Comments", ["Date - Name:"] = "Comments", ["Column2"] = "Comments",
     };
 
-    private static readonly Dictionary<string, string> CategoryMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["EXPORT"] = "EXPORT", ["SCRAP"] = "SCRAP", ["INVENTORY"] = "INVENTORY", ["ENVIO NACIONAL"] = "ENVIO_NACIONAL",
-        ["SCRAP SIN SALIDA FISICA"] = "SCRAP_SIN_SALIDA_FISICA", ["NO REPORTADO CORRECTAMENTE"] = "NO_REPORTADO_CORRECTAMENTE",
-        ["NO REPORTADO CON CONO VERDE"] = "NO_REPORTADO_CONO_VERDE", ["NO LLEGO CON CONO"] = "NO_LLEGO_CON_CONO",
-        ["MATERIAL CON CONO NO REPORTADO POR LOW"] = "CONO_NO_REPORTADO_POR_LOW", ["MATERIAL NO LLEGO DE ELP"] = "MATERIAL_NO_LLEGO_DE_ELP",
-        ["LOW-NO REPORTADO (PLATAFORMA,CONO,RMA)"] = "LOW_NO_REPORTADO_PCR", ["MFO-NO REPORTADO (PLATAFORMA,CONO,RMA)"] = "MFO_NO_REPORTADO_PCR",
-    };
-
     public static LegacyImportResult Import(string path, DateTime today)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -159,8 +150,8 @@ public static partial class LegacyExcelImporter
                 if (po is not null)
                 {
                     var pm = PoRx().Match(po);
-                    if (pm.Success) { p.ReturnPONumber = pm.Groups["po"].Value; if (pm.Groups["item"].Success) p.ReturnPOItem = pm.Groups["item"].Value; }
-                    else { p.ReturnPONumber = po.Length > 10 ? po[..10] : po; Flag(p, "DQ-PO-FORMAT"); }
+                    p.ReturnPONumber = po.Length > 30 ? po[..30] : po;      // como en el Excel (p. ej. "49398082 - 999")
+                    if (!pm.Success) Flag(p, "DQ-PO-FORMAT");
                 }
                 p.DeliveryNumber = Text(C("Delivery"));
 
@@ -172,24 +163,14 @@ public static partial class LegacyExcelImporter
                 p.ReinsertionQty = Int(C("Reinsertion"));
                 var sentBack = C("SentBack");
                 p.DateSentBack = Date(sentBack);
-                if (sentBack is not null && p.DateSentBack is null && Text(sentBack) is { Length: > 3 } note)
-                {
-                    p.Comments = Append(p.Comments, note);          // comentarios capturados en la columna de fecha
-                    Flag(p, "DQ-COMMENT-IN-DATE");
-                }
+                if (sentBack is not null && p.DateSentBack is null && Text(sentBack) is { Length: > 3 })
+                    Flag(p, "DQ-COMMENT-IN-DATE");                  // texto capturado en la columna de fecha
                 p.OldMaterialDeliveredQty = Int(C("Old"));
                 p.ScrapQty = Int(C("Scrap"));
                 p.ScrapDate = Date(C("ScrapDate"));
 
                 var low = Text(C("LowExport"));
-                if (low is not null)
-                {
-                    p.LowExportNote = low.Length > 200 ? low[..200] : low;
-                    var lm = LowExportRx().Match(low);
-                    if (lm.Success) p.LowExportNumber = int.Parse(lm.Groups[1].Value);
-                    var dm = DateInTextRx().Match(low);
-                    if (dm.Success) p.LowExportDate = LegacyDate.Parse(dm.Value);
-                }
+                if (low is not null) p.LowExport = low.Length > 200 ? low[..200] : low;
                 var customs = C("Customs");
                 if (customs is not null && customs.HasFormula) Flag(p, "DQ-CUSTOMS-FORMULA");
                 else
@@ -205,8 +186,9 @@ public static partial class LegacyExcelImporter
                 var comment = Text(C("Comments"));
                 if (comment is not null)
                 {
-                    if (CategoryMap.TryGetValue(comment.Trim(), out var code)) p.StatusCategoryCode = code;
-                    else { p.Comments = Append(p.Comments, comment); Flag(p, "DQ-STATUS-TEXT"); }
+                    var cat = Catalogs.FindCategory(comment);
+                    p.StatusCategoryCode = cat?.Code ?? (comment.Length > 60 ? comment[..60] : comment);
+                    if (cat is null) Flag(p, "DQ-STATUS-TEXT");
                 }
 
                 var outQty = (p.OldMaterialDeliveredQty ?? 0) + (p.ScrapQty ?? 0);
@@ -305,13 +287,10 @@ public static partial class LegacyExcelImporter
     }
 
     private static string? FirstToken(string? s) => s?.Split(new[] { ' ', '/' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-    private static string Append(string? a, string b) => string.IsNullOrWhiteSpace(a) ? b : $"{a} | {b}";
 
     [GeneratedRegex(@"^\s*(?<dept>(QMM|MFQ|MFO|LOP|LOW|PUQ)[\w\-]*?\d?)\s*(,\s*\w+)?\s*[:\-.]\s*(?<name>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex RequestorRx();
     [GeneratedRegex(@"^\s*(?<po>\d{8})(\.\d+)?\s*(-\s*(?<item>\d{1,6}))?\s*$")] private static partial Regex PoRx();
-    [GeneratedRegex(@"expo\s*#?\s*(\d{1,2})", RegexOptions.IgnoreCase)] private static partial Regex LowExportRx();
-    [GeneratedRegex(@"\d{1,2}[/.-](\d{1,2}|[A-Za-z]{3})[/.-]\d{2,4}")] private static partial Regex DateInTextRx();
 }
 
 /// <summary>Fechas heredadas: 'JAN.20.2025', 'DIC.11.24', 'Juio/16/2026', '17/07/2026', '20-Mar.26', '29/11/24'.</summary>

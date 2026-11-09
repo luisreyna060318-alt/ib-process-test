@@ -19,9 +19,9 @@ public sealed record CalcParameters
 public sealed record ReconciliationResult(
     int QtyOpenFloor, int QtyMissing, int QtyPendingExport, int QtyPendingHse,
     decimal MfoInventoryUsd, decimal HseScrapUsd, decimal MfoLowFailureUsd,
-    decimal BalanceGeneralUsd, decimal DutyExposureUsd, decimal DutiesToPayUsd)
+    decimal BalanceGeneralUsd, decimal DutiesToPayUsd)
 {
-    public static readonly ReconciliationResult Zero = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static readonly ReconciliationResult Zero = new(0, 0, 0, 0, 0, 0, 0, 0, 0);
     public int QtyOpenTotal => QtyOpenFloor + QtyMissing + QtyPendingExport + QtyPendingHse;
 }
 
@@ -34,7 +34,7 @@ public static class FinancialCalculator
 {
     public static ReconciliationResult Calculate(PalletReturn p, CalcParameters prm)
     {
-        if (p.ImportDateElpJup1 is null || p.IsCancelled) return ReconciliationResult.Zero;
+        if (p.ImportDateElpJup1 is null) return ReconciliationResult.Zero;
 
         var cost = p.UnitCostUsd ?? 0m;
         var old = p.OldMaterialDeliveredQty ?? 0;
@@ -54,7 +54,7 @@ public static class FinancialCalculator
         var fail = R((pendingExport + missing) * cost);
         var bal = inv + hse + fail;
         return new ReconciliationResult(openFloor, missing, pendingExport, pendingHse,
-            inv, hse, fail, bal, R(bal * prm.DutyRate), R(fail * prm.DutyRate));
+            inv, hse, fail, bal, R(fail * prm.DutyRate));
     }
 
     private static decimal R(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);

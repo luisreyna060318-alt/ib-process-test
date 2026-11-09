@@ -13,13 +13,12 @@ public enum WorkflowStatus
     Exported = 8,
     Scrapped = 9,
     ClosedDutyPaid = 10,
-    Cancelled = 11,
 }
 
 public static class WorkflowStatusInfo
 {
     public static bool IsClosed(this WorkflowStatus s) =>
-        s is WorkflowStatus.Exported or WorkflowStatus.Scrapped or WorkflowStatus.ClosedDutyPaid or WorkflowStatus.Cancelled;
+        s is WorkflowStatus.Exported or WorkflowStatus.Scrapped or WorkflowStatus.ClosedDutyPaid;
 
     public static string DisplayName(this WorkflowStatus s) => s switch
     {
@@ -33,14 +32,11 @@ public static class WorkflowStatusInfo
         WorkflowStatus.Exported => "Exportado",
         WorkflowStatus.Scrapped => "Scrap confirmado",
         WorkflowStatus.ClosedDutyPaid => "Cerrado c/aranceles pagados",
-        WorkflowStatus.Cancelled => "Cancelado",
         _ => s.ToString(),
     };
 }
 
 public enum Severity { Error, Warning, Info }
-
-public enum DutyPaymentStatus { NotRequired, Pending, Paid }
 
 /// <summary>
 /// Tipo de documento de cierre capturado en "Customs Export".

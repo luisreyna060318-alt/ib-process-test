@@ -61,32 +61,57 @@ public static class Catalogs
         return list;
     }
 
+    /// <summary>
+    /// Opciones de la columna COMMENTS, con el texto exacto del Excel. Code = texto que se guarda.
+    /// Kind/área responsable/efecto en aranceles alimentan las reglas (riesgo arancelario, categoría automática).
+    /// </summary>
     public static IReadOnlyList<StatusCategory> StatusCategories { get; } = new[]
     {
-        new StatusCategory("EXPORT", "Exportado a El Paso WHS", "OUTCOME", null, false, true),
-        new StatusCategory("SCRAP", "Destruido vía HSE", "OUTCOME", null, false, true),
-        new StatusCategory("INVENTORY", "Inventario físico abierto en JuP1", "OUTCOME", null, false, true),
-        new StatusCategory("ENVIO_NACIONAL", "Envío nacional (descargo por otra vía)", "OUTCOME", "GS", false, false),
-        new StatusCategory("SCRAP_SIN_SALIDA_FISICA", "Scrap sin salida física", "DISCREPANCY", "HSE", true, false),
-        new StatusCategory("NO_REPORTADO_CORRECTAMENTE", "No reportado correctamente", "DISCREPANCY", null, true, false),
-        new StatusCategory("NO_REPORTADO_CONO_VERDE", "No reportado con cono verde", "DISCREPANCY", "MFO", true, false),
-        new StatusCategory("NO_LLEGO_CON_CONO", "No llegó con cono", "DISCREPANCY", "LOP", true, false),
-        new StatusCategory("CONO_NO_REPORTADO_POR_LOW", "Material con cono no reportado por LOW", "DISCREPANCY", "LOW", true, false),
-        new StatusCategory("MATERIAL_NO_LLEGO_DE_ELP", "Material no llegó de El Paso", "DISCREPANCY", "LOP", true, false),
-        new StatusCategory("LOW_NO_REPORTADO_PCR", "LOW - no reportado (plataforma, cono, RMA)", "DISCREPANCY", "LOW", true, false),
-        new StatusCategory("MFO_NO_REPORTADO_PCR", "MFO - no reportado (plataforma, cono, RMA)", "DISCREPANCY", "MFO", true, false),
+        Cat("EXPORT", "OUTCOME", null, false, true),
+        Cat("SCRAP", "OUTCOME", null, false, true),
+        Cat("INVENTORY", "OUTCOME", null, false, true),
+        Cat("ENVIO NACIONAL", "OUTCOME", "GS", false, false),
+        Cat("SCRAP SIN SALIDA FISICA", "DISCREPANCY", "HSE", true, false),
+        Cat("NO REPORTADO CORRECTAMENTE", "DISCREPANCY", null, true, false),
+        Cat("NO REPORTADO CON CONO VERDE", "DISCREPANCY", "MFO", true, false),
+        Cat("NO LLEGO CON CONO", "DISCREPANCY", "LOP", true, false),
+        Cat("MATERIAL CON CONO NO REPORTADO POR LOW", "DISCREPANCY", "LOW", true, false),
+        Cat("MATERIAL NO LLEGO DE ELP", "DISCREPANCY", "LOP", true, false),
+        Cat("LOW-NO REPORTADO (PLATAFORMA,CONO,RMA)", "DISCREPANCY", "LOW", true, false),
+        Cat("MFO-NO REPORTADO (PLATAFORMA,CONO,RMA)", "DISCREPANCY", "MFO", true, false),
     };
 
-    public static IReadOnlyList<IbOrderType> IbOrderTypes { get; } = new[]
+    private static StatusCategory Cat(string text, string kind, string? area, bool affectsDuty, bool auto) =>
+        new(text, text, kind, area, affectsDuty, auto);
+
+    /// <summary>
+    /// Lista desplegable de COMMENTS de cada hoja VS, tal como está en la validación de datos del Excel 2.0
+    /// (cada hoja tiene su propia lista).
+    /// </summary>
+    private static readonly Dictionary<int, string[]> CommentsListByVs = new()
     {
-        new IbOrderType("PPI2", "Inhouse repair (estándar)"),
-        new IbOrderType("PPI3", "Falla con costo"),
-        new IbOrderType("PPI4", "Garantía"),
-        new IbOrderType("PPI5", "Daño de transporte"),
-        new IbOrderType("PPI6", "Daño de transporte"),
+        [1] = new[] { "EXPORT", "SCRAP", "INVENTORY", "LOW-NO REPORTADO (PLATAFORMA,CONO,RMA)", "MFO-NO REPORTADO (PLATAFORMA,CONO,RMA)",
+                      "ENVIO NACIONAL", "SCRAP SIN SALIDA FISICA" },
+        [4] = new[] { "NO REPORTADO CORRECTAMENTE", "EXPORT", "SCRAP", "INVENTORY", "NO REPORTADO CON CONO VERDE", "NO LLEGO CON CONO",
+                      "MATERIAL CON CONO NO REPORTADO POR LOW", "ENVIO NACIONAL", "MATERIAL NO LLEGO DE ELP" },
+        [5] = new[] { "NO REPORTADO CORRECTAMENTE", "EXPORT", "SCRAP", "INVENTORY", "NO REPORTADO CON CONO VERDE", "NO LLEGO CON CONO",
+                      "MATERIAL CON CONO NO REPORTADO POR LOW" },
+        [7] = new[] { "NO REPORTADO CORRECTAMENTE", "EXPORT", "SCRAP", "INVENTORY", "NO REPORTADO CON CONO VERDE", "NO LLEGO CON CONO",
+                      "MATERIAL CON CONO NO REPORTADO POR LOW" },
+        [9] = new[] { "NO REPORTADO CORRECTAMENTE", "EXPORT", "SCRAP", "INVENTORY", "NO REPORTADO CON CONO VERDE", "NO LLEGO CON CONO",
+                      "MATERIAL CON CONO NO REPORTADO POR LOW", "ENVIO NACIONAL" },
     };
+
+    /// <summary>Opciones de COMMENTS para un VS; si el registro ya trae otro valor (p. ej. histórico), se agrega para no perderlo.</summary>
+    public static IReadOnlyList<string> CommentsOptions(int valueStreamId, string? current = null)
+    {
+        var list = (CommentsListByVs.TryGetValue(valueStreamId, out var l) ? l : StatusCategories.Select(c => c.Code).ToArray()).ToList();
+        if (!string.IsNullOrWhiteSpace(current) && !list.Contains(current)) list.Add(current);
+        return list;
+    }
 
     public static Reason? FindReason(int? id) => id is null ? null : Reasons.FirstOrDefault(r => r.Id == id);
     public static StatusCategory? FindCategory(string? code) =>
-        string.IsNullOrWhiteSpace(code) ? null : StatusCategories.FirstOrDefault(c => c.Code == code);
+        string.IsNullOrWhiteSpace(code) ? null
+        : StatusCategories.FirstOrDefault(c => string.Equals(c.Code, code.Trim(), StringComparison.OrdinalIgnoreCase));
 }

@@ -15,8 +15,8 @@ public static class ExcelExporter
         var ws = wb.Worksheets.Add("Retornos");
         string[] headers =
         {
-            "Folio", "VS", "Estatus", "Número de parte", "Cantidad importada", "Valor SAP (USD)", "Balance (USD)",
-            "Días en JuP1", "Días para vencer", "Responsable QMM", "Factura", "Exportación aduanal", "Categoría", "Calidad de datos",
+            "#", "VS", "Estatus", "Returned Pallet 13 Digits Part number", "Quantity imported", "SAP USD TOTAL", "Balance GENERAL DLLS",
+            "Días en JuP1", "Días para vencer", "QMM Responsible", "Invoice", "Customs Export", "COMMENTS", "Calidad de datos",
         };
         ws.Cell(1, 1).Value = $"Expo & Return FG Follow Up · Bandeja exportada el {DateTime.Now:dd/MM/yyyy HH:mm} · Filtro: {filterDescription}";
         ws.Cell(1, 1).Style.Font.Italic = true;
@@ -43,7 +43,7 @@ public static class ExcelExporter
             ws.Cell(r, 10).Value = p.QmmResponsible;
             ws.Cell(r, 11).Value = p.ImportInvoice;
             ws.Cell(r, 12).Value = p.CustomsExportReference;
-            ws.Cell(r, 13).Value = Catalogs.FindCategory(p.StatusCategoryCode)?.Description ?? p.StatusCategoryCode;
+            ws.Cell(r, 13).Value = p.StatusCategoryCode;
             ws.Cell(r, 14).Value = p.DataQualityText;
             r++;
         }

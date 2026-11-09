@@ -73,10 +73,10 @@ public class ParsingAndImportTests
         Assert.Contains(nameof(PalletReturn.ImportInvoice), denied.DeniedFields);
 
         var gs = new UserContext("T\\GS", "GS", RoleCode.Gs, new[] { open.ValueStreamId });
-        var edit2 = open.Clone(); edit2.ImportPedimento = "26 07 3807 6000123";
+        var edit2 = open.Clone(); edit2.ImportInvoice = $"MPS{open.ImportDate:yy}999999";
         var ok = svc.Save(edit2, gs);
         Assert.True(ok.Success, ok.Summary);
-        Assert.Contains(audit.For(open.Id), a => a.Field == nameof(PalletReturn.ImportPedimento) && a.NtUser == "T\\GS");
+        Assert.Contains(audit.For(open.Id), a => a.Field == nameof(PalletReturn.ImportInvoice) && a.NtUser == "T\\GS");
     }
 
     /// <summary>Se ejecuta sólo si EXPORETURN_LEGACY_XLSX apunta al Excel real (no se versiona).</summary>

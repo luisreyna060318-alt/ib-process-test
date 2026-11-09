@@ -99,19 +99,16 @@ public static class SampleData
         if (sc == Scenario.Draft) { p.ReasonId = null; p.RequestorName = null; return p; }
 
         p.DateReturnedToWhs = cross.AddDays(-2);
+        p.ReturnPONumber = (49845000 + n * 7).ToString();
         if (sc == Scenario.Requested) return p;
 
         p.ImportDate = cross;
         p.ImportInvoice = $"MPS{cross:yy}{(200 + n):000000}";
         p.ImportDateElpJup1 = cross;
-        p.ReturnPONumber = (49845000 + n * 7).ToString();
         p.DeliveryNumber = (84012000 + n).ToString();
-        p.DutyPaymentStatus = DutyPaymentStatus.NotRequired;
         if (sc == Scenario.Imported || sc == Scenario.AgingCritical) return p;
 
         var reflash = Catalogs.FindReason(p.ReasonId)!.RequiresNewMaterial;
-        p.IbOrderTypeCode = "PPI2";
-        p.IbOrderNumber = (5100000 + n).ToString();
         p.NewMaterial = reflash ? Materials[(n + 1) % Materials.Length].Pn : p.ReturnedMaterial;
         p.NewHU = (2106600000 + n * 41).ToString();
         p.ReworkBatch = p.OriginalBatch;
@@ -123,24 +120,19 @@ public static class SampleData
         p.ReinsertionQty = sc == Scenario.Exported && n % 3 == 0 ? 24 : 0;
         p.OldMaterialDeliveredQty = old;
         p.PhysicalDeliveredQty = old + (p.ReinsertionQty ?? 0);
-        p.PhysicalDeliveredDate = cross.AddDays(3);
         p.DateSentBack = cross.AddDays(3);
         if (scrap > 0) { p.ScrapQty = scrap; p.ScrapDate = cross.AddDays(2); }
         if (sc == Scenario.Missing)
         {
-            p.DeclaredMissing = true;
-            p.StatusCategoryCode = "NO_REPORTADO_CONO_VERDE";
-            p.GreenConeReported = false;
+            // Discrepancia clasificada por QMM con una opción de la lista COMMENTS de su hoja VS
+            p.StatusCategoryCode = vs == 1 ? "MFO-NO REPORTADO (PLATAFORMA,CONO,RMA)" : "NO REPORTADO CON CONO VERDE";
         }
 
         if (sc is Scenario.PendingExport or Scenario.PendingExportOld) return p;
         if (old > 0)
         {
-            p.LowExportNumber = 1 + n % 5;
-            p.LowExportDate = cross.AddDays(4);
-            p.LowExportNote = $"Incluido en expo #{p.LowExportNumber} del día {cross.AddDays(4):dd/MM/yyyy}";
+            p.LowExport = $"Incluido en expo #{1 + n % 5} de el dia {cross.AddDays(4):dd/MM/yyyy}";
             p.CustomsExportReference = sc == Scenario.ClosedF4 ? "F4" : $"PR{cross:yy}-{(100 + n):00000}";
-            p.CustomsExportDate = cross.AddDays(5);
         }
         if (scrap > 0 && sc != Scenario.PendingHse)
         {

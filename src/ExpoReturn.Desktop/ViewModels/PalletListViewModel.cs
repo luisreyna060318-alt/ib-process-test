@@ -88,7 +88,6 @@ public sealed partial class PalletListViewModel : PageViewModel
     [ObservableProperty] private int _kpiOpen;
     [ObservableProperty] private int _kpiDutyRisk;
     [ObservableProperty] private decimal _kpiBalance;
-    [ObservableProperty] private decimal _kpiDutyExposure;
 
     partial void OnSelectedValueStreamChanged(LookupItem value) => FiltersChanged();
     partial void OnSelectedStatusChanged(LookupItem value) => FiltersChanged();
@@ -162,7 +161,6 @@ public sealed partial class PalletListViewModel : PageViewModel
         KpiOpen = visible.Count(r => !r.Status.IsClosed());
         KpiDutyRisk = visible.Count(r => r.IsDutyRisk);
         KpiBalance = visible.Sum(r => r.Balance);
-        KpiDutyExposure = visible.Sum(r => r.Pallet.Financials.DutyExposureUsd);
     }
 
     private bool Filter(object o)

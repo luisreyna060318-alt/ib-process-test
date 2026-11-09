@@ -37,14 +37,8 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; } = Catalogs.ValueStreams.Select(v => new LookupItem(v.Id, v.Code)).ToList();
     public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Where(d => d.CanRequest).Select(d => new LookupItem(d.Code, $"{d.Code} — {d.Name}")).ToList();
     public IReadOnlyList<Reason> ReasonOptions { get; } = Catalogs.Reasons;
-    public IReadOnlyList<LookupItem> IbOrderOptions { get; } = Catalogs.IbOrderTypes.Select(o => new LookupItem(o.Code, $"{o.Code} — {o.Description}")).ToList();
-    public IReadOnlyList<LookupItem> CategoryOptions { get; } = Catalogs.StatusCategories.Select(c => new LookupItem(c.Code, $"{c.Description}{(c.Kind == "DISCREPANCY" ? $" · {c.ResponsibleArea ?? "QMM"}" : "")}")).ToList();
-    public IReadOnlyList<LookupItem> DutyPaymentOptions { get; } = new[]
-    {
-        new LookupItem(DutyPaymentStatus.NotRequired, "No requerido"),
-        new LookupItem(DutyPaymentStatus.Pending, "Pendiente"),
-        new LookupItem(DutyPaymentStatus.Paid, "Pagado"),
-    };
+    /// <summary>Lista de COMMENTS de la hoja VS del registro, con el texto exacto del Excel.</summary>
+    public IReadOnlyList<string> CommentsOptions => Catalogs.CommentsOptions(Edit.ValueStreamId, Edit.StatusCategoryCode);
     public IReadOnlyList<string> QmmOptions => Services.Champions.QmmFor(Edit.ValueStreamId);
 
     // ---------- Estado ----------
@@ -134,7 +128,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         if (e.PropertyName is nameof(PalletReturn.Financials) or nameof(PalletReturn.Status) or nameof(PalletReturn.StatusName)) return;
         IsDirty = true;
         if (e.PropertyName == nameof(PalletReturn.ReturnedMaterial)) FillCostFromCatalog();
-        if (e.PropertyName == nameof(PalletReturn.ValueStreamId)) OnPropertyChanged(nameof(QmmOptions));
+        if (e.PropertyName == nameof(PalletReturn.ValueStreamId)) { OnPropertyChanged(nameof(QmmOptions)); OnPropertyChanged(nameof(CommentsOptions)); }
         Reevaluate();
     }
 

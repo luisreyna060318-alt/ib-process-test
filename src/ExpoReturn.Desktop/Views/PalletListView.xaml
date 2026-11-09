@@ -18,14 +18,11 @@
                 <Border Style="{StaticResource KpiCard}">
                     <StackPanel><TextBlock Text="Abiertos" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiOpen}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
-                <Border Style="{StaticResource KpiCard}" ToolTip="Excel 2.0: estatus calculado; antes no existía">
+                <Border Style="{StaticResource KpiCard}" ToolTip="Estatus calculado por la aplicación">
                     <StackPanel><TextBlock Text="En riesgo arancelario" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyRisk}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
                 </Border>
-                <Border Style="{StaticResource KpiCard}" ToolTip="Excel 2.0: Balance GENERAL DLLS">
-                    <StackPanel><TextBlock Text="Balance general no conciliado (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
-                </Border>
-                <Border Style="{StaticResource KpiCard}" ToolTip="Balance × 0.19 (tasa provisional)">
-                    <StackPanel><TextBlock Text="Exposición a aranceles (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyExposure, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                <Border Style="{StaticResource KpiCard}" ToolTip="Suma del balance no conciliado de los registros del filtro">
+                    <StackPanel><TextBlock Text="Balance GENERAL DLLS" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
             </StackPanel>
 
@@ -59,19 +56,29 @@
 
         <DataGrid x:Name="Grid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
                   MouseDoubleClick="OnRowDoubleClick" PreviewKeyDown="OnGridKeyDown">
+            <!-- Encabezados del Excel: pueden ser largos, se acomodan en dos renglones -->
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                    <Setter Property="ContentTemplate">
+                        <Setter.Value>
+                            <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
+                <DataGridTextColumn Header="#" Binding="{Binding FolioCode}" Width="95" />
                 <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="48" />
                 <DataGridTemplateColumn Header="Estatus" Width="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
-                <DataGridTextColumn Header="Número de parte" Binding="{Binding Material}" Width="135" />
-                <DataGridTextColumn Header="Cant." Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="60" />
-                <DataGridTextColumn Header="Valor SAP (USD)" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="110" />
-                <DataGridTextColumn Header="Balance (USD)" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="105" />
+                <DataGridTextColumn Header="Returned Pallet 13 Digits Part number" Binding="{Binding Material}" Width="150" />
+                <DataGridTextColumn Header="Quantity imported" Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="80" />
+                <DataGridTextColumn Header="SAP USD TOTAL" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="105" />
+                <DataGridTextColumn Header="Balance GENERAL DLLS" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="105" />
                 <DataGridTextColumn Header="Días en JuP1" Binding="{Binding DaysInJuP1}" Width="95" />
                 <DataGridTextColumn Header="Días p/vencer" Binding="{Binding DaysToLegalDue}" Width="100" />
-                <DataGridTextColumn Header="Responsable QMM" Binding="{Binding Qmm}" Width="145" />
-                <DataGridTextColumn Header="Factura" Binding="{Binding Invoice}" Width="105" />
-                <DataGridTextColumn Header="Categoría" Binding="{Binding Category}" Width="*" MinWidth="215" />
+                <DataGridTextColumn Header="QMM Responsible" Binding="{Binding Qmm}" Width="145" />
+                <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" Width="105" />
+                <DataGridTextColumn Header="COMMENTS" Binding="{Binding Category}" Width="*" MinWidth="215" />
                 <DataGridTextColumn x:Name="DqColumn" Header="Calidad de datos" Binding="{Binding DqText}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>

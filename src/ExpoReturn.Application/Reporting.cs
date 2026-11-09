@@ -5,7 +5,7 @@ namespace ExpoReturn.Application;
 public sealed record BalanceRow(
     string ValueStream, int Pallets, int OpenPallets, int DutyRiskPallets,
     decimal TotalImportedUsd, decimal MfoInventoryUsd, decimal HseScrapUsd, decimal MfoLowFailureUsd,
-    decimal ExportedUsd, decimal BalanceGeneralUsd, decimal DutiesToPayUsd, decimal DutyExposureUsd);
+    decimal ExportedUsd, decimal BalanceGeneralUsd, decimal DutiesToPayUsd);
 
 public sealed record StatusCount(WorkflowStatus Status, int Count)
 {
@@ -42,14 +42,14 @@ public sealed class ReportingService
     public IReadOnlyList<BalanceRow> BalanceByValueStream(int? fiscalYear = null)
     {
         var rows = _repo.GetAll()
-            .Where(p => p.ImportDateElpJup1 is not null && !p.IsCancelled)
+            .Where(p => p.ImportDateElpJup1 is not null)
             .Where(p => fiscalYear is null || p.ImportDateElpJup1!.Value.Year == fiscalYear)
             .GroupBy(p => p.ValueStreamId)
             .OrderBy(g => g.Key)
             .Select(g => Row($"VS{g.Key}", g.ToList()))
             .ToList();
         if (rows.Count > 0)
-            rows.Add(Row("Total", _repo.GetAll().Where(p => p.ImportDateElpJup1 is not null && !p.IsCancelled
+            rows.Add(Row("Total", _repo.GetAll().Where(p => p.ImportDateElpJup1 is not null
                                                        && (fiscalYear is null || p.ImportDateElpJup1!.Value.Year == fiscalYear)).ToList()));
         return rows;
     }
@@ -62,7 +62,7 @@ public sealed class ReportingService
         var fail = list.Sum(p => p.Financials.MfoLowFailureUsd);
         return new BalanceRow(vs, list.Count, list.Count(p => !p.Status.IsClosed()), list.Count(p => p.IsDutyRisk),
             total, inv, hse, fail, total - inv - hse - fail, inv + hse + fail,
-            list.Sum(p => p.Financials.DutiesToPayUsd), list.Sum(p => p.Financials.DutyExposureUsd));
+            list.Sum(p => p.Financials.DutiesToPayUsd));
     }
 
     public IReadOnlyList<StatusCount> StatusDistribution() =>
@@ -92,7 +92,7 @@ public sealed class ReportingService
             }
             if (f.QtyOpenFloor > 0 && days > _prm.SlaReworkDays)
                 list.Add(new(AlertType.ReworkSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyOpenFloor} pzs en piso MFO desde hace {days} días.", "MFO"));
-            var deliveredOn = p.PhysicalDeliveredDate ?? p.DateSentBack;
+            var deliveredOn = p.DateSentBack;
             if (f.QtyPendingExport > 0 && deliveredOn is not null && (today - deliveredOn.Value.Date).Days > _prm.SlaExportDays)
                 list.Add(new(AlertType.ExportSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingExport} pzs en LOW sin pedimento desde hace {(today - deliveredOn.Value.Date).Days} días.", "LOW + GS"));
             if (f.QtyPendingHse > 0 && p.ScrapDate is not null && (today - p.ScrapDate.Value.Date).Days > _prm.SlaHseDays)

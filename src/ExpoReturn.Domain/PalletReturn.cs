@@ -2,7 +2,7 @@ namespace ExpoReturn.Domain;
 
 /// <summary>
 /// Un pallet retornado de El Paso WHS a JuP1 (un renglón de la Matriz 2.0).
-/// Los nombres de propiedad coinciden con las columnas de trk.Pallets_Return_Tracking.
+/// Fiel a las columnas del Excel 2.0 (sin campos adicionales). Los nombres de propiedad coinciden con trk.Pallets_Return_Tracking.
 /// </summary>
 public sealed class PalletReturn : NotifyBase
 {
@@ -31,17 +31,11 @@ public sealed class PalletReturn : NotifyBase
     private DateTime? _importDate; public DateTime? ImportDate { get => _importDate; set => Set(ref _importDate, value); }
     private string? _importInvoice; public string? ImportInvoice { get => _importInvoice; set => Set(ref _importInvoice, value); }
     private DateTime? _importDateElpJup1; public DateTime? ImportDateElpJup1 { get => _importDateElpJup1; set => Set(ref _importDateElpJup1, value); }
-    private string? _importPedimento; public string? ImportPedimento { get => _importPedimento; set => Set(ref _importPedimento, value); }
     private string? _returnPONumber; public string? ReturnPONumber { get => _returnPONumber; set => Set(ref _returnPONumber, value); }
-    private string? _returnPOItem; public string? ReturnPOItem { get => _returnPOItem; set => Set(ref _returnPOItem, value); }
     private string? _deliveryNumber; public string? DeliveryNumber { get => _deliveryNumber; set => Set(ref _deliveryNumber, value); }
-    private DutyPaymentStatus? _dutyPaymentStatus; public DutyPaymentStatus? DutyPaymentStatus { get => _dutyPaymentStatus; set => Set(ref _dutyPaymentStatus, value); }
 
     // ---------- Etapa 3 · Ejecución en planta (MFO / LOW) ----------
-    private string? _ibOrderNumber; public string? IbOrderNumber { get => _ibOrderNumber; set => Set(ref _ibOrderNumber, value); }
-    private string? _ibOrderTypeCode; public string? IbOrderTypeCode { get => _ibOrderTypeCode; set => Set(ref _ibOrderTypeCode, value); }
     private int? _physicalDeliveredQty; public int? PhysicalDeliveredQty { get => _physicalDeliveredQty; set => Set(ref _physicalDeliveredQty, value); }
-    private DateTime? _physicalDeliveredDate; public DateTime? PhysicalDeliveredDate { get => _physicalDeliveredDate; set => Set(ref _physicalDeliveredDate, value); }
     private string? _newMaterial; public string? NewMaterial { get => _newMaterial; set => Set(ref _newMaterial, value); }
     private string? _newHU; public string? NewHU { get => _newHU; set => Set(ref _newHU, value); }
     private string? _reworkBatch; public string? ReworkBatch { get => _reworkBatch; set => Set(ref _reworkBatch, value); }
@@ -50,26 +44,16 @@ public sealed class PalletReturn : NotifyBase
     private int? _oldMaterialDeliveredQty; public int? OldMaterialDeliveredQty { get => _oldMaterialDeliveredQty; set => Set(ref _oldMaterialDeliveredQty, value); }
     private int? _scrapQty; public int? ScrapQty { get => _scrapQty; set => Set(ref _scrapQty, value); }
     private DateTime? _scrapDate; public DateTime? ScrapDate { get => _scrapDate; set => Set(ref _scrapDate, value); }
-    private bool _declaredMissing; public bool DeclaredMissing { get => _declaredMissing; set => Set(ref _declaredMissing, value); }
-    private bool _greenConeReported; public bool GreenConeReported { get => _greenConeReported; set => Set(ref _greenConeReported, value); }
-    private bool _platformReported; public bool PlatformReported { get => _platformReported; set => Set(ref _platformReported, value); }
-    private string? _rmaNumber; public string? RmaNumber { get => _rmaNumber; set => Set(ref _rmaNumber, value); }
 
     // ---------- Etapa 4 · Cierre aduanal de salida / confirmación de scrap ----------
-    private int? _lowExportNumber; public int? LowExportNumber { get => _lowExportNumber; set => Set(ref _lowExportNumber, value); }
-    private DateTime? _lowExportDate; public DateTime? LowExportDate { get => _lowExportDate; set => Set(ref _lowExportDate, value); }
-    private string? _lowExportNote; public string? LowExportNote { get => _lowExportNote; set => Set(ref _lowExportNote, value); }
+    private string? _lowExport; public string? LowExport { get => _lowExport; set => Set(ref _lowExport, value); }
     private string? _customsExportReference; public string? CustomsExportReference { get => _customsExportReference; set => Set(ref _customsExportReference, value); }
-    private DateTime? _customsExportDate; public DateTime? CustomsExportDate { get => _customsExportDate; set => Set(ref _customsExportDate, value); }
     private string? _scrapGrNumber; public string? ScrapGrNumber { get => _scrapGrNumber; set => Set(ref _scrapGrNumber, value); }
     private decimal? _hseScrapKg; public decimal? HseScrapKg { get => _hseScrapKg; set => Set(ref _hseScrapKg, value); }
     private DateTime? _hseConfirmationDate; public DateTime? HseConfirmationDate { get => _hseConfirmationDate; set => Set(ref _hseConfirmationDate, value); }
 
     // ---------- Etapa 5 · Clasificación ----------
     private string? _statusCategoryCode; public string? StatusCategoryCode { get => _statusCategoryCode; set => Set(ref _statusCategoryCode, value); }
-    private string? _comments; public string? Comments { get => _comments; set => Set(ref _comments, value); }
-    private bool _isCancelled; public bool IsCancelled { get => _isCancelled; set => Set(ref _isCancelled, value); }
-    private string? _cancelReason; public string? CancelReason { get => _cancelReason; set => Set(ref _cancelReason, value); }
 
     // ---------- Resultados del motor (escritos por PalletEvaluator.Apply) ----------
     private ReconciliationResult _financials = ReconciliationResult.Zero; public ReconciliationResult Financials { get => _financials; set => Set(ref _financials, value); }
@@ -89,9 +73,10 @@ public sealed class PalletReturn : NotifyBase
 
     public ClosureDocumentType ClosureType => ClosureDocument.Classify(CustomsExportReference);
 
+    /// <summary>Días desde el cruce; en un registro cerrado se detiene en "Date send Back" (o la confirmación HSE).</summary>
     public int? DaysInJuP1(DateTime today) =>
         ImportDateElpJup1 is null ? null
-        : (int)((CustomsExportDate ?? HseConfirmationDate ?? today).Date - ImportDateElpJup1.Value.Date).TotalDays;
+        : (int)(((Status.IsClosed() ? DateSentBack ?? HseConfirmationDate : null) ?? today).Date - ImportDateElpJup1.Value.Date).TotalDays;
 
     /// <summary>Copia superficial: el editor trabaja sobre una copia y sólo se guarda al confirmar.</summary>
     public PalletReturn Clone()

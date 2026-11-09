@@ -45,60 +45,54 @@ public sealed record UserContext(string NtUser, string DisplayName, RoleCode Rol
 /// <summary>Campos editables (nombres = propiedades de PalletReturn = columnas SQL).</summary>
 public static class Fields
 {
+    // Campos = columnas del Excel 2.0, en su orden. "Date PO" y "PO Number" se capturan en la Solicitud.
     public static readonly string[] Stage1 =
     {
         nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.RequestingDepartment), nameof(PalletReturn.RequestorName),
         nameof(PalletReturn.ReasonId), nameof(PalletReturn.ReturnReasonDetail), nameof(PalletReturn.ReturnedMaterial),
         nameof(PalletReturn.QtyImported), nameof(PalletReturn.OriginalHU), nameof(PalletReturn.OriginalBatch),
+        nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
     };
     public static readonly string[] Stage2 =
     {
-        nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ImportDate), nameof(PalletReturn.ImportInvoice),
-        nameof(PalletReturn.ImportDateElpJup1), nameof(PalletReturn.ImportPedimento), nameof(PalletReturn.ReturnPONumber),
-        nameof(PalletReturn.ReturnPOItem), nameof(PalletReturn.DeliveryNumber), nameof(PalletReturn.DutyPaymentStatus),
+        nameof(PalletReturn.ImportDate), nameof(PalletReturn.ImportInvoice), nameof(PalletReturn.ImportDateElpJup1),
+        nameof(PalletReturn.DeliveryNumber),
     };
     public static readonly string[] Stage3 =
     {
-        nameof(PalletReturn.IbOrderNumber), nameof(PalletReturn.IbOrderTypeCode), nameof(PalletReturn.PhysicalDeliveredQty),
-        nameof(PalletReturn.PhysicalDeliveredDate), nameof(PalletReturn.NewMaterial), nameof(PalletReturn.NewHU),
+        nameof(PalletReturn.NewMaterial), nameof(PalletReturn.PhysicalDeliveredQty), nameof(PalletReturn.NewHU),
         nameof(PalletReturn.ReworkBatch), nameof(PalletReturn.ReinsertionQty), nameof(PalletReturn.DateSentBack),
         nameof(PalletReturn.OldMaterialDeliveredQty), nameof(PalletReturn.ScrapQty), nameof(PalletReturn.ScrapDate),
-        nameof(PalletReturn.DeclaredMissing), nameof(PalletReturn.GreenConeReported), nameof(PalletReturn.PlatformReported),
-        nameof(PalletReturn.RmaNumber),
     };
     public static readonly string[] Stage4 =
     {
-        nameof(PalletReturn.LowExportNumber), nameof(PalletReturn.LowExportDate), nameof(PalletReturn.LowExportNote),
-        nameof(PalletReturn.CustomsExportReference), nameof(PalletReturn.CustomsExportDate), nameof(PalletReturn.ScrapGrNumber),
+        nameof(PalletReturn.LowExport), nameof(PalletReturn.CustomsExportReference), nameof(PalletReturn.ScrapGrNumber),
         nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate),
     };
-    public static readonly string[] Stage5 =
-    {
-        nameof(PalletReturn.StatusCategoryCode), nameof(PalletReturn.Comments), nameof(PalletReturn.IsCancelled), nameof(PalletReturn.CancelReason),
-    };
+    public static readonly string[] Stage5 = { nameof(PalletReturn.StatusCategoryCode) };
     public static IEnumerable<string> All => Stage1.Concat(Stage2).Concat(Stage3).Concat(Stage4).Concat(Stage5);
 }
 
 /// <summary>Matriz rol × campo (sec.Field_Permissions). Replica los encabezados de área del Excel.</summary>
 public static class FieldPermissions
 {
+    /// <summary>Fila de áreas del Excel: QMM (Solicitud, Date PO, PO Number, COMMENTS), GS/OSD43 (importación y Customs Export),
+    /// LOP (Delivery Number), MFO (ejecución y GR Number), LOW (LOW export), HSE (kg y confirmación).</summary>
     private static readonly Dictionary<RoleCode, HashSet<string>> Map = new()
     {
-        [RoleCode.Qmm] = new(Fields.Stage1.Concat(new[]
+        [RoleCode.Qmm] = new(Fields.Stage1.Append(nameof(PalletReturn.StatusCategoryCode))),
+        [RoleCode.Requestor] = new(Fields.Stage1.Except(new[]
         {
-            nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber), nameof(PalletReturn.ReturnPOItem),
-            nameof(PalletReturn.StatusCategoryCode), nameof(PalletReturn.Comments),
+            nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
         })),
-        [RoleCode.Requestor] = new(Fields.Stage1.Except(new[] { nameof(PalletReturn.QmmResponsible) })),
         [RoleCode.Gs] = new(new[]
         {
-            nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ImportDate), nameof(PalletReturn.ImportInvoice),
-            nameof(PalletReturn.ImportDateElpJup1), nameof(PalletReturn.ImportPedimento), nameof(PalletReturn.DutyPaymentStatus),
-            nameof(PalletReturn.CustomsExportReference), nameof(PalletReturn.CustomsExportDate),
+            nameof(PalletReturn.ImportDate), nameof(PalletReturn.ImportInvoice), nameof(PalletReturn.ImportDateElpJup1),
+            nameof(PalletReturn.CustomsExportReference),
         }),
-        [RoleCode.Lop] = new(new[] { nameof(PalletReturn.DeliveryNumber), nameof(PalletReturn.DutyPaymentStatus) }),
+        [RoleCode.Lop] = new(new[] { nameof(PalletReturn.DeliveryNumber) }),
         [RoleCode.Mfo] = new(Fields.Stage3.Append(nameof(PalletReturn.ScrapGrNumber))),
-        [RoleCode.Low] = new(new[] { nameof(PalletReturn.LowExportNumber), nameof(PalletReturn.LowExportDate), nameof(PalletReturn.LowExportNote) }),
+        [RoleCode.Low] = new(new[] { nameof(PalletReturn.LowExport) }),
         [RoleCode.Hse] = new(new[] { nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate) }),
         [RoleCode.Viewer] = new(),
     };

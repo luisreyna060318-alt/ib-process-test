@@ -14,7 +14,7 @@ public static class StageGuards
         && p.QtyImported > 0;
 
     public static bool Stage3Started(PalletReturn p) =>
-        !string.IsNullOrWhiteSpace(p.IbOrderNumber) || !string.IsNullOrWhiteSpace(p.NewHU)
+        !string.IsNullOrWhiteSpace(p.NewMaterial) || !string.IsNullOrWhiteSpace(p.NewHU)
         || p.ReinsertionQty is not null || (p.ScrapQty ?? 0) > 0 || p.DateSentBack is not null;
 }
 
@@ -42,7 +42,6 @@ public static class StatusResolver
 {
     public static WorkflowStatus Resolve(PalletReturn p, ReconciliationResult r, DutyRiskAssessment risk)
     {
-        if (p.IsCancelled) return WorkflowStatus.Cancelled;
         // Histórico: el Excel nunca capturó motivo ni departamento; el estatus se deriva de los datos operativos.
         if (!p.IsLegacy && !StageGuards.Stage1Complete(p)) return WorkflowStatus.Draft;
         if (p.ImportDateElpJup1 is null) return WorkflowStatus.Requested;
@@ -53,8 +52,6 @@ public static class StatusResolver
             return (p.OldMaterialDeliveredQty ?? 0) == 0 && (p.ScrapQty ?? 0) > 0 ? WorkflowStatus.Scrapped : WorkflowStatus.Exported;
         }
 
-        var cat = Catalogs.FindCategory(p.StatusCategoryCode);
-        if (p.DutyPaymentStatus == DutyPaymentStatus.Paid && cat?.Kind == "DISCREPANCY") return WorkflowStatus.ClosedDutyPaid;
         if (risk.IsAtRisk) return WorkflowStatus.DutyRisk;
         if (r.QtyOpenFloor > 0) return StageGuards.Stage3Started(p) ? WorkflowStatus.InRework : WorkflowStatus.Imported;
         if (r.QtyPendingExport > 0) return WorkflowStatus.PendingExport;
