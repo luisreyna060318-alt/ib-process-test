@@ -100,10 +100,10 @@ L.append("")
 L.append("-- Folio counters")
 ins("IB_PROCESS_FOLIO_COUNTERS", ["VALUE_STREAM_ID", "LAST_FOLIO"], [(v, 0) for v in (1, 4, 5, 7, 9)])
 
-L += ["-- First Owner: replace DOMAIN\\OWNER.USER with the Windows user (upper case) and the name, then run.",
-      "INSERT INTO IB_PROCESS_USERS (NT_USER, DISPLAY_NAME) VALUES ('DOMAIN\\OWNER.USER', N'Owner name');",
+L += ["-- First Owner (Windows user US\\RLN8JU). The display name can be changed later from My profile.",
+      "INSERT INTO IB_PROCESS_USERS (NT_USER, DISPLAY_NAME) VALUES ('US\\RLN8JU', N'RLN8JU');",
       "INSERT INTO IB_PROCESS_USER_ACCESS (NT_USER, DEPARTMENT_CODE, VALUE_STREAM_ID, FUNCTION_CODE, ASSIGNED_BY) "
-      "VALUES ('DOMAIN\\OWNER.USER', NULL, NULL, 'OWNER', 'SETUP');", "", "COMMIT;", ""]
+      "VALUES ('US\\RLN8JU', NULL, NULL, 'OWNER', 'SETUP');", "", "COMMIT;", ""]
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 open(OUT, "w", encoding="utf8").write("\n".join(L))

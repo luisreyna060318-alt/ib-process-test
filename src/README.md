@@ -1,4 +1,4 @@
-# Aplicación (v0.2.2): Expo & Return FG Follow Up
+# Aplicación (v0.2.3): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop. **Todavía sin base de datos**: los pallets viven en memoria y se pierden al cerrar; los usuarios y sus accesos se guardan en un archivo JSON hasta conectar Oracle.
 
@@ -42,14 +42,14 @@ Se crea con valores por defecto la primera vez que se abre la app.
 
 ```json
 {
-  "Owners": [ "DOMINIO\\usuario.owner" ],
+  "Owners": [ "US\\RLN8JU" ],
   "UserStorePath": "",
   "DemoData": true,
   "DemoUsers": true
 }
 ```
 
-* **Owners:** usuarios de Windows con la función Owner (con o sin dominio). También puede haber filas OWNER en la tabla de accesos.
+* **Owners:** usuarios de Windows con la función Owner (con o sin dominio). Por defecto `US\RLN8JU`. También puede haber filas OWNER en la tabla de accesos.
 * **UserStorePath:** archivo de usuarios. Vacío = `%LOCALAPPDATA%\ExpoReturn\users.json`. Si se apunta a una carpeta compartida, varios equipos ven los mismos usuarios (piloto).
 * **DemoData / DemoUsers:** pallets sintéticos y usuarios ficticios (uno por área y VS) para que el Owner pruebe funciones con "View as". Los usuarios demo nunca se guardan.
 
@@ -84,7 +84,7 @@ Se crea con valores por defecto la primera vez que se abre la app.
 ## Guion de revisión sugerido (10 minutos)
 
 1. **Primera ejecución:** abrir la app; aparece *Welcome*. El usuario de Windows ya viene escrito; elegir Department y VS y guardar. Arriba a la derecha aparece como **Viewer**: todo en gris.
-2. Poner su usuario de Windows en `"Owners"` de `appsettings.json` y volver a abrir: ahora es **Owner**.
+2. Abrir con el usuario `US\RLN8JU` (Owner por defecto): aparece como **Owner** y ve *Import MM60 file* y la edición de *Users & Access*. Para otro Owner, agregar su usuario en `"Owners"` de `appsettings.json`.
 3. **Users & Access:** agregar una fila con otro usuario (o el suyo con otra configuración) como *Champion* de un VS y guardar; la bitácora registra el cambio.
 4. **View as** *Patricia Lozano · GS/OSD43 · VS1 · Champion*: en un registro de VS1 sólo los campos de aduana quedan en verde; en otro VS todo queda en gris.
 5. **My profile** con un usuario no Owner: cambiar el VS. Aparece como solicitud; el Owner la aprueba en **Users & Access** y el VS nuevo entra como Viewer.

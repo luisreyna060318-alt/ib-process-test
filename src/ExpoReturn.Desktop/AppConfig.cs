@@ -7,7 +7,7 @@ namespace ExpoReturn.Desktop;
 /// appsettings.json next to the executable. Created with defaults on first run if it does not exist.
 /// <code>
 /// {
-///   "Owners": [ "DOMAIN\\owner.user" ],          // Windows users with the Owner function
+///   "Owners": [ "US\\RLN8JU" ],                  // Windows users with the Owner function
 ///   "UserStorePath": "",                          // users file; empty = %LOCALAPPDATA%\ExpoReturn\users.json
 ///   "DemoData": true,                             // load synthetic pallets
 ///   "DemoUsers": true                             // fictitious users so the Owner can preview other functions
@@ -17,7 +17,8 @@ namespace ExpoReturn.Desktop;
 /// </summary>
 public sealed class AppConfig
 {
-    public List<string> Owners { get; set; } = new();
+    /// <summary>Default Owner: US\RLN8JU (process owner of the application). More can be added here or in IB_PROCESS_USER_ACCESS.</summary>
+    public List<string> Owners { get; set; } = new() { "US\\RLN8JU" };
     public string? UserStorePath { get; set; }
     public bool DemoData { get; set; } = true;
     public bool DemoUsers { get; set; } = true;
