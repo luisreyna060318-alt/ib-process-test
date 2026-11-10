@@ -35,8 +35,13 @@
                 <Button Content="Import Excel 2.0…" Command="{Binding ImportExcelCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
                         ToolTip="Loads the MATRIZ DE RASTREO 2.0 in memory (read-only) to see real data" />
                 <Button Content="Reset demo data" Command="{Binding ResetDemoCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8" />
+                <StackPanel Visibility="{Binding IsOwner, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
+                    <Button Content="Import MM60 file…" Command="{Binding ImportMm60Command}" Style="{StaticResource SecondaryButton}" Margin="0"
+                            ToolTip="Owner: loads the MM60 report exported from SAP (Material, Price, Price unit). Unit costs of new returns come from it" />
+                    <TextBlock Text="{Binding Mm60Text}" Foreground="#93C5FD" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0" />
+                </StackPanel>
                 <Button Content="✎  Send feedback" Command="{Binding OpenFeedbackCommand}" Style="{StaticResource PrimaryButton}" Background="#2E75B6" BorderBrush="#2E75B6" Margin="0" />
-                <TextBlock Text="v0.2.1 · draft" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
+                <TextBlock Text="v0.2.2 · draft" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
             </StackPanel>
             <ListBox ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}" Background="Transparent" BorderThickness="0"
                      ItemContainerStyle="{StaticResource NavItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">

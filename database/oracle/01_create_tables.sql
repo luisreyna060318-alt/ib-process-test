@@ -27,7 +27,6 @@ CREATE TABLE IB_PROCESS_VALUE_STREAMS (
 -- Departments. AREA decides which fields a Champion/Proxy of the department edits.
 CREATE TABLE IB_PROCESS_DEPARTMENTS (
     DEPARTMENT_CODE   VARCHAR2(20)    NOT NULL,
-    NAME              VARCHAR2(100)   NOT NULL,
     AREA              VARCHAR2(10)    NOT NULL,
     CAN_REQUEST       CHAR(1)         DEFAULT 'N' NOT NULL,
     IS_ACTIVE         CHAR(1)         DEFAULT 'Y' NOT NULL,

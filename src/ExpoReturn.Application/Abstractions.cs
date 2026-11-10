@@ -99,3 +99,24 @@ public interface IUserDirectory
     /// <summary>QMM Champions/Proxies of a Value Stream (QMM Responsible options).</summary>
     IReadOnlyList<string> QmmFor(int valueStreamId);
 }
+
+// =====================================================================
+// MM60 cost master (IB_PROCESS_MM60_COSTS). Loaded from the MM60 report exported from SAP
+// (the same data the Excel kept in the hidden sheet "MM60 COST SAP"); there is no live SAP link.
+// =====================================================================
+
+/// <summary>One material of the MM60 export. Unit cost = Price / Price unit (same rule as the Excel).</summary>
+public sealed record MaterialCost(string Material, string? Description, decimal Price, decimal PriceUnit, string Currency)
+{
+    public decimal UnitCostUsd => PriceUnit <= 0 ? 0 : Math.Round(Price / PriceUnit, 6, MidpointRounding.AwayFromZero);
+}
+
+public interface IMaterialCostCatalog
+{
+    MaterialCost? Find(string? material);
+    int Count { get; }
+    string? SourceName { get; }
+    DateTime? LoadedAtUtc { get; }
+    /// <summary>Replaces the whole catalog (a new MM60 export is the full list).</summary>
+    void Replace(IEnumerable<MaterialCost> costs, string sourceName);
+}

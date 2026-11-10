@@ -35,9 +35,9 @@ public sealed partial class PalletDetailViewModel : PageViewModel
 
     // ---------- Catálogos para los ComboBox ----------
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; } = Catalogs.ValueStreams.Select(v => new LookupItem(v.Id, v.Code)).ToList();
-    public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Where(d => d.CanRequest).Select(d => new LookupItem(d.Code, $"{d.Code} — {d.Name}")).ToList();
+    public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Where(d => d.CanRequest).Select(d => new LookupItem(d.Code, d.Code)).ToList();
     public IReadOnlyList<Reason> ReasonOptions { get; } = Catalogs.Reasons;
-    /// <summary>Lista de COMMENTS de la hoja VS del registro, con el texto exacto del Excel.</summary>
+    /// <summary>Status category options of the record VS sheet (exact Excel text).</summary>
     public IReadOnlyList<string> CommentsOptions => Catalogs.CommentsOptions(Edit.ValueStreamId, Edit.StatusCategoryCode);
     public IReadOnlyList<string> QmmOptions => Services.Users.QmmFor(Edit.ValueStreamId);
 
@@ -133,14 +133,21 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         Reevaluate();
     }
 
-    /// <summary>Simula la búsqueda de costo MM60 (en producción: cat.Material_Cost_MM60).</summary>
+    /// <summary>MM60 unit cost of the part number, from the cost master the Owner loads (Import MM60 file).</summary>
     private void FillCostFromCatalog()
     {
-        var pn = Identifiers.NormalizeMaterial(Edit.ReturnedMaterial);
-        var known = Services.Repository.GetAll().FirstOrDefault(p => p.ReturnedMaterial == pn && p.UnitCostUsd > 0);
-        if (known is null) { if (IsNew) { Edit.UnitCostUsd = null; Edit.UnitCostSource = "PENDING"; } return; }
-        Edit.UnitCostUsd = known.UnitCostUsd;
-        Edit.UnitCostSource = "MM60";
+        if (!IsNew && Edit.UnitCostSource == "LEGACY") return;
+        var cost = Services.MaterialCosts.Find(Edit.ReturnedMaterial);
+        if (cost is { UnitCostUsd: > 0 })
+        {
+            Edit.UnitCostUsd = cost.UnitCostUsd;
+            Edit.UnitCostSource = "MM60";
+        }
+        else
+        {
+            Edit.UnitCostUsd = null;
+            Edit.UnitCostSource = "PENDING";
+        }
     }
 
     private void Reevaluate()

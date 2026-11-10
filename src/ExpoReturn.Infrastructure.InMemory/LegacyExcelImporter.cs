@@ -10,6 +10,7 @@ namespace ExpoReturn.Infrastructure.InMemory;
 public sealed record LegacyImportResult(
     IReadOnlyList<PalletReturn> Pallets,
     IReadOnlyList<LegacyChampion> Champions,
+    IReadOnlyList<MaterialCost> MaterialCosts,
     IReadOnlyDictionary<string, int> IssueCounts,
     IReadOnlyDictionary<string, int> RowsPerSheet)
 {
@@ -215,7 +216,7 @@ public static partial class LegacyExcelImporter
             perSheet[$"VS{vs}"] = count;
         }
 
-        return new LegacyImportResult(pallets, ReadChampions(wb), issues, perSheet);
+        return new LegacyImportResult(pallets, ReadChampions(wb), Mm60Reader.Read(wb)?.Costs ?? Array.Empty<MaterialCost>(), issues, perSheet);
     }
 
     /// <summary>Hoja "Champions VS": fila 2 = área, fila 3 = Champion/Proxy, filas 4+ = VS.</summary>

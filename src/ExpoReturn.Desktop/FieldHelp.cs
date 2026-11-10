@@ -18,7 +18,7 @@ public static class FieldHelp
         ["ReasonId"] = new("One of the 10 reasons of the Excel list. Required (VAL-015). If it is reflash, the new part number is required."),
         ["ReturnReasonDetail"] = new("Free text explaining the case.", "Connector contamination, 100% sorting"),
         ["ReturnedMaterial"] = new("SAP format XXXX.XXX.XXX-XX(X) (VAL-010). It can be typed without dots: it is normalized. Required.", "0265957012-24W → 0265.957.012-24W"),
-        ["UnitCostUsd"] = new("Taken from the MM60 cost master (Price / Price unit). Without cost it shows \"No cost (COSTEAR)\" (VAL-011). Calculated."),
+        ["UnitCostUsd"] = new("Taken from the MM60 cost master (Price / Price unit) that the Owner loads with Import MM60 file. Without cost it shows \"No cost (COSTEAR)\" (VAL-011). Calculated."),
         ["SapUsdTotal"] = new("Quantity imported × unit cost. Calculated."),
         ["QtyImported"] = new("Pieces temporarily imported. Whole number greater than 0 (VAL-012). Required.", "528"),
         ["OriginalHU"] = new("10-digit handling unit (VAL-013). Enter the HU or the batch.", "2107104180"),

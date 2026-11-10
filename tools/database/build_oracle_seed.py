@@ -27,14 +27,12 @@ ins("IB_PROCESS_VALUE_STREAMS", ["VALUE_STREAM_ID", "CODE", "NAME", "SHEET_NAME"
     [(v, f"VS{v}", f"Value Stream {v}", f"VS{v}") for v in (1, 4, 5, 7, 9)])
 
 L.append("-- Departments (AREA decides the editable fields)")
-depts = [("QMM", "Quality Management", "QMM", "Y"), ("QMM-C1", "QMM Customer Quality 1", "QMM", "Y"), ("QMM-C2", "QMM Customer Quality 2", "QMM", "Y"),
-         ("MFQ", "Manufacturing Quality", "MFQ", "Y")]
-depts += [(f"MFQ{i}", f"Manufacturing Quality {i}", "MFQ", "Y") for i in range(1, 10)]
-depts += [("MFO", "Manufacturing Operations", "MFO", "Y")] + [(f"MFO{i}", f"Manufacturing Operations {i}", "MFO", "Y") for i in (1, 4, 5, 7, 9)]
-depts += [("LOP", "Logistics Planning", "LOP", "Y"), ("LOP1", "Logistics Planning 1", "LOP", "Y"), ("LOP2", "Logistics Planning 2", "LOP", "Y"),
-          ("LOW", "Logistics Warehouse", "LOW", "N"), ("GS/OSD43", "Foreign Trade / Customs", "GS", "N"),
-          ("HSE", "Health, Safety & Environment", "HSE", "N"), ("PUQ", "Purchasing Quality", "PUQ", "Y")]
-ins("IB_PROCESS_DEPARTMENTS", ["DEPARTMENT_CODE", "NAME", "AREA", "CAN_REQUEST"], depts)
+depts = [("QMM", "QMM", "Y"), ("QMM-C1", "QMM", "Y"), ("QMM-C2", "QMM", "Y"), ("MFQ", "MFQ", "Y")]
+depts += [(f"MFQ{i}", "MFQ", "Y") for i in range(1, 10)]
+depts += [("MFO", "MFO", "Y")] + [(f"MFO{i}", "MFO", "Y") for i in (1, 4, 5, 7, 9)]
+depts += [("LOP", "LOP", "Y"), ("LOP1", "LOP", "Y"), ("LOP2", "LOP", "Y"), ("LOW", "LOW", "N"), ("GS/OSD43", "GS", "N"),
+          ("HSE", "HSE", "N"), ("PUQ", "PUQ", "Y")]
+ins("IB_PROCESS_DEPARTMENTS", ["DEPARTMENT_CODE", "AREA", "CAN_REQUEST"], depts)
 
 L.append("-- Reasons (Excel list)")
 reasons = [(1, "R01", "Packaging change due to customer request", "PACKAGING", "N"),

@@ -30,13 +30,14 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.2.1
+## 3. Aplicación (.NET 8 / WPF) · v0.2.2
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
 * **Usuario real:** al abrir, la app lee el usuario de Windows. La primera vez pide nombre, Department y Value Stream(s); la función inicial es **Viewer** (sólo lectura).
 * **Users & Access:** tabla User / Department / Value Stream / Function (Viewer, Proxy, Champion, Owner). Sólo el **Owner** la modifica; para el Owner el department y el VS son irrelevantes. El Owner se configura con su usuario de Windows en `appsettings.json` (`"Owners"`) o con una fila OWNER en la base de datos.
 * **My profile:** cambiar Department o VS después queda como **solicitud** que el Owner aprueba o rechaza.
+* **Import MM60 file (Owner):** carga el reporte MM60 exportado de SAP como maestro de costos; sin integración con SAP.
 * Pallets en memoria (sin base de datos todavía); usuarios en un archivo JSON (`UserStorePath` en `appsettings.json`) hasta conectar Oracle.
 
 Instrucciones, guion de revisión y limitaciones en [`src/README.md`](src/README.md).

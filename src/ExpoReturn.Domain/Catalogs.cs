@@ -6,7 +6,8 @@ public sealed record Reason(int Id, string Code, string Description, string Grou
 {
     public string Label => Description;
 }
-public sealed record Department(string Code, string Name, string Area, bool CanRequest);
+/// <summary>Department code (e.g. MFQ4) and the area whose fields its Champions / Proxies edit (MFQ4 → MFQ).</summary>
+public sealed record Department(string Code, string Area, bool CanRequest);
 public sealed record StatusCategory(string Code, string Description, string Kind, string? ResponsibleArea, bool AffectsDuty, bool IsAutoDerived);
 public sealed record IbOrderType(string Code, string Description);
 
@@ -43,21 +44,21 @@ public static class Catalogs
     {
         var list = new List<Department>
         {
-            new("QMM", "Quality Management", "QMM", true),
-            new("QMM-C1", "QMM Customer Quality 1", "QMM", true),
-            new("QMM-C2", "QMM Customer Quality 2", "QMM", true),
-            new("MFQ", "Manufacturing Quality", "MFQ", true),
+            new("QMM", "QMM", true),
+            new("QMM-C1", "QMM", true),
+            new("QMM-C2", "QMM", true),
+            new("MFQ", "MFQ", true),
         };
-        for (var i = 1; i <= 9; i++) list.Add(new($"MFQ{i}", $"Manufacturing Quality {i}", "MFQ", true));
-        list.Add(new("MFO", "Manufacturing Operations", "MFO", true));
-        foreach (var i in new[] { 1, 4, 5, 7, 9 }) list.Add(new($"MFO{i}", $"Manufacturing Operations {i}", "MFO", true));
-        list.Add(new("LOP", "Logistics Planning", "LOP", true));
-        list.Add(new("LOP1", "Logistics Planning 1", "LOP", true));
-        list.Add(new("LOP2", "Logistics Planning 2", "LOP", true));
-        list.Add(new("LOW", "Logistics Warehouse", "LOW", false));
-        list.Add(new("GS/OSD43", "Foreign Trade / Customs", "GS", false));
-        list.Add(new("HSE", "Health, Safety & Environment", "HSE", false));
-        list.Add(new("PUQ", "Purchasing Quality", "PUQ", true));
+        for (var i = 1; i <= 9; i++) list.Add(new($"MFQ{i}", "MFQ", true));
+        list.Add(new("MFO", "MFO", true));
+        foreach (var i in new[] { 1, 4, 5, 7, 9 }) list.Add(new($"MFO{i}", "MFO", true));
+        list.Add(new("LOP", "LOP", true));
+        list.Add(new("LOP1", "LOP", true));
+        list.Add(new("LOP2", "LOP", true));
+        list.Add(new("LOW", "LOW", false));
+        list.Add(new("GS/OSD43", "GS", false));
+        list.Add(new("HSE", "HSE", false));
+        list.Add(new("PUQ", "PUQ", true));
         return list;
     }
 

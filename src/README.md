@@ -1,4 +1,4 @@
-# Aplicación (v0.2.1): Expo & Return FG Follow Up
+# Aplicación (v0.2.2): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop. **Todavía sin base de datos**: los pallets viven en memoria y se pierden al cerrar; los usuarios y sus accesos se guardan en un archivo JSON hasta conectar Oracle.
 
@@ -65,7 +65,8 @@ Se crea con valores por defecto la primera vez que se abre la app.
 | **Alerts** | Agrupadas por área responsable; "Mark as handled" con comentario |
 | **Users & Access** | Tabla **User / Department / Value Stream / Function** (Viewer, Proxy, Champion, Owner); sólo el Owner la edita. Solicitudes pendientes con **Approve / Reject**. Matriz Champion/Proxy por VS y área, y campos que edita cada área |
 | **Audit log** | Quién cambió qué campo, cuándo, valor anterior y nuevo, incluidos accesos y solicitudes; filtros por folio, usuario, campo y fechas |
-| **Import Excel 2.0…** | Carga la MATRIZ DE RASTREO en memoria y en sólo lectura; divide la expo LOW en número y fecha |
+| **Import MM60 file… (Owner)** | Carga el reporte MM60 exportado de SAP (columnas Material, Price, Price unit; el mismo de la hoja oculta "MM60 COST SAP"). Reemplaza el maestro de costos, completa el costo de los registros abiertos que se guardaron sin él y los recalcula. Abajo del botón se ve cuántos materiales hay cargados y de qué archivo |
+| **Import Excel 2.0…** | Carga la MATRIZ DE RASTREO en memoria y en sólo lectura; divide la expo LOW en número y fecha; también carga la hoja "MM60 COST SAP" como maestro de costos |
 | **Send feedback** | Guarda el comentario en `%LOCALAPPDATA%\ExpoReturn\feedback.csv` |
 
 ## Atajos de teclado
@@ -96,7 +97,7 @@ Se crea con valores por defecto la primera vez que se abre la app.
 * Pallets sin base de datos: los cambios se pierden al cerrar. Los usuarios se guardan en el archivo JSON hasta conectar Oracle (scripts en `database/oracle/`).
 * Con el archivo en `%LOCALAPPDATA%`, cada equipo tiene sus propios usuarios; para compartirlos antes de Oracle, apuntar `UserStorePath` a una carpeta de red.
 * Los usuarios demo (`DEMO\...`) son **ficticios** y sólo existen en memoria.
-* El costo MM60 de un P/N nuevo se toma de los registros existentes; en producción vendrá de `IB_PROCESS_MM60_COSTS`.
+* El maestro MM60 vive en memoria: hay que cargarlo de nuevo al abrir la app (con *Import MM60 file* o *Import Excel 2.0*) hasta conectar Oracle (`IB_PROCESS_MM60_COSTS`).
 * Las alertas se ven en pantalla; el envío por correo o Teams es de la fase de producción.
 * **Sin integración con SAP** (fuera de alcance).
 * Parámetros provisionales [VALIDATE GS/OSD43]: tasa de aranceles 0.19 y plazo IMMEX de 540 días.

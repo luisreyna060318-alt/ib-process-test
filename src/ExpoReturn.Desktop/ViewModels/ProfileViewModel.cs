@@ -32,7 +32,7 @@ public sealed partial class ProfileViewModel : ObservableObject
         _existing = services.Users.Find(ntUser);
         IsOwner = services.Users.IsOwner(ntUser);
         _displayName = _existing?.DisplayName ?? Environment.UserName;
-        DepartmentOptions = Catalogs.Departments.Select(d => new LookupItem(d.Code, $"{d.Code} — {d.Name}")).ToList();
+        DepartmentOptions = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Code)).ToList();
         var pending = services.Users.PendingRequestFor(ntUser);
         var dept = pending?.DepartmentCode ?? _existing?.DepartmentCode;
         _selectedDepartment = DepartmentOptions.FirstOrDefault(o => (string?)o.Value == dept);

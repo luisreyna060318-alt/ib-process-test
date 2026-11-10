@@ -93,6 +93,8 @@ public class ParsingAndImportTests
             _out.WriteLine($"  VS{g.Key}: {g.Count()} reg · importado USD {g.Where(p => p.ImportDateElpJup1 != null).Sum(p => p.SapUsdTotal):N0} · balance v2 USD {g.Sum(p => p.Financials.BalanceGeneralUsd):N0} · " +
                            string.Join(", ", g.GroupBy(p => p.Status).OrderBy(s => s.Key).Select(s => $"{s.Key.DisplayName()} {s.Count()}")));
         _out.WriteLine($"  Champions leídos: {result.Champions.Count}");
+        _out.WriteLine($"  MM60 materials: {result.MaterialCosts.Count}");
+        Assert.True(result.MaterialCosts.Count > 30000);
 
         Assert.Equal(82, result.RowsPerSheet["VS1"]);
         Assert.Equal(149, result.RowsPerSheet["VS4"]);

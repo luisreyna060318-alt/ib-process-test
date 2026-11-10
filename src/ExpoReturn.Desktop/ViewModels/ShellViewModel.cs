@@ -178,6 +178,41 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenPallet);
     }
 
+    /// <summary>MM60 cost master status for the sidebar (Owner).</summary>
+    public string Mm60Text => _services.MaterialCosts.Count == 0 ? "MM60: not loaded"
+        : $"MM60: {_services.MaterialCosts.Count} materials · {_services.MaterialCosts.SourceName}";
+
+    /// <summary>Owner only: loads the MM60 report exported from SAP (no SAP connection: the same file the Excel used).</summary>
+    [RelayCommand]
+    private void ImportMm60()
+    {
+        if (!RealUser.IsOwner) return;
+        var dlg = new OpenFileDialog
+        {
+            Title = "Select the MM60 export (.xlsx) — columns Material, Price, Price unit…",
+            Filter = "Excel (*.xlsx)|*.xlsx",
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            Mouse.SetWait();
+            var r = _services.ImportMm60(dlg.FileName, RealUser.NtUser);
+            OnPropertyChanged(nameof(Mm60Text));
+            CurrentPage.Refresh();
+            MessageBox.Show($"{r.Materials} materials loaded from sheet '{r.SheetName}'" +
+                            (r.RowsSkipped > 0 ? $" ({r.RowsSkipped} rows without a numeric price were skipped)" : "") + ".\n\n" +
+                            $"{r.RecordsUpdated} open record(s) without cost now have it and were recalculated.\n\n" +
+                            "New returns take the unit cost from this list when the part number is entered.",
+                "MM60 cost master", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"The MM60 file could not be read:\n{ex.Message}\n\nIf it is open in Excel, close it and try again.",
+                "MM60 import", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { Mouse.Clear(); }
+    }
+
     [RelayCommand]
     private void ImportExcel()
     {
@@ -193,6 +228,7 @@ public sealed partial class ShellViewModel : ObservableObject
             Mouse.SetWait();
             var result = _services.ImportLegacy(dlg.FileName);
             DataSourceLabel = _services.DataSourceLabel;
+            OnPropertyChanged(nameof(Mm60Text));
             Back();
             var top = string.Join("\n", result.IssueCounts.OrderByDescending(k => k.Value).Take(8).Select(k => $"  • {k.Key}: {k.Value}"));
             MessageBox.Show($"{result.Summary}\n\nMain findings:\n{top}\n\nHistorical records are READ-ONLY and nothing is written to the Excel file.",
@@ -212,6 +248,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!ConfirmLeave()) return;
         _services.ResetDemo();
         DataSourceLabel = _services.DataSourceLabel;
+        OnPropertyChanged(nameof(Mm60Text));
         Back();
     }
 

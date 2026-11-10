@@ -27,7 +27,7 @@ FIELDS = [
     ("1 · Request", "Returned Part Number", "ReturnedMaterial", "RETURNED_PART_NUMBER", "VARCHAR2(18)",
      "Returned Pallet 13 Digits Part number", 8, "QMM / requestor", "Capture", "SAP format XXXX.XXX.XXX-XX(X); normalized if typed without dots. Required."),
     ("1 · Request", "MM60 Unit Cost (USD)", "UnitCostUsd", "MM60_UNIT_COST_USD", "NUMBER(18,6)", "MM60 SAP UNIT COST", 9,
-     "System", "Calculated", "From the MM60 cost master (Price / Price unit) when the part number is entered."),
+     "System", "Calculated", "From the MM60 cost master (Price / Price unit) when the part number is entered. The Owner loads the master with Import MM60 file (SAP export)."),
     ("1 · Request", "SAP Total (USD)", "SapUsdTotal", "SAP_TOTAL_USD", "NUMBER(18,2) virtual", "SAP USD TOTAL", 10,
      "System", "Calculated", "Quantity imported × unit cost."),
     ("1 · Request", "Quantity Imported", "QtyImported", "QTY_IMPORTED", "NUMBER(9)", "Quantity imported", 11,
