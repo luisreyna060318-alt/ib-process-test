@@ -152,10 +152,10 @@ public static partial class LegacyExcelImporter
                 var po = Text(C("PO"));
                 if (po is not null)
                 {
-                    // The Excel column holds "PO - item" (e.g. "49398082 - 999"): split into PO number and item.
+                    // Kept as captured in the Excel; anything other than 8 digits is flagged for review.
                     var pm = PoRx().Match(po);
-                    if (pm.Success) { p.ReturnPONumber = pm.Groups["po"].Value; if (pm.Groups["item"].Success) p.ReturnPOItem = pm.Groups["item"].Value; }
-                    else { p.ReturnPONumber = po.Length > 20 ? po[..20] : po; Flag(p, "DQ-PO-FORMAT"); }
+                    p.ReturnPONumber = pm.Success ? pm.Groups["po"].Value : (po.Length > 20 ? po[..20] : po);
+                    if (!pm.Success || pm.Groups["item"].Success) Flag(p, "DQ-PO-FORMAT");
                 }
                 p.DeliveryNumber = Text(C("Delivery"));
 

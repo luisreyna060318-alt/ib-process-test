@@ -101,7 +101,6 @@ public static class SampleData
 
         p.DateReturnedToWhs = cross.AddDays(-2);
         p.ReturnPONumber = (49845000 + n * 7).ToString();
-        p.ReturnPOItem = n % 3 == 0 ? "10" : null;
         if (sc == Scenario.Requested) return p;
 
         p.ImportDate = cross;

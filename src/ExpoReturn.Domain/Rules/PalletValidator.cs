@@ -56,7 +56,7 @@ public static class PalletValidator
                 W("VAL-023", nameof(p.ImportInvoice), $"Invoice year ({Identifiers.InvoiceYear(p.ImportInvoice)}) does not match the import date ({p.ImportDate:yyyy}).");
         }
         if (!string.IsNullOrWhiteSpace(p.ReturnPONumber) && !Identifiers.IsPurchaseOrder(p.ReturnPONumber))
-            W("VAL-024", nameof(p.ReturnPONumber), "Return PO must have 8 digits (the item goes in its own field).");
+            W("VAL-024", nameof(p.ReturnPONumber), "PO number must have 8 digits.");
 
         // ---- Etapa 3 ----
         var stage3Data = p.PhysicalDeliveredQty is not null || p.OldMaterialDeliveredQty is not null || (p.ScrapQty ?? 0) > 0 || p.NewHU is not null;

@@ -93,13 +93,13 @@ public sealed record UserContext(string NtUser, string DisplayName, string? Depa
 /// <summary>Editable fields (names = PalletReturn properties = database columns), in Excel column order.</summary>
 public static class Fields
 {
-    // "PO Date" and "Return PO" are captured in the Request tab.
+    // "PO Date" and "PO Number" are captured in the Request tab.
     public static readonly string[] Stage1 =
     {
         nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.RequestingDepartment), nameof(PalletReturn.RequestorName),
         nameof(PalletReturn.ReasonId), nameof(PalletReturn.ReturnReasonDetail), nameof(PalletReturn.ReturnedMaterial),
         nameof(PalletReturn.QtyImported), nameof(PalletReturn.OriginalHU), nameof(PalletReturn.OriginalBatch),
-        nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber), nameof(PalletReturn.ReturnPOItem),
+        nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
     };
     public static readonly string[] Stage2 =
     {
@@ -124,15 +124,14 @@ public static class Fields
 /// <summary>Area × field matrix (IB_PROCESS_FIELD_PERMISSIONS). Mirrors the Excel area row.</summary>
 public static class FieldPermissions
 {
-    /// <summary>QMM (request, PO date, return PO, status category), GS/OSD43 (import and customs export),
+    /// <summary>QMM (request, PO date, PO number, status category), GS/OSD43 (import and customs export),
     /// LOP (delivery number), MFO (rework and GR number), LOW (LOW export), HSE (kg and confirmation).</summary>
     private static readonly Dictionary<RoleCode, HashSet<string>> Map = new()
     {
         [RoleCode.Qmm] = new(Fields.Stage1.Append(nameof(PalletReturn.StatusCategoryCode))),
         [RoleCode.Requestor] = new(Fields.Stage1.Except(new[]
         {
-            nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.DateReturnedToWhs),
-            nameof(PalletReturn.ReturnPONumber), nameof(PalletReturn.ReturnPOItem),
+            nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
         })),
         [RoleCode.Gs] = new(new[]
         {

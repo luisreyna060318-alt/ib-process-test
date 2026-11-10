@@ -6,8 +6,7 @@ database/oracle/01_create_tables.sql.
 
 Tuple: (stage, app name, code property, Oracle column, Oracle type, Excel header, VS1 column index or None,
         area that captures it, capture / calculated, rule)
-Excel columns holding two values are split: "PO Number" → Return PO + Return PO Item;
-"LOW export" → LOW Export Number + LOW Export Date.
+The Excel "LOW export" column held two values: it is split into LOW Export Number + LOW Export Date.
 """
 
 FIELDS = [
@@ -39,10 +38,8 @@ FIELDS = [
      "QMM / requestor", "Capture", "SAP batch: two letters and eight digits."),
     ("1 · Request", "PO Date / Returned to WHS", "DateReturnedToWhs", "PO_DATE", "DATE", "Date PO", 14,
      "QMM", "Capture", "PO date / date returned to the El Paso warehouse. [VALIDATE meaning]"),
-    ("1 · Request", "Return PO", "ReturnPONumber", "RETURN_PO_NUMBER", "VARCHAR2(10)", "PO Number (PO part)", 18,
-     "QMM", "Capture", "8-digit return PO. Split from the Excel column '49398082 - 999'."),
-    ("1 · Request", "Return PO Item", "ReturnPOItem", "RETURN_PO_ITEM", "VARCHAR2(6)", "PO Number (item part)", 18,
-     "QMM", "Capture", "Item of the return PO. Split from the same Excel column as the PO."),
+    ("1 · Request", "PO Number", "ReturnPONumber", "PO_NUMBER", "VARCHAR2(20)", "PO Number", 18,
+     "QMM", "Capture", "8-digit return PO number."),
     ("2 · Customs / inbound", "Import Date", "ImportDate", "IMPORT_DATE", "DATE", "Import Date", 15,
      "GS/OSD43", "Capture", "Not earlier than the PO date."),
     ("2 · Customs / inbound", "Import Invoice", "ImportInvoice", "IMPORT_INVOICE", "VARCHAR2(20)", "Invoice", 16,

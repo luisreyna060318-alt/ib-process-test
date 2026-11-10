@@ -243,8 +243,7 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
     ORIGINAL_HU                 VARCHAR2(20),
     ORIGINAL_BATCH              VARCHAR2(10),
     PO_DATE                     DATE,
-    RETURN_PO_NUMBER            VARCHAR2(10),
-    RETURN_PO_ITEM              VARCHAR2(6),
+    PO_NUMBER                   VARCHAR2(20),
 
     /* ---------- Stage 2 · Customs and inbound (GS/OSD43, LOP) ---------- */
     IMPORT_DATE                 DATE,
@@ -321,7 +320,7 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
         OR REGEXP_LIKE(NEW_PART_NUMBER, '^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$')),
     CONSTRAINT IB_PR_CK_HU CHECK (IS_LEGACY = 'Y' OR ORIGINAL_HU IS NULL OR REGEXP_LIKE(ORIGINAL_HU, '^[0-9]{10}$')),
     CONSTRAINT IB_PR_CK_NEW_HU CHECK (IS_LEGACY = 'Y' OR NEW_HU IS NULL OR REGEXP_LIKE(NEW_HU, '^[0-9]{10}$')),
-    CONSTRAINT IB_PR_CK_PO CHECK (IS_LEGACY = 'Y' OR RETURN_PO_NUMBER IS NULL OR REGEXP_LIKE(RETURN_PO_NUMBER, '^[0-9]{8}$')),
+    CONSTRAINT IB_PR_CK_PO CHECK (IS_LEGACY = 'Y' OR PO_NUMBER IS NULL OR REGEXP_LIKE(PO_NUMBER, '^[0-9]{8}$')),
     -- Quantity conservation: what was imported cannot leave twice.
     CONSTRAINT IB_PR_CK_BALANCE CHECK (IS_LEGACY = 'Y' OR NVL(OLD_MATERIAL_DELIVERED_QTY, 0) + NVL(SCRAP_QTY, 0) <= QTY_IMPORTED),
     -- Physical delivered = old material + reinsertion.

@@ -2,7 +2,7 @@ namespace ExpoReturn.Domain;
 
 /// <summary>
 /// A pallet returned from El Paso WHS to JuP1 (one row of the Excel Matrix 2.0).
-/// Excel 2.0 columns only; columns that held two values are split (PO number / item, LOW export number / date).
+/// Excel 2.0 columns only; the "LOW export" column, which held two values, is split into number and date.
 /// Property names map to IB_PROCESS_PALLET_RETURNS columns (see the field dictionary).
 /// </summary>
 public sealed class PalletReturn : NotifyBase
@@ -33,7 +33,6 @@ public sealed class PalletReturn : NotifyBase
     private string? _importInvoice; public string? ImportInvoice { get => _importInvoice; set => Set(ref _importInvoice, value); }
     private DateTime? _importDateElpJup1; public DateTime? ImportDateElpJup1 { get => _importDateElpJup1; set => Set(ref _importDateElpJup1, value); }
     private string? _returnPONumber; public string? ReturnPONumber { get => _returnPONumber; set => Set(ref _returnPONumber, value); }
-    private string? _returnPOItem; public string? ReturnPOItem { get => _returnPOItem; set => Set(ref _returnPOItem, value); }
     private string? _deliveryNumber; public string? DeliveryNumber { get => _deliveryNumber; set => Set(ref _deliveryNumber, value); }
 
     // ---------- Etapa 3 · Ejecución en planta (MFO / LOW) ----------

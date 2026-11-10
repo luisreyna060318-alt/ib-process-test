@@ -25,15 +25,14 @@ public class UxBacklogTests
     {
         string[] removed = { "ImportPedimento", "DutyPaymentStatus", "IbOrderTypeCode", "IbOrderNumber", "PhysicalDeliveredDate",
             "DeclaredMissing", "GreenConeReported", "PlatformReported", "RmaNumber", "CustomsExportDate", "IsCancelled", "CancelReason",
-            "LowExport", "LowExportNote", "Comments" };
+            "LowExport", "LowExportNote", "Comments", "ReturnPOItem" };
         var props = typeof(PalletReturn).GetProperties().Select(p => p.Name).ToHashSet();
         Assert.All(removed, r => Assert.DoesNotContain(r, props));
 
-        // Excel columns holding two values are split into two fields
-        Assert.Contains(nameof(PalletReturn.ReturnPOItem), props);
+        // The LOW export column held two values: it is split into number and date
         Assert.Contains(nameof(PalletReturn.LowExportNumber), props);
         Assert.Contains(nameof(PalletReturn.LowExportDate), props);
-        // PO date and return PO are captured in the Request tab and belong to QMM (Excel area row)
+        // PO date and PO number are captured in the Request tab and belong to QMM (Excel area row)
         Assert.Contains(nameof(PalletReturn.DateReturnedToWhs), Fields.Stage1);
         Assert.Contains(nameof(PalletReturn.ReturnPONumber), Fields.Stage1);
         Assert.Contains(nameof(PalletReturn.DateReturnedToWhs), FieldPermissions.EditableFields(RoleCode.Qmm));

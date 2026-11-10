@@ -72,11 +72,11 @@ ins("IB_PROCESS_STATUS_CAT_VS", ["VALUE_STREAM_ID", "STATUS_CATEGORY_ID", "SORT_
     [(vs, c, i + 1) for vs, ids in by_vs.items() for i, c in enumerate(ids)])
 
 stage1 = ["QMM_RESPONSIBLE", "REQUESTING_DEPARTMENT", "REQUESTOR_NAME", "REASON_ID", "REASON_DETAIL", "RETURNED_PART_NUMBER",
-          "QTY_IMPORTED", "ORIGINAL_HU", "ORIGINAL_BATCH", "PO_DATE", "RETURN_PO_NUMBER", "RETURN_PO_ITEM"]
+          "QTY_IMPORTED", "ORIGINAL_HU", "ORIGINAL_BATCH", "PO_DATE", "PO_NUMBER"]
 stage3 = ["NEW_PART_NUMBER", "PHYSICAL_DELIVERED_QTY", "NEW_HU", "REWORK_BATCH", "REINSERTION_QTY", "SENT_BACK_DATE",
           "OLD_MATERIAL_DELIVERED_QTY", "SCRAP_QTY", "SCRAP_DATE"]
 perms = [("QMM", f, 1) for f in stage1] + [("QMM", "STATUS_CATEGORY_ID", 5)]
-perms += [("REQUESTOR", f, 1) for f in stage1 if f not in ("QMM_RESPONSIBLE", "PO_DATE", "RETURN_PO_NUMBER", "RETURN_PO_ITEM")]
+perms += [("REQUESTOR", f, 1) for f in stage1 if f not in ("QMM_RESPONSIBLE", "PO_DATE", "PO_NUMBER")]
 perms += [("GS", f, 2) for f in ("IMPORT_DATE", "IMPORT_INVOICE", "ELP_JUP1_CROSSING_DATE")] + [("GS", "CUSTOMS_EXPORT", 4)]
 perms += [("LOP", "DELIVERY_NUMBER", 2)]
 perms += [("MFO", f, 3) for f in stage3] + [("MFO", "GR_NUMBER", 4)]

@@ -168,7 +168,7 @@ def main():
         cell.font = Font(name=FONT, size=10)
         if color:
             cell.fill = PatternFill("solid", fgColor=color)
-    ws.cell(leg + 5, 2, "Excel columns that held two values are split into two fields: 'PO Number' (PO + item) and 'LOW export' (expo number + date). "
+    ws.cell(leg + 5, 2, "The Excel 'LOW export' column held two values: it is split into LOW Export Number and LOW Export Date. "
                         "Columns per sheet: VS4 = VS1; VS5 has an extra empty column ('.') after PO; VS7 is shifted one column to the right; VS9 starts at column A.").font = Font(name=FONT, size=10, italic=True)
 
     # ---- Sheet 2 · Status category ----

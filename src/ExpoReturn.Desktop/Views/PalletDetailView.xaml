@@ -375,14 +375,9 @@
                                 <DatePicker SelectedDate="{Binding Edit.DateReturnedToWhs}" IsEnabled="{Binding Perm[DateReturnedToWhs]}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ReturnPONumber]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Return PO" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="PO Number" Style="{StaticResource FieldLabel}" />
                                 <TextBox Text="{Binding Edit.ReturnPONumber, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[ReturnPONumber]}" />
                                 <TextBlock Text="8 digits" Style="{StaticResource Hint}" />
-                            </StackPanel>
-                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ReturnPOItem]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Return PO Item" Style="{StaticResource FieldLabel}" />
-                                <TextBox Text="{Binding Edit.ReturnPOItem, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[ReturnPOItem]}" />
-                                <TextBlock Text="Item of the return PO (e.g. 999)" Style="{StaticResource Hint}" />
                             </StackPanel>
                         </UniformGrid>
                     </StackPanel>

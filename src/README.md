@@ -1,4 +1,4 @@
-# Aplicación (v0.2.0): Expo & Return FG Follow Up
+# Aplicación (v0.2.1): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop. **Todavía sin base de datos**: los pallets viven en memoria y se pierden al cerrar; los usuarios y sus accesos se guardan en un archivo JSON hasta conectar Oracle.
 
@@ -60,12 +60,12 @@ Se crea con valores por defecto la primera vez que se abre la app.
 | **Primera ejecución / My profile** | Lee el usuario de Windows automáticamente y pide nombre, Department y Value Stream(s). Empieza como **Viewer**. Después, cambiar Department o VS queda como **solicitud** para el Owner; el nombre se cambia directo. La función nunca se elige aquí |
 | **Barra superior** | Usuario de Windows, department, VS y función. El Owner ve las solicitudes pendientes y un selector **View as** para ver la app con el acceso de otro usuario (aparece el aviso "PREVIEW") |
 | **Returns inbox** | Lista filtrable por VS, estatus, texto y riesgo arancelario; indicadores; orden por vencimiento IMMEX; filtros recordados por usuario; exportar a Excel de sólo lectura |
-| **Return detail / New return** | Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **PO + PO item** y **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función (Champion/Proxy) del usuario en el VS del registro |
+| **Return detail / New return** | Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función (Champion/Proxy) del usuario en el VS del registro |
 | **Balance / Duties** | Sustituto de la hoja BALANCE, por VS y año fiscal; clic en un VS o estatus abre la bandeja filtrada |
 | **Alerts** | Agrupadas por área responsable; "Mark as handled" con comentario |
 | **Users & Access** | Tabla **User / Department / Value Stream / Function** (Viewer, Proxy, Champion, Owner); sólo el Owner la edita. Solicitudes pendientes con **Approve / Reject**. Matriz Champion/Proxy por VS y área, y campos que edita cada área |
 | **Audit log** | Quién cambió qué campo, cuándo, valor anterior y nuevo, incluidos accesos y solicitudes; filtros por folio, usuario, campo y fechas |
-| **Import Excel 2.0…** | Carga la MATRIZ DE RASTREO en memoria y en sólo lectura; divide PO/posición y expo LOW número/fecha |
+| **Import Excel 2.0…** | Carga la MATRIZ DE RASTREO en memoria y en sólo lectura; divide la expo LOW en número y fecha |
 | **Send feedback** | Guarda el comentario en `%LOCALAPPDATA%\ExpoReturn\feedback.csv` |
 
 ## Atajos de teclado
@@ -88,7 +88,7 @@ Se crea con valores por defecto la primera vez que se abre la app.
 4. **View as** *Patricia Lozano · GS/OSD43 · VS1 · Champion*: en un registro de VS1 sólo los campos de aduana quedan en verde; en otro VS todo queda en gris.
 5. **My profile** con un usuario no Owner: cambiar el VS. Aparece como solicitud; el Owner la aprueba en **Users & Access** y el VS nuevo entra como Viewer.
 6. Abrir un registro *Pending export* de VS1 (como Owner o un GS de VS1) y capturar *Customs Export* `PR26-00123`: pasa a *Exported*. Con `scrap marzo` aparece VAL-046.
-7. **Import Excel 2.0…** con el archivo real y revisar *Return PO Item* y *LOW Export Number / Date*.
+7. **Import Excel 2.0…** con el archivo real y revisar *LOW Export Number / Date*.
 8. **Send feedback** en cada pantalla.
 
 ## Limitaciones actuales
