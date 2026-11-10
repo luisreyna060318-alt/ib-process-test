@@ -1,6 +1,8 @@
 /* =====================================================================
    JuP1 (8640) · QMM Process Excellence · Expo & Return FG Follow Up
    Script 01 · Esquemas, catálogos, seguridad, transacción y auditoría
+   Versión 0.1.6 · campos de la Matriz 2.0 con nombres limpios
+   (diccionario Excel ↔ app ↔ BD: entregables/Diccionario_Campos_ExpoReturn.xlsx)
    Motor objetivo: Microsoft SQL Server 2019+ (compatibility level 150)
    Base de datos sugerida: JUP1_QMM_EXPORETURN
    ---------------------------------------------------------------------
@@ -81,28 +83,28 @@ CREATE TABLE cat.Catalog_WorkflowStatus (
 );
 GO
 
-/* Categoría de estatus / comentario (antes: columna COMMENTS / 'Date - Name:'
-   con listas distintas por hoja). Kind = OUTCOME (resultado) o DISCREPANCY
-   (causa raíz de un faltante, con área responsable). */
+/* Categoría de estatus (columna COMMENTS / 'Date - Name:' / 'Column2' del Excel).
+   Code = texto exacto de la opción en el Excel (p. ej. 'NO REPORTADO CON CONO VERDE').
+   Kind = OUTCOME (resultado) o DISCREPANCY (causa de un faltante, con área responsable). */
 CREATE TABLE cat.Catalog_StatusCategories (
     StatusCategoryId    SMALLINT      NOT NULL CONSTRAINT PK_Catalog_StatusCategories PRIMARY KEY,
-    Code                VARCHAR(40)   NOT NULL CONSTRAINT UQ_Catalog_StatusCategories_Code UNIQUE,
-    Description         NVARCHAR(150) NOT NULL,
+    Code                VARCHAR(60)   NOT NULL CONSTRAINT UQ_Catalog_StatusCategories_Code UNIQUE,
     Kind                VARCHAR(12)   NOT NULL,
     ResponsibleArea     VARCHAR(10)   NULL,
     AffectsDuty         BIT           NOT NULL CONSTRAINT DF_Catalog_StatusCategories_Duty DEFAULT (0),
-    IsAutoDerived       BIT           NOT NULL CONSTRAINT DF_Catalog_StatusCategories_Auto DEFAULT (0),
+    IsAutoDerived       BIT           NOT NULL CONSTRAINT DF_Catalog_StatusCategories_Auto DEFAULT (0),  -- EXPORT/SCRAP/INVENTORY
     IsActive            BIT           NOT NULL CONSTRAINT DF_Catalog_StatusCategories_IsActive DEFAULT (1),
     CONSTRAINT CK_Catalog_StatusCategories_Kind CHECK (Kind IN ('OUTCOME','DISCREPANCY'))
 );
 GO
 
-/* Tipos de orden de reparación en planta (SAP CO01/CO02/COWBHUWE). */
-CREATE TABLE cat.Catalog_IbOrderTypes (
-    IbOrderTypeCode   CHAR(4)       NOT NULL CONSTRAINT PK_Catalog_IbOrderTypes PRIMARY KEY,  -- 'PPI2'
-    Description       NVARCHAR(120) NOT NULL,
-    CostBearing       BIT           NOT NULL,
-    IsActive          BIT           NOT NULL CONSTRAINT DF_Catalog_IbOrderTypes_IsActive DEFAULT (1)
+/* Opciones de la categoría de estatus que ofrece cada Value Stream: cada hoja del
+   Excel tiene su propia lista desplegable (VS1: 7 opciones, VS4: 9, VS5/VS7: 7, VS9: 8). */
+CREATE TABLE cat.StatusCategory_ValueStreams (
+    ValueStreamId     TINYINT  NOT NULL CONSTRAINT FK_SCVS_VS  REFERENCES cat.Catalog_ValueStreams(ValueStreamId),
+    StatusCategoryId  SMALLINT NOT NULL CONSTRAINT FK_SCVS_Cat REFERENCES cat.Catalog_StatusCategories(StatusCategoryId),
+    SortOrder         TINYINT  NOT NULL,
+    CONSTRAINT PK_StatusCategory_ValueStreams PRIMARY KEY (ValueStreamId, StatusCategoryId)
 );
 GO
 
@@ -157,8 +159,11 @@ CREATE TABLE sec.App_Roles (
 );
 GO
 
-/* Matriz Champions_VS: qué usuario actúa como Champion/Proxy de qué rol
-   (bloque) en qué Value Stream. ValueStreamId NULL = todos los VS. */
+/* Matriz Champions VS: qué usuario es Champion/Proxy de qué área en qué Value Stream.
+   Delimita los VS de TODAS las áreas (QMM, MFQ, GS/OSD43, LOP, MFO, LOW, HSE); una persona
+   puede tener varias filas (una por VS). ValueStreamId NULL sólo para Admin y Consulta.
+   ValidFrom/ValidTo los escribe el sistema al dar de alta o de baja (no se capturan):
+   una baja cierra la vigencia y conserva la historia. */
 CREATE TABLE sec.Champions_Matrix (
     ChampionsMatrixId  INT          IDENTITY(1,1) NOT NULL CONSTRAINT PK_Champions_Matrix PRIMARY KEY,
     UserId             INT          NOT NULL CONSTRAINT FK_Champions_Matrix_User REFERENCES sec.Users(UserId),
@@ -241,89 +246,78 @@ CREATE TABLE trk.Folio_Counters (
 GO
 
 CREATE TABLE trk.Pallets_Return_Tracking (
+    /* Columnas = campos de la aplicación (mismo nombre que en el código). El comentario de
+       cada una dice su etiqueta en la app y el encabezado de su columna en el Excel 2.0. */
+
     /* ---------- Identidad ---------- */
     PalletReturnId            INT            IDENTITY(1,1) NOT NULL CONSTRAINT PK_Pallets_Return_Tracking PRIMARY KEY,
-    ValueStreamId             TINYINT        NOT NULL CONSTRAINT FK_PRT_VS REFERENCES cat.Catalog_ValueStreams(ValueStreamId),
-    FolioNumber               INT            NOT NULL,                       -- '#' consecutivo por VS
+    ValueStreamId             TINYINT        NOT NULL CONSTRAINT FK_PRT_VS REFERENCES cat.Catalog_ValueStreams(ValueStreamId),  -- Value Stream (VS) · hoja VSn
+    FolioNumber               INT            NOT NULL,                       -- Folio · '#'
     FolioCode                 AS (CONCAT('VS', ValueStreamId, '-', RIGHT(CONCAT('00000', FolioNumber), 5))) PERSISTED,
 
-    /* ---------- Etapa 1 · Solicitud y apertura (QMM / solicitante) ---------- */
-    QmmResponsibleUserId      INT            NULL CONSTRAINT FK_PRT_QmmUser REFERENCES sec.Users(UserId),
-    RequestingDepartmentId    SMALLINT       NULL CONSTRAINT FK_PRT_ReqDept REFERENCES cat.Catalog_Departments(DepartmentId),
-    RequestorName             NVARCHAR(150)  NULL,                           -- "Apellido, Nombre" texto libre
-    ReasonId                  SMALLINT       NULL CONSTRAINT FK_PRT_Reason REFERENCES cat.Catalog_Reasons(ReasonId),
-    ReturnReasonDetail        NVARCHAR(500)  NULL,                           -- '"Return Reason" 22.09.26'
-    ReturnedMaterial          VARCHAR(18)    NOT NULL,                       -- P/N 13 dígitos (formato 0285.500.708-24W)
-    UnitCostUSD               DECIMAL(18,6)  NULL,                           -- snapshot MM60 al capturar
+    /* ---------- Etapa 1 · Solicitud (QMM / área solicitante) ---------- */
+    QmmResponsibleUserId      INT            NULL CONSTRAINT FK_PRT_QmmUser REFERENCES sec.Users(UserId),  -- Responsable QMM · 'QMM Responsible'
+    RequestingDepartmentId    SMALLINT       NULL CONSTRAINT FK_PRT_ReqDept REFERENCES cat.Catalog_Departments(DepartmentId),  -- Departamento solicitante · 'Requesting department'
+    RequestorName             NVARCHAR(150)  NULL,                           -- Solicitante · 'Requestor'
+    ReasonId                  SMALLINT       NULL CONSTRAINT FK_PRT_Reason REFERENCES cat.Catalog_Reasons(ReasonId),  -- Motivo oficial · 'Reason'
+    ReturnReasonDetail        NVARCHAR(500)  NULL,                           -- Detalle del motivo · '"Return Reason" 22.09.26'
+    ReturnedMaterial          VARCHAR(18)    NOT NULL,                       -- Número de parte devuelto · 'Returned Pallet 13 Digits Part number'
+    UnitCostUSD               DECIMAL(18,6)  NULL,                           -- Costo unitario MM60 · 'MM60 SAP UNIT COST' (copia del maestro al capturar)
     UnitCostSource            VARCHAR(10)    NOT NULL CONSTRAINT DF_PRT_CostSource DEFAULT ('PENDING'),
     UnitCostCapturedAtUtc     DATETIME2(3)   NULL,
-    QtyImported               INT            NOT NULL,
-    SapUsdTotal               AS (CAST(QtyImported * UnitCostUSD AS DECIMAL(18,2))) PERSISTED,
-    OriginalHU                VARCHAR(20)    NULL,                           -- 10 dígitos
-    OriginalBatch             VARCHAR(10)    NULL,                           -- SAP CHARG
+    QtyImported               INT            NOT NULL,                       -- Cantidad importada · 'Quantity' / 'Quantity imported'
+    SapUsdTotal               AS (CAST(QtyImported * UnitCostUSD AS DECIMAL(18,2))) PERSISTED,  -- Valor total SAP · 'SAP USD TOTAL'
+    OriginalHU                VARCHAR(20)    NULL,                           -- HU original · 'Original #HU'
+    OriginalBatch             VARCHAR(10)    NULL,                           -- Lote original · 'Original Batch'
+    DateReturnedToWhs         DATE           NULL,                           -- Fecha PO / retorno a almacén · 'Date PO' / 'Date Returned to WHS'
+    ReturnPONumber            VARCHAR(20)    NULL,                           -- PO de retorno · 'PO Number' / 'Return PO' (8 dígitos [- posición])
 
-    /* ---------- Etapa 2 · Aduanas y logística de entrada (GS/OSD43, QMM, LOP) ---------- */
-    DateReturnedToWhs         DATE           NULL,                           -- 'Date PO' / 'Date Returned to WHS'
-    ImportDate                DATE           NULL,
-    ImportInvoice             VARCHAR(20)    NULL,                           -- MPSyy000000
-    ImportDateElpJup1         DATE           NULL,                           -- cruce fronterizo: abre el ciclo IMMEX
-    ImportPedimento           VARCHAR(25)    NULL,
-    ReturnPONumber            VARCHAR(10)    NULL,
-    ReturnPOItem              VARCHAR(6)     NULL,
-    DeliveryNumber            VARCHAR(10)    NULL,
-    DutyPaymentStatus         VARCHAR(12)    NULL,
+    /* ---------- Etapa 2 · Aduana y entrada (GS/OSD43, LOP) ---------- */
+    ImportDate                DATE           NULL,                           -- Fecha de importación · 'Import Date'
+    ImportInvoice             VARCHAR(20)    NULL,                           -- Factura de importación · 'Invoice' (MPSyy000000)
+    ImportDateElpJup1         DATE           NULL,                           -- Fecha de cruce El Paso → JuP1 · 'Import date ELP-JuP1' (abre el ciclo IMMEX)
+    DeliveryNumber            VARCHAR(20)    NULL,                           -- Número de entrega · 'Delivery Number 22.09.26'
 
-    /* ---------- Etapa 3 · Ejecución en planta (MFO / LOW) ---------- */
-    IbOrderNumber             VARCHAR(12)    NULL,
-    IbOrderTypeCode           CHAR(4)        NULL CONSTRAINT FK_PRT_IbOrderType REFERENCES cat.Catalog_IbOrderTypes(IbOrderTypeCode),
-    PhysicalDeliveredQty      INT            NULL,                           -- 'Physical material delivered to LOW'
-    PhysicalDeliveredDate     DATE           NULL,
-    NewMaterial               VARCHAR(18)    NULL,                           -- 'Returned Pallet 13 Dgt New PN'
-    NewHU                     VARCHAR(20)    NULL,
-    ReworkBatch               VARCHAR(10)    NULL,                           -- 'Original Batch' (rework)
-    ReinsertionQty            INT            NULL,                           -- material nuevo agregado al pallet
-    DateSentBack              DATE           NULL,
-    OldMaterialDeliveredQty   INT            NULL,                           -- material IMPORTADO entregado a LOW
-    ScrapQty                  INT            NULL,
-    ScrapDate                 DATE           NULL,
+    /* ---------- Etapa 3 · Ejecución en planta (MFO) ---------- */
+    NewMaterial               VARCHAR(18)    NULL,                           -- Número de parte nuevo · 'Returned Pallet 13 Dgt New PN'
+    PhysicalDeliveredQty      INT            NULL,                           -- Entregado físicamente a LOW · 'Physical material delivered to LOW'
+    NewHU                     VARCHAR(20)    NULL,                           -- HU nuevo · 'New HU'
+    ReworkBatch               VARCHAR(10)    NULL,                           -- Lote del retrabajo · 'Original Batch' (segunda columna)
+    ReinsertionQty            INT            NULL,                           -- Material reinsertado · 'New Reinsertion Material Qty'
+    DateSentBack              DATE           NULL,                           -- Fecha de regreso · 'Date send Back'
+    OldMaterialDeliveredQty   INT            NULL,                           -- Material original devuelto a LOW · 'Old Material Delivered to LOW'
+    ScrapQty                  INT            NULL,                           -- Cantidad a scrap · 'Scrap to HSE (Qty)'
+    ScrapDate                 DATE           NULL,                           -- Fecha de scrap · 'Scrap Date'
 
-    /* ---------- Etapa 4 · Cierre aduanal de salida / confirmación de scrap ---------- */
-    LowExportNumber           SMALLINT       NULL,                           -- 'expo #4'
-    LowExportDate             DATE           NULL,
-    LowExportNote             NVARCHAR(200)  NULL,
-    CustomsExportReference    VARCHAR(30)    NULL,                           -- 'PR26-00095'
-    CustomsExportDate         DATE           NULL,
-    ExportPedimento           VARCHAR(25)    NULL,
-    ScrapGrNumber             VARCHAR(10)    NULL,
-    HseScrapKg                DECIMAL(10,3)  NULL,
-    HseConfirmationDate       DATE           NULL,
-    GreenConeReported         BIT            NULL,                           -- cono verde
-    PlatformReported          BIT            NULL,
-    RmaNumber                 VARCHAR(20)    NULL,
+    /* ---------- Etapa 4 · Salida (LOW, GS/OSD43, MFO, HSE) ---------- */
+    LowExport                 NVARCHAR(200)  NULL,                           -- Expo LOW · 'LOW export'
+    CustomsExportReference    VARCHAR(30)    NULL,                           -- Exportación aduanal · 'Customs Export' (PRyy-##### · F4 · V1)
+    ScrapGrNumber             VARCHAR(10)    NULL,                           -- Número de GR · 'GR Number'
+    HseScrapKg                DECIMAL(10,3)  NULL,                           -- Kg destruidos · 'Qty (Kg). from HSE' / 'Kg Qty from HSE'
+    HseConfirmationDate       DATE           NULL,                           -- Fecha de confirmación HSE · 'HSE confirmation Date'
 
-    /* ---------- Etapa 5 · Resultados del motor de cálculo (escritos por el Core) ---------- */
+    /* ---------- Etapa 5 · Clasificación (QMM) ---------- */
+    StatusCategoryId          SMALLINT       NULL CONSTRAINT FK_PRT_StatusCat REFERENCES cat.Catalog_StatusCategories(StatusCategoryId),  -- Categoría de estatus · 'COMMENTS'
+
+    /* ---------- Resultados del motor de cálculo (los escribe la aplicación; no se capturan) ---------- */
     QtyOpenFloor              INT            NOT NULL CONSTRAINT DF_PRT_QtyOpenFloor DEFAULT (0),
     QtyPendingExport          INT            NOT NULL CONSTRAINT DF_PRT_QtyPendExp   DEFAULT (0),
     QtyPendingHse             INT            NOT NULL CONSTRAINT DF_PRT_QtyPendHse   DEFAULT (0),
     QtyMissing                INT            NOT NULL CONSTRAINT DF_PRT_QtyMissing   DEFAULT (0),
-    MfoInventoryUSD           DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_MfoInv  DEFAULT (0),
-    HseScrapUSD               DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_HseScr  DEFAULT (0),
-    MfoLowFailureUSD          DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_MfoLow  DEFAULT (0),
-    BalanceGeneralUSD         DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_Balance DEFAULT (0),
-    DutyExposureUSD           DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_Duty    DEFAULT (0),
-    WorkflowStatusId          TINYINT        NOT NULL CONSTRAINT FK_PRT_Status REFERENCES cat.Catalog_WorkflowStatus(WorkflowStatusId),
-    StatusCategoryId          SMALLINT       NULL CONSTRAINT FK_PRT_StatusCat REFERENCES cat.Catalog_StatusCategories(StatusCategoryId),
+    MfoInventoryUSD           DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_MfoInv  DEFAULT (0),   -- Inventario MFO · 'MFO INVENTORY USD'
+    HseScrapUSD               DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_HseScr  DEFAULT (0),   -- Scrap HSE sin confirmar · 'HSE SCRAP USD'
+    MfoLowFailureUSD          DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_MfoLow  DEFAULT (0),   -- Falla MFO-LOW · 'MFO-LOW FAILURE USD'
+    BalanceGeneralUSD         DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_Balance DEFAULT (0),   -- Balance general · 'Balance GENERAL DLLS'
+    DutiesToPayUSD            DECIMAL(18,2)  NOT NULL CONSTRAINT DF_PRT_Duties  DEFAULT (0),   -- Aranceles por pagar · 'DUTIES TO PAY USD'
+    WorkflowStatusId          TINYINT        NOT NULL CONSTRAINT FK_PRT_Status REFERENCES cat.Catalog_WorkflowStatus(WorkflowStatusId),  -- Estatus (calculado)
     IsDutyRisk                BIT            NOT NULL CONSTRAINT DF_PRT_IsDutyRisk DEFAULT (0),
     DutyRiskReason            NVARCHAR(200)  NULL,
-    LegalDueDate              DATE           NULL,                           -- ImportDateElpJup1 + plazo legal
+    LegalDueDate              DATE           NULL,                           -- fecha de cruce + plazo IMMEX (cfg.Parameters)
     CalcVersion               TINYINT        NOT NULL CONSTRAINT DF_PRT_CalcVersion DEFAULT (2),
     CalculatedAtUtc           DATETIME2(3)   NULL,
-    Comments                  NVARCHAR(1000) NULL,
 
     /* ---------- Control ---------- */
-    IsCancelled               BIT            NOT NULL CONSTRAINT DF_PRT_IsCancelled DEFAULT (0),
-    CancelReason              NVARCHAR(300)  NULL,
-    IsLegacy                  BIT            NOT NULL CONSTRAINT DF_PRT_IsLegacy DEFAULT (0),
+    IsLegacy                  BIT            NOT NULL CONSTRAINT DF_PRT_IsLegacy DEFAULT (0),   -- importado del Excel 2.0 (sólo lectura)
     LegacySourceSheet         VARCHAR(31)    NULL,
     LegacySourceRow           INT            NULL,
     DataQualityFlags          VARCHAR(400)   NULL,                           -- códigos DQ-xxx separados por ';'
@@ -341,8 +335,7 @@ CREATE TABLE trk.Pallets_Return_Tracking (
     CONSTRAINT CK_PRT_QtyImported   CHECK (QtyImported > 0),
     CONSTRAINT CK_PRT_QtyNonNeg     CHECK (ISNULL(PhysicalDeliveredQty,0) >= 0 AND ISNULL(ReinsertionQty,0) >= 0
                                        AND ISNULL(OldMaterialDeliveredQty,0) >= 0 AND ISNULL(ScrapQty,0) >= 0),
-    CONSTRAINT CK_PRT_CostSource    CHECK (UnitCostSource IN ('MM60','SAP_RFC','MANUAL','PENDING','LEGACY')),
-    CONSTRAINT CK_PRT_DutyPayStatus CHECK (DutyPaymentStatus IS NULL OR DutyPaymentStatus IN ('NOT_REQUIRED','PENDING','PAID')),
+    CONSTRAINT CK_PRT_CostSource    CHECK (UnitCostSource IN ('MM60','MANUAL','PENDING','LEGACY')),
     CONSTRAINT CK_PRT_Material      CHECK (IsLegacy = 1 OR ReturnedMaterial LIKE '[0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z].[0-9A-Z][0-9A-Z][0-9A-Z].[0-9A-Z][0-9A-Z][0-9A-Z]-[0-9A-Z][0-9A-Z]%'),
     CONSTRAINT CK_PRT_NewMaterial   CHECK (IsLegacy = 1 OR NewMaterial IS NULL OR NewMaterial LIKE '[0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z].[0-9A-Z][0-9A-Z][0-9A-Z].[0-9A-Z][0-9A-Z][0-9A-Z]-[0-9A-Z][0-9A-Z]%'),
     CONSTRAINT CK_PRT_OriginalHU    CHECK (IsLegacy = 1 OR OriginalHU IS NULL OR (LEN(OriginalHU) = 10 AND OriginalHU NOT LIKE '%[^0-9]%')),
@@ -356,19 +349,16 @@ CREATE TABLE trk.Pallets_Return_Tracking (
     CONSTRAINT CK_PRT_DateOrder     CHECK (IsLegacy = 1 OR (
                                          (ImportDateElpJup1 IS NULL OR DateReturnedToWhs IS NULL OR ImportDateElpJup1 >= DateReturnedToWhs)
                                      AND (ImportDate IS NULL OR DateReturnedToWhs IS NULL OR ImportDate >= DateReturnedToWhs)
-                                     AND (PhysicalDeliveredDate IS NULL OR ImportDateElpJup1 IS NULL OR PhysicalDeliveredDate >= ImportDateElpJup1)
                                      AND (DateSentBack IS NULL OR ImportDateElpJup1 IS NULL OR DateSentBack >= ImportDateElpJup1)
                                      AND (ScrapDate IS NULL OR ImportDateElpJup1 IS NULL OR ScrapDate >= ImportDateElpJup1)
-                                     AND (HseConfirmationDate IS NULL OR ScrapDate IS NULL OR HseConfirmationDate >= ScrapDate)
-                                     AND (CustomsExportDate IS NULL OR ImportDateElpJup1 IS NULL OR CustomsExportDate >= ImportDateElpJup1))),
+                                     AND (HseConfirmationDate IS NULL OR ScrapDate IS NULL OR HseConfirmationDate >= ScrapDate))),
     /* Scrap: cantidad > 0 exige fecha; confirmación HSE es todo-o-nada. */
     CONSTRAINT CK_PRT_ScrapDate     CHECK (IsLegacy = 1 OR ISNULL(ScrapQty,0) = 0 OR ScrapDate IS NOT NULL),
     CONSTRAINT CK_PRT_HseBlock      CHECK (IsLegacy = 1 OR
                                          (ScrapGrNumber IS NULL AND HseScrapKg IS NULL AND HseConfirmationDate IS NULL)
                                       OR (ScrapGrNumber IS NOT NULL AND HseScrapKg > 0 AND HseConfirmationDate IS NOT NULL AND ScrapQty > 0)),
     /* Exportación aduanal requiere material entregado a LOW. */
-    CONSTRAINT CK_PRT_ExportNeedsQty CHECK (IsLegacy = 1 OR CustomsExportReference IS NULL OR OldMaterialDeliveredQty > 0),
-    CONSTRAINT CK_PRT_Cancel        CHECK (IsCancelled = 0 OR CancelReason IS NOT NULL)
+    CONSTRAINT CK_PRT_ExportNeedsQty CHECK (IsLegacy = 1 OR CustomsExportReference IS NULL OR OldMaterialDeliveredQty > 0)
 )
 WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = trk.Pallets_Return_Tracking_History, DATA_CONSISTENCY_CHECK = ON));
 GO
@@ -380,7 +370,7 @@ CREATE INDEX IX_PRT_OriginalHU       ON trk.Pallets_Return_Tracking (OriginalHU)
 CREATE INDEX IX_PRT_DutyRisk         ON trk.Pallets_Return_Tracking (LegalDueDate) WHERE IsDutyRisk = 1;
 /* Evita doble importación del mismo HU con la misma factura. */
 CREATE UNIQUE INDEX UX_PRT_HU_Invoice ON trk.Pallets_Return_Tracking (OriginalHU, ImportInvoice)
-    WHERE OriginalHU IS NOT NULL AND ImportInvoice IS NOT NULL AND IsLegacy = 0 AND IsCancelled = 0;
+    WHERE OriginalHU IS NOT NULL AND ImportInvoice IS NOT NULL AND IsLegacy = 0;
 GO
 
 /* Historial de transiciones de estatus (para lead time por etapa en Power BI). */
@@ -404,10 +394,15 @@ CREATE TABLE trk.Alerts (
     Severity          VARCHAR(8)    NOT NULL,
     Message           NVARCHAR(400) NOT NULL,
     RaisedAtUtc       DATETIME2(3)  NOT NULL CONSTRAINT DF_Alerts_Raised DEFAULT (SYSUTCDATETIME()),
+    ResponsibleArea   VARCHAR(20)   NULL,       -- grupo de la pantalla Alertas (p. ej. 'GS/OSD43 + QMM')
     NotifiedTo        NVARCHAR(400) NULL,
-    ResolvedAtUtc     DATETIME2(3)  NULL,
+    AcknowledgedBy    VARCHAR(64)   NULL,       -- "Marcar atendida"
+    AcknowledgedAtUtc DATETIME2(3)  NULL,
+    AcknowledgeComment NVARCHAR(500) NULL,      -- acción tomada (obligatoria al atender)
+    ResolvedAtUtc     DATETIME2(3)  NULL,       -- se resuelve sola cuando la condición desaparece
     CONSTRAINT CK_Alerts_Type CHECK (AlertType IN ('AGING_WARNING','AGING_CRITICAL','LEGAL_EXPIRED','QTY_MISMATCH','COST_PENDING','EXPORT_SLA','HSE_SLA')),
-    CONSTRAINT CK_Alerts_Severity CHECK (Severity IN ('INFO','WARNING','CRITICAL'))
+    CONSTRAINT CK_Alerts_Severity CHECK (Severity IN ('INFO','WARNING','CRITICAL')),
+    CONSTRAINT CK_Alerts_Ack CHECK (AcknowledgedAtUtc IS NULL OR (AcknowledgedBy IS NOT NULL AND AcknowledgeComment IS NOT NULL))
 );
 CREATE UNIQUE INDEX UX_Alerts_Open ON trk.Alerts (PalletReturnId, AlertType) WHERE ResolvedAtUtc IS NULL;
 GO
@@ -481,6 +476,6 @@ GRANT SELECT                 ON SCHEMA::cfg TO role_exporeturn_api;
 GRANT SELECT, INSERT         ON SCHEMA::aud TO role_exporeturn_api;
 GRANT EXECUTE                ON SCHEMA::trk TO role_exporeturn_api;
 DENY  UPDATE, DELETE         ON SCHEMA::aud TO role_exporeturn_api;
-DENY  DELETE                 ON SCHEMA::trk TO role_exporeturn_api;   -- se cancela, no se borra
+DENY  DELETE                 ON SCHEMA::trk TO role_exporeturn_api;   -- no se borra: se corrige y queda en la bitácora
 GRANT SELECT                 ON SCHEMA::rpt TO role_exporeturn_bi;    -- Power BI sólo ve vistas
 GO

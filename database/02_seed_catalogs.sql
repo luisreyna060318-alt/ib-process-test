@@ -70,31 +70,30 @@ INSERT INTO cat.Catalog_WorkflowStatus (WorkflowStatusId, Code, Name, StageNo, I
  ( 7, 'DUTY_RISK',       N'Riesgo de pago de aranceles',              5, 0,  7),
  ( 8, 'EXPORTED',        N'Cerrado · exportado (y scrap confirmado)', 4, 1,  8),
  ( 9, 'SCRAPPED',        N'Cerrado · 100% destruido (HSE)',           4, 1,  9),
- (10, 'CLOSED_DUTY_PAID',N'Cerrado · discrepancia con duty pagado',   5, 1, 10),
- (11, 'CANCELLED',       N'Cancelado (no se importó)',                1, 1, 11);
+ (10, 'CLOSED_DUTY_PAID',N'Cerrado · discrepancia con duty pagado',   5, 1, 10);
 
-/* ---------- Categorías de estatus (unificación de las listas por hoja) ---------- */
-INSERT INTO cat.Catalog_StatusCategories (StatusCategoryId, Code, Description, Kind, ResponsibleArea, AffectsDuty, IsAutoDerived) VALUES
- ( 1, 'EXPORT',                       N'Exportado a El Paso WHS',                              'OUTCOME',     NULL,  0, 1),
- ( 2, 'SCRAP',                        N'Destruido vía HSE',                                    'OUTCOME',     NULL,  0, 1),
- ( 3, 'INVENTORY',                    N'Inventario físico abierto en JuP1',                    'OUTCOME',     NULL,  0, 1),
- ( 4, 'ENVIO_NACIONAL',               N'Envío nacional (descargo por otra vía)',               'OUTCOME',     'GS',  0, 0),
- ( 5, 'SCRAP_SIN_SALIDA_FISICA',      N'Scrap sin salida física',                              'DISCREPANCY', 'HSE', 1, 0),
- ( 6, 'NO_REPORTADO_CORRECTAMENTE',   N'No reportado correctamente',                           'DISCREPANCY', NULL,  1, 0),
- ( 7, 'NO_REPORTADO_CONO_VERDE',      N'No reportado con cono verde',                          'DISCREPANCY', 'MFO', 1, 0),
- ( 8, 'NO_LLEGO_CON_CONO',            N'No llegó con cono',                                    'DISCREPANCY', 'LOP', 1, 0),
- ( 9, 'CONO_NO_REPORTADO_POR_LOW',    N'Material con cono no reportado por LOW',               'DISCREPANCY', 'LOW', 1, 0),
- (10, 'MATERIAL_NO_LLEGO_DE_ELP',     N'Material no llegó de El Paso',                         'DISCREPANCY', 'LOP', 1, 0),
- (11, 'LOW_NO_REPORTADO_PCR',         N'LOW - no reportado (plataforma, cono, RMA)',           'DISCREPANCY', 'LOW', 1, 0),
- (12, 'MFO_NO_REPORTADO_PCR',         N'MFO - no reportado (plataforma, cono, RMA)',           'DISCREPANCY', 'MFO', 1, 0);
+/* ---------- Categorías de estatus = opciones de la columna COMMENTS (texto exacto del Excel) ---------- */
+INSERT INTO cat.Catalog_StatusCategories (StatusCategoryId, Code, Kind, ResponsibleArea, AffectsDuty, IsAutoDerived) VALUES
+ ( 1, 'EXPORT',                                  'OUTCOME',     NULL,  0, 1),
+ ( 2, 'SCRAP',                                   'OUTCOME',     NULL,  0, 1),
+ ( 3, 'INVENTORY',                               'OUTCOME',     NULL,  0, 1),
+ ( 4, 'ENVIO NACIONAL',                          'OUTCOME',     'GS',  0, 0),
+ ( 5, 'SCRAP SIN SALIDA FISICA',                 'DISCREPANCY', 'HSE', 1, 0),
+ ( 6, 'NO REPORTADO CORRECTAMENTE',              'DISCREPANCY', NULL,  1, 0),
+ ( 7, 'NO REPORTADO CON CONO VERDE',             'DISCREPANCY', 'MFO', 1, 0),
+ ( 8, 'NO LLEGO CON CONO',                       'DISCREPANCY', 'LOP', 1, 0),
+ ( 9, 'MATERIAL CON CONO NO REPORTADO POR LOW',  'DISCREPANCY', 'LOW', 1, 0),
+ (10, 'MATERIAL NO LLEGO DE ELP',                'DISCREPANCY', 'LOP', 1, 0),
+ (11, 'LOW-NO REPORTADO (PLATAFORMA,CONO,RMA)',  'DISCREPANCY', 'LOW', 1, 0),
+ (12, 'MFO-NO REPORTADO (PLATAFORMA,CONO,RMA)',  'DISCREPANCY', 'MFO', 1, 0);
 
-/* ---------- Órdenes IB ---------- */
-INSERT INTO cat.Catalog_IbOrderTypes (IbOrderTypeCode, Description, CostBearing) VALUES
- ('PPI2', N'Inhouse repair order (estándar)',          0),
- ('PPI3', N'Inhouse repair order - falla con costo',   1),
- ('PPI4', N'Inhouse repair order - garantía',          1),
- ('PPI5', N'Inhouse repair order - daño de transporte',1),
- ('PPI6', N'Inhouse repair order - daño de transporte',1);   -- [VALIDAR] diferencia PPI5 vs PPI6
+/* ---------- Opciones por Value Stream (la lista desplegable de cada hoja del Excel) ---------- */
+INSERT INTO cat.StatusCategory_ValueStreams (ValueStreamId, StatusCategoryId, SortOrder) VALUES
+ (1, 1, 1), (1, 2, 2), (1, 3, 3), (1, 11, 4), (1, 12, 5), (1, 4, 6), (1, 5, 7),
+ (4, 6, 1), (4, 1, 2), (4, 2, 3), (4, 3, 4), (4, 7, 5), (4, 8, 6), (4, 9, 7), (4, 4, 8), (4, 10, 9),
+ (5, 6, 1), (5, 1, 2), (5, 2, 3), (5, 3, 4), (5, 7, 5), (5, 8, 6), (5, 9, 7),
+ (7, 6, 1), (7, 1, 2), (7, 2, 3), (7, 3, 4), (7, 7, 5), (7, 8, 6), (7, 9, 7),
+ (9, 6, 1), (9, 1, 2), (9, 2, 3), (9, 3, 4), (9, 7, 5), (9, 8, 6), (9, 9, 7), (9, 4, 8);
 
 /* ---------- Roles de aplicación ---------- */
 INSERT INTO sec.App_Roles (RoleId, Code, Name, IsAdmin) VALUES
@@ -112,26 +111,25 @@ INSERT INTO sec.App_Roles (RoleId, Code, Name, IsAdmin) VALUES
 INSERT INTO sec.Field_Permissions (RoleId, FieldName, StageNo)
 SELECT r.RoleId, f.FieldName, f.StageNo
 FROM (VALUES
-  -- Etapa 1 · QMM (+ solicitante para datos de la solicitud)
+  -- Etapa 1 · Solicitud: QMM (incluye fecha PO y PO de retorno) y área solicitante
   ('QMM','QmmResponsibleUserId',1),('QMM','RequestingDepartmentId',1),('QMM','RequestorName',1),('QMM','ReasonId',1),
   ('QMM','ReturnReasonDetail',1),('QMM','ReturnedMaterial',1),('QMM','QtyImported',1),('QMM','OriginalHU',1),('QMM','OriginalBatch',1),
+  ('QMM','DateReturnedToWhs',1),('QMM','ReturnPONumber',1),
   ('REQUESTOR','RequestingDepartmentId',1),('REQUESTOR','RequestorName',1),('REQUESTOR','ReasonId',1),('REQUESTOR','ReturnReasonDetail',1),
   ('REQUESTOR','ReturnedMaterial',1),('REQUESTOR','QtyImported',1),('REQUESTOR','OriginalHU',1),('REQUESTOR','OriginalBatch',1),
-  -- Etapa 2 · GS/OSD43 (aduana), QMM (PO), LOP (delivery)
-  ('GS','DateReturnedToWhs',2),('GS','ImportDate',2),('GS','ImportInvoice',2),('GS','ImportDateElpJup1',2),('GS','ImportPedimento',2),('GS','DutyPaymentStatus',2),
-  ('QMM','DateReturnedToWhs',2),('QMM','ReturnPONumber',2),('QMM','ReturnPOItem',2),
-  ('LOP','DeliveryNumber',2),('LOP','DutyPaymentStatus',2),
-  -- Etapa 3 · MFO
-  ('MFO','IbOrderNumber',3),('MFO','IbOrderTypeCode',3),('MFO','PhysicalDeliveredQty',3),('MFO','PhysicalDeliveredDate',3),
-  ('MFO','NewMaterial',3),('MFO','NewHU',3),('MFO','ReworkBatch',3),('MFO','ReinsertionQty',3),('MFO','DateSentBack',3),
-  ('MFO','OldMaterialDeliveredQty',3),('MFO','ScrapQty',3),('MFO','ScrapDate',3),('MFO','GreenConeReported',3),('MFO','PlatformReported',3),('MFO','RmaNumber',3),
-  -- Etapa 4 · LOW, GS, MFO (GR), HSE
-  ('LOW','LowExportNumber',4),('LOW','LowExportDate',4),('LOW','LowExportNote',4),
-  ('GS','CustomsExportReference',4),('GS','CustomsExportDate',4),('GS','ExportPedimento',4),
+  -- Etapa 2 · Aduana y entrada: GS/OSD43 y LOP
+  ('GS','ImportDate',2),('GS','ImportInvoice',2),('GS','ImportDateElpJup1',2),
+  ('LOP','DeliveryNumber',2),
+  -- Etapa 3 · Ejecución en planta: MFO
+  ('MFO','NewMaterial',3),('MFO','PhysicalDeliveredQty',3),('MFO','NewHU',3),('MFO','ReworkBatch',3),('MFO','ReinsertionQty',3),
+  ('MFO','DateSentBack',3),('MFO','OldMaterialDeliveredQty',3),('MFO','ScrapQty',3),('MFO','ScrapDate',3),
+  -- Etapa 4 · Salida: LOW, GS/OSD43, MFO (GR) y HSE
+  ('LOW','LowExport',4),
+  ('GS','CustomsExportReference',4),
   ('MFO','ScrapGrNumber',4),
   ('HSE','HseScrapKg',4),('HSE','HseConfirmationDate',4),
-  -- Clasificación de discrepancias (QMM)
-  ('QMM','StatusCategoryId',5),('QMM','Comments',5)
+  -- Etapa 5 · Categoría de estatus (QMM)
+  ('QMM','StatusCategoryId',5)
 ) f(RoleCode, FieldName, StageNo)
 JOIN sec.App_Roles r ON r.Code = f.RoleCode;
 /* ADMIN_QMM_PE no necesita filas: IsAdmin = 1 => edición completa (con motivo obligatorio). */

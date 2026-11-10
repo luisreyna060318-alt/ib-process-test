@@ -46,9 +46,11 @@ dotnet test
 
 ## 4. Base de datos (diseño para producción, SQL Server 2019+)
 
-1. [`database/01_schema.sql`](database/01_schema.sql): esquemas, catálogos, RBAC, tabla transaccional temporal, auditoría append-only
-2. [`database/02_seed_catalogs.sql`](database/02_seed_catalogs.sql): VS, departamentos, 10 motivos, estatus, categorías, roles, permisos por campo y parámetros
+Estructura alineada con la app v0.1.7: sólo los campos de la Matriz 2.0, con nombres limpios. El **diccionario** [`entregables/Diccionario_Campos_ExpoReturn.xlsx`](entregables/Diccionario_Campos_ExpoReturn.xlsx) relaciona cada campo de la app con su columna en la BD y su encabezado y columna en cada hoja del Excel (se regenera con `python3 tools/dictionary/build_field_dictionary.py`).
+
+1. [`database/01_schema.sql`](database/01_schema.sql): esquemas, catálogos (incluye las opciones de categoría de estatus por VS), RBAC, tabla transaccional temporal, alertas con atención, auditoría append-only
+2. [`database/02_seed_catalogs.sql`](database/02_seed_catalogs.sql): VS, departamentos, 10 motivos, estatus, categorías de estatus (texto exacto del Excel) y su lista por VS, roles, permisos por campo y parámetros
 3. [`database/03_views_powerbi.sql`](database/03_views_powerbi.sql): vistas `rpt.*` para Power BI
 4. [`database/04_staging_migration.sql`](database/04_staging_migration.sql): staging y transformación del histórico Excel
 
-> Los valores marcados **[VALIDAR]** (plazo IMMEX, tasa de duty, motivos, F4/V1, HU/lote, Date PO, matriz Champions) son provisionales hasta que los confirmen QMM y GS/OSD43. Ver Sección 04 §8.
+> Los valores marcados **[VALIDAR]** (plazo IMMEX, tasa de duty, motivos, F4/V1, HU/lote, Date PO, matriz Champions) son provisionales hasta que los confirmen QMM y GS/OSD43. Ver SRS, capítulo 03.

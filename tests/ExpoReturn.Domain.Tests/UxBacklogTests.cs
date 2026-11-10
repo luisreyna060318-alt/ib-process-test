@@ -118,7 +118,7 @@ public class UxBacklogTests
             using var wb = new XLWorkbook(path);
             var ws = wb.Worksheet("Retornos");
             Assert.True(ws.IsProtected);
-            Assert.Equal("#", ws.Cell(3, 1).GetString());
+            Assert.Equal("Folio", ws.Cell(3, 1).GetString());
             Assert.Equal(repo.GetAll().Count, ws.LastRowUsed()!.RowNumber() - 3);
         }
         finally { File.Delete(path); }

@@ -45,21 +45,18 @@ SELECT
     t.SapUsdTotal                        AS SapUsdTotal,
     t.OriginalHU, t.OriginalBatch,
     t.DateReturnedToWhs, t.ImportDate, t.ImportInvoice, t.ImportDateElpJup1,
-    t.ReturnPONumber, t.DeliveryNumber, t.DutyPaymentStatus,
-    t.IbOrderTypeCode, t.IbOrderNumber,
+    t.ReturnPONumber, t.DeliveryNumber,
     t.PhysicalDeliveredQty, t.NewMaterial, t.NewHU, t.ReinsertionQty, t.DateSentBack,
     t.OldMaterialDeliveredQty, t.ScrapQty, t.ScrapDate,
-    t.LowExportNumber, t.LowExportDate, t.CustomsExportReference, t.CustomsExportDate,
+    t.LowExport, t.CustomsExportReference,
     t.ScrapGrNumber, t.HseScrapKg, t.HseConfirmationDate,
-    t.GreenConeReported, t.RmaNumber,
     -- Cantidades de conciliación
     t.QtyOpenFloor, t.QtyPendingExport, t.QtyPendingHse, t.QtyMissing,
     CASE WHEN t.CustomsExportReference IS NOT NULL THEN ISNULL(t.OldMaterialDeliveredQty,0) ELSE 0 END AS QtyExported,
     CASE WHEN t.HseConfirmationDate   IS NOT NULL THEN ISNULL(t.ScrapQty,0)                ELSE 0 END AS QtyScrapConfirmed,
     -- Indicadores financieros (calculados por el Core)
-    t.MfoInventoryUSD, t.HseScrapUSD, t.MfoLowFailureUSD, t.BalanceGeneralUSD, t.DutyExposureUSD,
-    dr.NumericValue                      AS DutyRate,
-    CAST(t.MfoLowFailureUSD * ISNULL(dr.NumericValue,0) AS DECIMAL(18,2)) AS DutiesToPayUSD,   -- definición BALANCE_ (Excel: MFO-LOW FAILURE * 0.19)
+    t.MfoInventoryUSD, t.HseScrapUSD, t.MfoLowFailureUSD, t.BalanceGeneralUSD,
+    t.DutiesToPayUSD,                                                     -- Excel: MFO-LOW FAILURE * 0.19 (bloque AFTER JUNE 2025)
     CASE WHEN t.ImportDateElpJup1 IS NULL THEN 0 ELSE t.SapUsdTotal - t.BalanceGeneralUSD END AS ReconciledUSD,
     -- Estatus
     ws.Code                              AS WorkflowStatus,
@@ -71,7 +68,9 @@ SELECT
     t.IsDutyRisk, t.DutyRiskReason,
     t.LegalDueDate,
     CASE WHEN t.ImportDateElpJup1 IS NULL THEN NULL
-         ELSE DATEDIFF(DAY, t.ImportDateElpJup1, ISNULL(COALESCE(t.CustomsExportDate, t.HseConfirmationDate), CAST(GETDATE() AS DATE))) END AS DaysInJuP1,
+         ELSE DATEDIFF(DAY, t.ImportDateElpJup1,
+                       CASE WHEN ws.IsClosed = 1 THEN COALESCE(t.DateSentBack, t.HseConfirmationDate, CAST(GETDATE() AS DATE))
+                            ELSE CAST(GETDATE() AS DATE) END) END AS DaysInJuP1,
     CASE WHEN t.LegalDueDate IS NULL OR ws.IsClosed = 1 THEN NULL
          ELSE DATEDIFF(DAY, CAST(GETDATE() AS DATE), t.LegalDueDate) END AS DaysToLegalDue,
     CASE WHEN t.ImportDateElpJup1 IS NULL OR ws.IsClosed = 1 THEN 'N/A'
@@ -83,9 +82,7 @@ SELECT
     fp.Code                              AS ImportFiscalPeriod,
     fp.FiscalYear                        AS ImportFiscalYear,
     t.CalcVersion, t.CalculatedAtUtc,
-    t.IsLegacy, t.DataQualityFlags,
-    t.IsCancelled,
-    t.Comments
+    t.IsLegacy, t.DataQualityFlags
 FROM trk.Pallets_Return_Tracking t
 JOIN cat.Catalog_ValueStreams     vs ON vs.ValueStreamId    = t.ValueStreamId
 JOIN cat.Catalog_WorkflowStatus   ws ON ws.WorkflowStatusId = t.WorkflowStatusId
@@ -94,8 +91,7 @@ LEFT JOIN cat.Catalog_Departments d  ON d.DepartmentId      = t.RequestingDepart
 LEFT JOIN cat.Catalog_Reasons     r  ON r.ReasonId          = t.ReasonId
 LEFT JOIN cat.Catalog_StatusCategories sc ON sc.StatusCategoryId = t.StatusCategoryId
 LEFT JOIN cat.Material_Cost_MM60  mm ON mm.Material = t.ReturnedMaterial AND mm.ValidTo IS NULL
-LEFT JOIN cfg.Fiscal_Periods      fp ON t.ImportDateElpJup1 BETWEEN fp.StartDate AND fp.EndDate
-OUTER APPLY cfg.fn_Param('DUTY_RATE', ISNULL(t.ImportDateElpJup1, CAST(t.CreatedAtUtc AS DATE))) dr;
+LEFT JOIN cfg.Fiscal_Periods      fp ON t.ImportDateElpJup1 BETWEEN fp.StartDate AND fp.EndDate;
 GO
 
 /* ---------------------------------------------------------------------
@@ -117,12 +113,10 @@ SELECT
     SUM(v.MfoLowFailureUSD)                    AS MfoLowFailureUSD,
     SUM(v.SapUsdTotal) - SUM(v.MfoInventoryUSD) - SUM(v.HseScrapUSD) - SUM(v.MfoLowFailureUSD) AS ExportedUSD,
     SUM(v.BalanceGeneralUSD)                   AS BalanceGeneralUSD,
-    SUM(v.DutiesToPayUSD)                      AS DutiesToPayUSD,      -- compatible con BALANCE_ del Excel
-    SUM(v.DutyExposureUSD)                     AS DutyExposureUSD,     -- exposición potencial (Balance * tasa)
-    SUM(CASE WHEN v.IsDutyRisk = 1 THEN v.DutyExposureUSD ELSE 0 END) AS DutyExposureAtRiskUSD
+    SUM(v.DutiesToPayUSD)                      AS DutiesToPayUSD,      -- compatible con BALANCE del Excel
+    SUM(CASE WHEN v.IsDutyRisk = 1 THEN 1 ELSE 0 END) AS DutyRiskPallets
 FROM rpt.vw_PalletReturns v
 WHERE v.ImportDateElpJup1 IS NOT NULL
-  AND v.IsCancelled = 0
 GROUP BY v.ValueStream, v.ImportFiscalYear, v.ImportFiscalPeriod;
 GO
 
@@ -150,7 +144,6 @@ JOIN cfg.Reporting_Windows w
   ON v.DateReturnedToWhs >= ISNULL(w.StartDate, '19000101')
  AND v.DateReturnedToWhs <= ISNULL(w.EndDate,   '99991231')
 WHERE v.ImportDateElpJup1 IS NOT NULL
-  AND v.IsCancelled = 0
 GROUP BY w.WindowCode, w.Description, v.ValueStream;
 GO
 
@@ -161,7 +154,7 @@ CREATE OR ALTER VIEW rpt.vw_DutyRisk_Open
 AS
 SELECT v.FolioCode, v.ValueStream, v.QmmResponsible, v.ReturnedMaterial, v.QtyImported,
        v.WorkflowStatus, v.DutyRiskReason, v.ImportDateElpJup1, v.LegalDueDate,
-       v.DaysInJuP1, v.DaysToLegalDue, v.BalanceGeneralUSD, v.DutyExposureUSD,
+       v.DaysInJuP1, v.DaysToLegalDue, v.BalanceGeneralUSD, v.DutiesToPayUSD,
        v.DiscrepancyOwner
 FROM rpt.vw_PalletReturns v
 WHERE v.IsClosed = 0 AND v.IsDutyRisk = 1;

@@ -15,8 +15,8 @@ public static class ExcelExporter
         var ws = wb.Worksheets.Add("Retornos");
         string[] headers =
         {
-            "#", "VS", "Estatus", "Returned Pallet 13 Digits Part number", "Quantity imported", "SAP USD TOTAL", "Balance GENERAL DLLS",
-            "Días en JuP1", "Días para vencer", "QMM Responsible", "Invoice", "Customs Export", "COMMENTS", "Calidad de datos",
+            "Folio", "VS", "Estatus", "Número de parte", "Cantidad importada", "Valor total SAP (USD)", "Balance general (USD)",
+            "Días en JuP1", "Días para vencer", "Responsable QMM", "Factura de importación", "Exportación aduanal", "Categoría de estatus", "Calidad de datos",
         };
         ws.Cell(1, 1).Value = $"Expo & Return FG Follow Up · Bandeja exportada el {DateTime.Now:dd/MM/yyyy HH:mm} · Filtro: {filterDescription}";
         ws.Cell(1, 1).Style.Font.Italic = true;

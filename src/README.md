@@ -1,4 +1,4 @@
-# Borrador de la aplicación (v0.1.6): Expo & Return FG Follow Up
+# Borrador de la aplicación (v0.1.7): Expo & Return FG Follow Up
 
 Prototipo **ejecutable** para recoger opiniones reales de los usuarios antes de construir la versión definitiva. Respeta la arquitectura del documento (Sección 01): Domain → Application → Infrastructure → Desktop. **No usa base de datos**: todo vive en memoria y se pierde al cerrar.
 
@@ -41,7 +41,7 @@ dotnet test
 | Pantalla | Qué permite revisar |
 |---|---|
 | **Bandeja de retornos** | Lista filtrable por VS, estatus, texto y riesgo arancelario; indicadores (abiertos, en riesgo arancelario, Balance GENERAL DLLS); orden por proximidad al vencimiento IMMEX; **filtros recordados por usuario**; **exportar a Excel de sólo lectura**; la columna "Calidad de datos" sólo aparece con datos importados |
-| **Detalle / Nuevo retorno** | **Fiel al Excel 2.0:** sólo las columnas del Excel, con su encabezado como nombre del campo (Date PO y PO Number se capturan en la Solicitud). Al pasar el cursor, cada campo explica qué es, la regla y un ejemplo; **asterisco en obligatorios**; los avisos obligatorios se agrupan en "Pendientes para pasar a Solicitado". **COMMENTS** ofrece la lista de su hoja VS, igual que en el Excel. Los campos que el usuario puede editar se resaltan en **verde ligero** y el resto queda en gris. Indicadores, estatus y conciliación se **recalculan mientras se escribe**; las validaciones son navegables |
+| **Detalle / Nuevo retorno** | Sólo las columnas del Excel 2.0, con **nombres limpios en español**; al pasar el cursor, cada campo muestra su encabezado en el Excel, la regla y un ejemplo (diccionario completo en `entregables/Diccionario_Campos_ExpoReturn.xlsx`). Fecha PO y PO de retorno se capturan en la Solicitud. **Asterisco en obligatorios**; los avisos obligatorios se agrupan en "Pendientes para pasar a Solicitado". **Categoría de estatus** ofrece la lista COMMENTS de su hoja VS, igual que en el Excel. Los campos que el usuario puede editar se resaltan en **verde ligero** y el resto queda en gris. Indicadores, estatus y conciliación se **recalculan mientras se escribe**; las validaciones son navegables |
 | **Balance / Aranceles** | Sustituto de la hoja BALANCE: por VS y año fiscal, con barras por VS y por estatus. **Clic en un VS o estatus abre la bandeja filtrada** |
 | **Alertas** | Plazo IMMEX por vencer o vencido, faltantes, plazos internos de retrabajo, exportación y HSE, costo pendiente. **Agrupadas por área responsable; "Marcar atendida" con comentario** (queda en la bitácora) |
 | **Champions VS** | Matriz Champion/Proxy por VS y área (QMM, MFQ, GS/OSD43, LOP, MFO, LOW, HSE) y los campos que edita cada rol. **La matriz delimita en qué VS edita cada usuario, en todas las áreas**; una persona puede estar en varios VS. El Admin QMM/PE agrega asignaciones y da de baja (sin fechas de vigencia; la bitácora guarda cada alta y baja). Al guardar se actualizan los usuarios simulados y sus permisos |
@@ -65,8 +65,8 @@ dotnet test
 
 1. **Bandeja:** filtrar por "Sólo riesgo arancelario" y abrir un folio. Revisar la razón del riesgo en el encabezado.
 2. Cambiar el **usuario simulado** (arriba a la derecha; agrupado por área, hay al menos un usuario por área y por VS) a *Patricia Lozano · GS / OSD43 · VS1*. En un registro de VS1 sólo los campos de aduana quedan en verde; en un registro de otro VS todo queda en gris porque no está asignada ahí en la matriz.
-3. Abrir un registro en **Pendiente exportación** de VS1 y capturar en *Customs Export* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
-4. Con *Paola Esquer · Manufactura (MFO) · VS7*, abrir un registro *En retrabajo* de VS7 y capturar *Old Material Delivered to LOW* menor a lo importado y luego *Physical material delivered to LOW*. Aparece el aviso VAL-034 (faltante) y el pallet pasa a *Riesgo arancelario*; QMM lo clasifica en *COMMENTS*.
+3. Abrir un registro en **Pendiente exportación** de VS1 y capturar en *Exportación aduanal* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
+4. Con *Paola Esquer · Manufactura (MFO) · VS7*, abrir un registro *En retrabajo* de VS7 y capturar *Material original devuelto a LOW* menor a lo importado y luego *Entregado físicamente a LOW*. Aparece el aviso VAL-034 (faltante) y el pallet pasa a *Riesgo arancelario*; QMM lo clasifica en *Categoría de estatus*.
 5. **Nuevo retorno** con el usuario *QMM*. Capturar un P/N sin puntos (`0265957012-24W`): se normaliza solo. Guardar y ver el folio asignado y la bitácora.
 6. Con el usuario *Admin*, en **Champions VS** seleccionar a *Andrea Salinas · QMM · VS7*, **Dar de baja** y **Guardar cambios**. En el selector de usuario Andrea queda sólo con VS1 y la bitácora registra la baja.
 7. **Importar Excel 2.0…** con el archivo real y revisar Balance / Aranceles y la columna "Calidad de datos".

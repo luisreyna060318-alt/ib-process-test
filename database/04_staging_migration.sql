@@ -286,12 +286,12 @@ BEGIN
     INSERT INTO trk.Pallets_Return_Tracking (
         ValueStreamId, FolioNumber, QmmResponsibleUserId, RequestingDepartmentId, RequestorName, ReasonId,
         ReturnReasonDetail, ReturnedMaterial, UnitCostUSD, UnitCostSource, QtyImported, OriginalHU, OriginalBatch,
-        DateReturnedToWhs, ImportDate, ImportInvoice, ImportDateElpJup1, ReturnPONumber, ReturnPOItem, DeliveryNumber,
+        DateReturnedToWhs, ReturnPONumber, ImportDate, ImportInvoice, ImportDateElpJup1, DeliveryNumber,
         PhysicalDeliveredQty, NewMaterial, NewHU, ReworkBatch, ReinsertionQty, DateSentBack,
         OldMaterialDeliveredQty, ScrapQty, ScrapDate,
-        LowExportNumber, LowExportDate, LowExportNote, CustomsExportReference,
+        LowExport, CustomsExportReference,
         ScrapGrNumber, HseScrapKg, HseConfirmationDate,
-        WorkflowStatusId, StatusCategoryId, CalcVersion, Comments,
+        WorkflowStatusId, StatusCategoryId, CalcVersion,
         IsLegacy, LegacySourceSheet, LegacySourceRow, DataQualityFlags, CreatedBy)
     SELECT
         vs.ValueStreamId,
@@ -310,13 +310,12 @@ BEGIN
         COALESCE(NULLIF(LTRIM(RTRIM(r.OriginalBatch)), N''),
                  CASE WHEN LTRIM(RTRIM(r.OriginalHU)) LIKE N'[A-Z][A-Z][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]%' THEN LEFT(LTRIM(RTRIM(r.OriginalHU)), 10) END),
         stg.fn_ParseLegacyDate(r.DateReturnedToWhs),
+        LEFT(NULLIF(LTRIM(RTRIM(r.ReturnPO)), N''), 20),   -- PO de retorno tal cual (p. ej. '49398082 - 999')
         stg.fn_ParseLegacyDate(r.ImportDate),
         COALESCE(NULLIF(LTRIM(RTRIM(r.Invoice)), N''),
                  CASE WHEN CHARINDEX(N' ', LTRIM(RTRIM(r.ImportDateElpJup1))) > 0 THEN LTRIM(SUBSTRING(LTRIM(RTRIM(r.ImportDateElpJup1)), CHARINDEX(N' ', LTRIM(RTRIM(r.ImportDateElpJup1))) + 1, 20)) END),
         stg.fn_ParseLegacyDate(r.ImportDateElpJup1),
-        LEFT(LTRIM(RTRIM(CASE WHEN CHARINDEX(N'-', r.ReturnPO) > 0 THEN LEFT(r.ReturnPO, CHARINDEX(N'-', r.ReturnPO) - 1) ELSE r.ReturnPO END)), 10),
-        CASE WHEN CHARINDEX(N'-', r.ReturnPO) > 0 THEN LEFT(LTRIM(RTRIM(SUBSTRING(r.ReturnPO, CHARINDEX(N'-', r.ReturnPO) + 1, 10))), 6) END,
-        LEFT(NULLIF(LTRIM(RTRIM(r.DeliveryNumber)), N''), 10),
+        LEFT(NULLIF(LTRIM(RTRIM(r.DeliveryNumber)), N''), 20),
         stg.fn_ParseQty(r.PhysicalDelivered),
         stg.fn_NormalizeMaterial(r.NewMaterial),
         LEFT(NULLIF(LTRIM(RTRIM(r.NewHU)), N''), 20),
@@ -326,8 +325,6 @@ BEGIN
         stg.fn_ParseQty(r.OldDelivered),
         stg.fn_ParseQty(r.ScrapQty),
         stg.fn_ParseLegacyDate(r.ScrapDate),
-        TRY_CAST(SUBSTRING(r.LowExport, NULLIF(CHARINDEX(N'#', r.LowExport), 0) + 1, 2) AS SMALLINT),
-        stg.fn_ParseLegacyDate(SUBSTRING(r.LowExport, NULLIF(PATINDEX(N'%[0-3][0-9]/[01][0-9]/20[0-9][0-9]%', r.LowExport), 0), 10)),
         LEFT(NULLIF(LTRIM(RTRIM(r.LowExport)), N''), 200),
         CASE WHEN r.CustomsExportIsFormula = 0 AND r.CustomsExport LIKE N'%[A-Za-z]%' THEN LEFT(LTRIM(RTRIM(r.CustomsExport)), 30) END,
         CASE WHEN LTRIM(RTRIM(r.GrNumber)) NOT LIKE N'%[^0-9]%' AND LEN(LTRIM(RTRIM(r.GrNumber))) > 0 THEN LEFT(LTRIM(RTRIM(r.GrNumber)), 10) END,
@@ -336,7 +333,6 @@ BEGIN
         1,                                                  -- provisional: DRAFT
         ms.StatusCategoryId,
         0,                                                  -- 0 = pendiente de recálculo por el Core
-        NULLIF(LTRIM(RTRIM(r.CommentsStatus)), N''),
         1, r.SheetName, r.ExcelRow,
         LEFT((SELECT STRING_AGG(i.IssueCode, ';') FROM stg.Migration_Issues i
                WHERE i.LoadBatchId = @LoadBatchId AND i.SheetName = r.SheetName AND i.ExcelRow = r.ExcelRow), 400),
