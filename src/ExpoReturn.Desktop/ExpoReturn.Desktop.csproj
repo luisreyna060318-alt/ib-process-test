@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ExpoReturn.Infrastructure.InMemory\ExpoReturn.Infrastructure.InMemory.csproj" />
+    <ProjectReference Include="..\ExpoReturn.Infrastructure.Oracle\ExpoReturn.Infrastructure.Oracle.csproj" />
   </ItemGroup>
 </Project>

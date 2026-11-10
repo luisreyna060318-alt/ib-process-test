@@ -39,7 +39,14 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public IReadOnlyList<NavItem> NavItems { get; }
     public string AppTitle => "Expo & Return FG Follow Up";
-    public string DraftNotice => "DRAFT FOR REVIEW · no database yet: pallet changes are lost when the app closes";
+    public bool IsDatabase => _services.IsDatabase;
+    public bool IsLocalMode => !_services.IsDatabase;
+    public string VersionText => $"v{AppConfig.Version}" + (_services.IsDatabase ? " · Oracle" : " · local demo");
+    public string DraftNotice => _services.IsDatabase
+        ? "Connected to Oracle · records are never deleted; a filled field can be changed but not emptied"
+        : "LOCAL DEMO · not connected to the database: pallet changes are lost when the app closes";
+    /// <summary>Import Excel: anyone in local mode (demo view); only the Owner with the database (it writes history).</summary>
+    public bool CanImportExcel => IsLocalMode || IsOwner;
 
     /// <summary>The Windows user running the app.</summary>
     [ObservableProperty] private UserContext _realUser;
@@ -58,6 +65,7 @@ public sealed partial class ShellViewModel : ObservableObject
         OnPropertyChanged(nameof(IdentityText));
         OnPropertyChanged(nameof(AccessText));
         OnPropertyChanged(nameof(PendingRequestsText));
+        OnPropertyChanged(nameof(CanImportExcel));
     }
 
     private void BuildViewAs()
@@ -213,9 +221,33 @@ public sealed partial class ShellViewModel : ObservableObject
         finally { Mouse.Clear(); }
     }
 
+    /// <summary>Reloads records, users and alerts saved by other people.</summary>
+    [RelayCommand]
+    private void Reload()
+    {
+        if (!ConfirmLeave()) return;
+        try
+        {
+            Mouse.SetWait();
+            _services.Reload();
+            OnPropertyChanged(nameof(Mm60Text));
+            Back();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not reload:\n{ex.Message}", "Reload", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { Mouse.Clear(); }
+    }
+
     [RelayCommand]
     private void ImportExcel()
     {
+        if (!CanImportExcel) return;
+        if (_services.IsDatabase && MessageBox.Show(
+                "The historical rows of the Excel 2.0 will be ADDED to the database as read-only records. Rows already loaded " +
+                "are skipped; nothing is replaced or deleted. The MM60 COST SAP sheet updates the cost master.\n\nContinue?",
+                "Excel 2.0 → Oracle", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         if (!ConfirmLeave()) return;
         var dlg = new OpenFileDialog
         {
@@ -226,12 +258,16 @@ public sealed partial class ShellViewModel : ObservableObject
         try
         {
             Mouse.SetWait();
-            var result = _services.ImportLegacy(dlg.FileName);
+            var load = _services.ImportLegacy(dlg.FileName, RealUser.NtUser);
+            var result = load.Read;
             DataSourceLabel = _services.DataSourceLabel;
             OnPropertyChanged(nameof(Mm60Text));
             Back();
             var top = string.Join("\n", result.IssueCounts.OrderByDescending(k => k.Value).Take(8).Select(k => $"  • {k.Key}: {k.Value}"));
-            MessageBox.Show($"{result.Summary}\n\nMain findings:\n{top}\n\nHistorical records are READ-ONLY and nothing is written to the Excel file.",
+            var stored = load.Stored is not { } st ? ""
+                : $"\n\nDatabase: {st.Added} added, {st.AlreadyLoaded} already loaded, {st.Failed.Count} refused." +
+                  (st.Failed.Count == 0 ? "" : "\n" + string.Join("\n", st.Failed.Take(10).Select(f => $"  • {f}")) + (st.Failed.Count > 10 ? "\n  …" : ""));
+            MessageBox.Show($"{result.Summary}{stored}\n\nMain findings:\n{top}\n\nHistorical records are READ-ONLY and nothing is written to the Excel file.",
                 "Excel 2.0 import", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -245,7 +281,7 @@ public sealed partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private void ResetDemo()
     {
-        if (!ConfirmLeave()) return;
+        if (_services.IsDatabase || !ConfirmLeave()) return;
         _services.ResetDemo();
         DataSourceLabel = _services.DataSourceLabel;
         OnPropertyChanged(nameof(Mm60Text));
@@ -255,7 +291,7 @@ public sealed partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private void OpenFeedback()
     {
-        var win = new Views.FeedbackWindow(CurrentPage.Title, CurrentUser) { Owner = System.Windows.Application.Current.MainWindow };
+        var win = new Views.FeedbackWindow(CurrentPage.Title, CurrentUser, _services.Feedback) { Owner = System.Windows.Application.Current.MainWindow };
         win.ShowDialog();
     }
 

@@ -30,15 +30,17 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.2.3
+## 3. Aplicación (.NET 8 / WPF) · v0.3.0
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
+* **Oracle:** todas las operaciones escriben en las tablas `IB_PROCESS_` de `IFACTJUP`. La cuenta se obtiene con **SharedServersAccess.dll** (igual que el worker de good-receipt) y la clave maestra se toma de `SHARED_SERVERS_CLAVE` o se pide al abrir; no se guarda. El DLL se copia junto al exe y no se versiona.
+* **Reglas de datos, también para el Owner:** nunca se borra nada (los accesos que terminan se cierran con fecha, las solicitudes quedan aprobadas o rechazadas). Un campo con valor se puede cambiar pero no dejar vacío. Lo valida la app y lo impide la base de datos con triggers.
 * **Usuario real:** al abrir, la app lee el usuario de Windows. La primera vez pide nombre, Department y Value Stream(s); la función inicial es **Viewer** (sólo lectura).
-* **Users & Access:** tabla User / Department / Value Stream / Function (Viewer, Proxy, Champion, Owner). Sólo el **Owner** la modifica; para el Owner el department y el VS son irrelevantes. El Owner por defecto es `US\RLN8JU`; se configura en `appsettings.json` (`"Owners"`) o con una fila OWNER en la base de datos (ya incluida en `02_seed_data.sql`).
-* **My profile:** cambiar Department o VS después queda como **solicitud** que el Owner aprueba o rechaza.
-* **Import MM60 file (Owner):** carga el reporte MM60 exportado de SAP como maestro de costos; sin integración con SAP.
-* Pallets en memoria (sin base de datos todavía); usuarios en un archivo JSON (`UserStorePath` en `appsettings.json`) hasta conectar Oracle.
+* **Departamentos:** lista nueva (MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43, HSE y, en digitalización y proyectos transversales, QMM-L2, DBE y TEF1). Los códigos anteriores quedan inactivos sólo para el histórico.
+* **Users & Access:** tabla User / Department / Value Stream / Function (Viewer, Proxy, Champion, Owner). Sólo el **Owner** (`US\RLN8JU`) la modifica; *My profile* genera solicitudes que el Owner aprueba.
+* **Import MM60 file (Owner)** e **Import Excel 2.0 (Owner, una sola vez por renglón)**; sin integración con SAP.
+* Modo **Local** (demo en memoria) si no hay conexión.
 
 Instrucciones, guion de revisión y limitaciones en [`src/README.md`](src/README.md).
 
@@ -57,6 +59,9 @@ Scripts en [`database/oracle/`](database/oracle/), en este orden:
 1. [`01_create_tables.sql`](database/oracle/01_create_tables.sql): `CREATE TABLE` de las 19 tablas (catálogos, usuarios y acceso, solicitudes de perfil, permisos por campo, parámetros, pallets, historial de estatus, alertas, bitácora y comentarios).
 2. [`02_seed_data.sql`](database/oracle/02_seed_data.sql): VS, departamentos, motivos, estatus, categorías de estatus y su lista por VS, permisos por campo, parámetros, contadores de folio y la plantilla para dar de alta al primer Owner (generado con `tools/database/build_oracle_seed.py`).
 3. [`03_comments_and_triggers.sql`](database/oracle/03_comments_and_triggers.sql): comentarios de tablas y columnas (nombre en la app y columna del Excel) y el trigger que impide modificar la bitácora (generado con `tools/database/build_oracle_comments.py`).
+4. [`04_integrity_rules.sql`](database/oracle/04_integrity_rules.sql): un trigger por tabla que **rechaza DELETE** y otro que rechaza **vaciar un campo con valor**; además impide `DROP` / `TRUNCATE` de los objetos `IB_`. Para mantenimiento planeado: `ALTER TRIGGER … DISABLE` / `ENABLE`. Al final viene, comentado, el `GRANT SELECT, INSERT, UPDATE` (sin `DELETE`) para la cuenta de la app, si no es la dueña del esquema. Se genera con `tools/database/build_oracle_integrity.py`.
+
+**Si ya se crearon las tablas con la v0.2.x:** correr [`05_upgrade_from_v0_2.sql`](database/oracle/05_upgrade_from_v0_2.sql). Agrega `DEPARTMENT_GROUP` y la lista nueva de departamentos (los anteriores quedan inactivos, sin borrarse), y permite que el histórico del Excel no traiga número de parte o cantidad (queda marcado). Después correr `03` y `04`.
 
 Nombres de máximo 30 caracteres (compatibles con cualquier versión de Oracle); requiere Oracle 12c R2 o superior por las columnas `IDENTITY`.
 

@@ -16,7 +16,7 @@ public class UserAccessTests
     [Fact]
     public void First_run_registers_the_user_as_viewer_in_the_selected_value_streams()
     {
-        var dir = new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: false);
+        var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: false);
         dir.Register("bosch\\abc1jup", "Ana Uno", "GS/OSD43", new[] { 4, 7 });
 
         var user = dir.ContextFor("BOSCH\\ABC1JUP");
@@ -28,7 +28,7 @@ public class UserAccessTests
     [Fact]
     public void Champion_or_proxy_edits_only_their_area_fields_in_their_value_streams()
     {
-        var dir = new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: false);
+        var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: false);
         dir.Register("BOSCH\\GS1", "Gus Dos", "GS/OSD43", new[] { 4 });
         dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\GS1", "GS/OSD43", 4, UserFunction.Proxy) });
 
@@ -41,7 +41,7 @@ public class UserAccessTests
     [Fact]
     public void Owner_is_configured_by_windows_user_and_ignores_department_and_value_stream()
     {
-        var dir = new UserDirectory(null, new[] { "owner1" }, includeDemoUsers: false);
+        var dir = new UserDirectory((string?)null, new[] { "owner1" }, includeDemoUsers: false);
         Assert.True(dir.IsOwner("BOSCH\\OWNER1"));                 // configured without domain
         var owner = dir.ContextFor("BOSCH\\OWNER1");
         Assert.True(owner.IsOwner);
@@ -54,12 +54,12 @@ public class UserAccessTests
     [Fact]
     public void Profile_changes_wait_for_the_owner_and_a_department_change_resets_functions()
     {
-        var dir = new UserDirectory(null, new[] { "BOSCH\\OWNER" }, includeDemoUsers: false);
-        dir.Register("BOSCH\\U1", "User One", "QMM", new[] { 1 });
-        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\U1", "QMM", 1, UserFunction.Champion) });
+        var dir = new UserDirectory((string?)null, new[] { "BOSCH\\OWNER" }, includeDemoUsers: false);
+        dir.Register("BOSCH\\U1", "User One", "QMM1", new[] { 1 });
+        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\U1", "QMM1", 1, UserFunction.Champion) });
 
         // Same department, one more VS: request pending, access unchanged
-        var req = dir.RequestChange("BOSCH\\U1", "QMM", new[] { 1, 5 });
+        var req = dir.RequestChange("BOSCH\\U1", "QMM1", new[] { 1, 5 });
         Assert.Equal(new[] { 1 }, dir.ContextFor("BOSCH\\U1").ValueStreams);
         Assert.NotNull(dir.PendingRequestFor("BOSCH\\U1"));
 
@@ -69,16 +69,16 @@ public class UserAccessTests
         Assert.Contains(u.Grants, g => g.ValueStreamId == 5 && g.Function == UserFunction.Viewer);     // new VS as Viewer
 
         // Department change: Champion/Proxy go back to Viewer
-        var req2 = dir.RequestChange("BOSCH\\U1", "MFO", new[] { 1 });
+        var req2 = dir.RequestChange("BOSCH\\U1", "MFO1", new[] { 1 });
         dir.Decide(req2.Id, approve: true, "BOSCH\\OWNER", null);
         u = dir.ContextFor("BOSCH\\U1");
-        Assert.Equal("MFO", u.DepartmentCode);
+        Assert.Equal("MFO1", u.DepartmentCode);
         Assert.All(u.Grants, g => Assert.Equal(UserFunction.Viewer, g.Function));
 
         // Rejected request changes nothing
         var req3 = dir.RequestChange("BOSCH\\U1", "LOW", new[] { 9 });
         dir.Decide(req3.Id, approve: false, "BOSCH\\OWNER", "No");
-        Assert.Equal("MFO", dir.ContextFor("BOSCH\\U1").DepartmentCode);
+        Assert.Equal("MFO1", dir.ContextFor("BOSCH\\U1").DepartmentCode);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class UserAccessTests
     [Fact]
     public void Demo_users_have_a_dedicated_champion_per_area_and_value_stream()
     {
-        var dir = new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: true);
+        var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true);
         var access = dir.Access();
         var areas = new[] { RoleCode.Qmm, RoleCode.Requestor, RoleCode.Gs, RoleCode.Lop, RoleCode.Mfo, RoleCode.Low, RoleCode.Hse };
         foreach (var area in areas)

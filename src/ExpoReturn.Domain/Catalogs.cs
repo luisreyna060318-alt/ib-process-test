@@ -6,8 +6,17 @@ public sealed record Reason(int Id, string Code, string Description, string Grou
 {
     public string Label => Description;
 }
-/// <summary>Department code (e.g. MFQ4) and the area whose fields its Champions / Proxies edit (MFQ4 → MFQ).</summary>
-public sealed record Department(string Code, string Area, bool CanRequest);
+/// <summary>
+/// Department code (e.g. MFQ8) and its AREA, which decides the fields its Champions / Proxies edit (MFQ8 → MFQ).
+/// Group: PROCESS (departments of the return flow) or CROSS_FUNCTIONAL (digitalization and cross-functional projects).
+/// IsActive = false: code that only appears in historical records (kept so old rows stay valid; not offered any more).
+/// </summary>
+public sealed record Department(string Code, string Area, bool CanRequest, string Group = Department.Process, bool IsActive = true)
+{
+    public const string Process = "PROCESS";
+    public const string CrossFunctional = "CROSS_FUNCTIONAL";
+    public string Label => Group == CrossFunctional ? $"{Code}  (digitalization / cross-functional)" : Code;
+}
 public sealed record StatusCategory(string Code, string Description, string Kind, string? ResponsibleArea, bool AffectsDuty, bool IsAutoDerived);
 public sealed record IbOrderType(string Code, string Description);
 
@@ -38,29 +47,52 @@ public static class Catalogs
         new Reason(10, "R10", "Inspect due to mistakes in standard pack", "PACKAGING", false),
     };
 
-    public static IReadOnlyList<Department> Departments { get; } = BuildDepartments();
+    /// <summary>
+    /// Departments offered in the application (list agreed with the process owner, plus GS/OSD43 and HSE, which take part in
+    /// the flow). [VALIDATE] areas of MFE / TEF / CTG / DBE / QMM-L and the last cross-functional department of the list.
+    /// </summary>
+    public static IReadOnlyList<Department> Departments => AllDepartments.Where(d => d.IsActive).ToList();
 
-    private static IReadOnlyList<Department> BuildDepartments()
+    /// <summary>Active departments plus the codes of the old list, kept inactive for historical records.</summary>
+    public static IReadOnlyList<Department> AllDepartments { get; } = new Department[]
     {
-        var list = new List<Department>
-        {
-            new("QMM", "QMM", true),
-            new("QMM-C1", "QMM", true),
-            new("QMM-C2", "QMM", true),
-            new("MFQ", "MFQ", true),
-        };
-        for (var i = 1; i <= 9; i++) list.Add(new($"MFQ{i}", "MFQ", true));
-        list.Add(new("MFO", "MFO", true));
-        foreach (var i in new[] { 1, 4, 5, 7, 9 }) list.Add(new($"MFO{i}", "MFO", true));
-        list.Add(new("LOP", "LOP", true));
-        list.Add(new("LOP1", "LOP", true));
-        list.Add(new("LOP2", "LOP", true));
-        list.Add(new("LOW", "LOW", false));
-        list.Add(new("GS/OSD43", "GS", false));
-        list.Add(new("HSE", "HSE", false));
-        list.Add(new("PUQ", "PUQ", true));
-        return list;
-    }
+        // Process departments (JuP1/...)
+        new("MFQ8", "MFQ", true),
+        new("MFO1", "MFO", true),
+        new("MFO12", "MFO", true),
+        new("MFO1-US", "MFO", true),
+        new("MFE5", "MFE", true),
+        new("QMM1", "QMM", true),
+        new("QMM2", "QMM", true),
+        new("LOP1", "LOP", true),
+        new("LOP2", "LOP", true),
+        new("LOW", "LOW", false),
+        new("CTG3", "CTG", false),
+        new("TEF6", "TEF", true),
+        new("GS/OSD43", "GS", false),
+        new("HSE", "HSE", false),
+        // Digitalization and cross-functional projects
+        new("QMM-L2", "QMM-L", false, Department.CrossFunctional),
+        new("DBE", "DBE", false, Department.CrossFunctional),
+        new("TEF1", "TEF", false, Department.CrossFunctional),
+        // Old list: history only
+        new("QMM", "QMM", true, IsActive: false),
+        new("QMM-C1", "QMM", true, IsActive: false),
+        new("QMM-C2", "QMM", true, IsActive: false),
+        new("MFQ", "MFQ", true, IsActive: false),
+        new("MFQ1", "MFQ", true, IsActive: false), new("MFQ2", "MFQ", true, IsActive: false), new("MFQ3", "MFQ", true, IsActive: false),
+        new("MFQ4", "MFQ", true, IsActive: false), new("MFQ5", "MFQ", true, IsActive: false), new("MFQ6", "MFQ", true, IsActive: false),
+        new("MFQ7", "MFQ", true, IsActive: false), new("MFQ9", "MFQ", true, IsActive: false),
+        new("MFO", "MFO", true, IsActive: false),
+        new("MFO4", "MFO", true, IsActive: false), new("MFO5", "MFO", true, IsActive: false),
+        new("MFO7", "MFO", true, IsActive: false), new("MFO9", "MFO", true, IsActive: false),
+        new("LOP", "LOP", true, IsActive: false),
+        new("PUQ", "PUQ", true, IsActive: false),
+    };
+
+    public static Department? FindDepartment(string? code) =>
+        string.IsNullOrWhiteSpace(code) ? null
+        : AllDepartments.FirstOrDefault(d => string.Equals(d.Code, code.Trim(), StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Opciones de la columna COMMENTS, con el texto exacto del Excel. Code = texto que se guarda.

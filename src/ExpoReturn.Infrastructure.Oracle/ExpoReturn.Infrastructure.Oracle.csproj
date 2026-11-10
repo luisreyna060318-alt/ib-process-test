@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ExpoReturn.Infrastructure.Oracle</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExpoReturn.Application\ExpoReturn.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Managed ODP.NET: no Oracle client installation needed. Data Source = TNS alias (tnsnames.ora). -->
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.6.1" />
+  </ItemGroup>
+</Project>

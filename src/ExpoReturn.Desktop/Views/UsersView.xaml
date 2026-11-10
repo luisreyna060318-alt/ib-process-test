@@ -88,7 +88,7 @@
                     </DataGrid>
                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0" IsEnabled="{Binding CanEdit}">
                         <Button Content="Add row" Command="{Binding AddAccessCommand}" Style="{StaticResource SecondaryButton}" />
-                        <Button Content="Remove row" Command="{Binding RemoveAccessCommand}" Style="{StaticResource SecondaryButton}" />
+                        <Button Content="End access" ToolTip="Ends the selected access when you save. Nothing is deleted: the row stays in the history." Command="{Binding RemoveAccessCommand}" Style="{StaticResource SecondaryButton}" />
                         <Button Content="Save changes" Command="{Binding SaveChangesCommand}" Style="{StaticResource PrimaryButton}" />
                         <Button Content="Discard" Command="{Binding DiscardChangesCommand}" Style="{StaticResource LinkButton}" />
                     </StackPanel>

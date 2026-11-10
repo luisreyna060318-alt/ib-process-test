@@ -21,9 +21,11 @@ public sealed class InMemoryMaterialCostCatalog : IMaterialCostCatalog
         lock (_gate) return _items.GetValueOrDefault(key);
     }
 
-    public void Replace(IEnumerable<MaterialCost> costs, string sourceName)
+    /// <summary>Same rule as Oracle: materials in the file take the new price, the others keep the last one (nothing is deleted).</summary>
+    public void Replace(IEnumerable<MaterialCost> costs, string sourceName, CostSource source = CostSource.Mm60File)
     {
-        var map = new Dictionary<string, MaterialCost>();
+        Dictionary<string, MaterialCost> map;
+        lock (_gate) map = new Dictionary<string, MaterialCost>(_items);
         foreach (var c in costs)
             if (Key(c.Material) is { } k) map[k] = c with { Material = k };     // last row wins, as in a lookup
         lock (_gate) _items = map;
@@ -109,8 +111,11 @@ public static class Mm60Import
             var edit = p.Clone();
             edit.UnitCostUsd = cost.UnitCostUsd;
             edit.UnitCostSource = "MM60";
+            edit.ModifiedBy = "SYSTEM";
+            edit.ModifiedAtUtc = now;
             Domain.PalletEvaluator.Apply(edit, parameters, clock.Today);
-            repo.Save(edit);
+            try { repo.Save(edit); }
+            catch (ConcurrencyException) { continue; }      // someone saved it meanwhile: it keeps PENDING until the next import
             audit.Record(new[] { new AuditEntry(edit.Id, edit.FolioCode, nameof(Domain.PalletReturn.UnitCostUsd), null,
                 cost.UnitCostUsd.ToString(System.Globalization.CultureInfo.InvariantCulture), "SYSTEM", now, $"MM60 import by {ownerNtUser}") });
             updated++;

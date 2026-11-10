@@ -35,7 +35,11 @@ public sealed partial class PalletDetailViewModel : PageViewModel
 
     // ---------- Catálogos para los ComboBox ----------
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; } = Catalogs.ValueStreams.Select(v => new LookupItem(v.Id, v.Code)).ToList();
-    public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Where(d => d.CanRequest).Select(d => new LookupItem(d.Code, d.Code)).ToList();
+    /// <summary>Requesting departments; a historical record keeps its old (inactive) code in the list.</summary>
+    public IReadOnlyList<LookupItem> DepartmentOptions => Catalogs.Departments.Where(d => d.CanRequest)
+        .Select(d => d.Code)
+        .Concat(string.IsNullOrWhiteSpace(Edit.RequestingDepartment) ? Array.Empty<string>() : new[] { Edit.RequestingDepartment })
+        .Distinct(StringComparer.OrdinalIgnoreCase).Select(c => new LookupItem(c, c)).ToList();
     public IReadOnlyList<Reason> ReasonOptions { get; } = Catalogs.Reasons;
     /// <summary>Status category options of the record VS sheet (exact Excel text).</summary>
     public IReadOnlyList<string> CommentsOptions => Catalogs.CommentsOptions(Edit.ValueStreamId, Edit.StatusCategoryCode);
@@ -193,9 +197,11 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         var result = Services.Pallets.Save(Edit, User, SaveReason);
         if (!result.Success)
         {
-            ShowMessage(result.DeniedFields.Count > 0
-                ? $"No permission to change: {string.Join(", ", result.DeniedFields.Select(FieldLabels.Get))}"
-                : result.Summary, true);
+            ShowMessage(result.Cleared.Count > 0
+                ? $"A field that already has a value can be changed but not left empty: {string.Join(", ", result.Cleared.Select(FieldLabels.Get))}"
+                : result.DeniedFields.Count > 0
+                    ? $"No permission to change: {string.Join(", ", result.DeniedFields.Select(FieldLabels.Get))}"
+                    : result.Summary, true);
             if (result.Issues.Count > 0) FillIssues(result.Issues);
             PendingExpanded = true;
             return;

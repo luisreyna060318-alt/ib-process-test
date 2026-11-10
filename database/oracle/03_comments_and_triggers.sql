@@ -4,7 +4,7 @@
    ===================================================================== */
 
 COMMENT ON TABLE IB_PROCESS_VALUE_STREAMS IS 'Value Streams (one per Excel sheet VS1, VS4, VS5, VS7, VS9)';
-COMMENT ON TABLE IB_PROCESS_DEPARTMENTS IS 'Departments; AREA decides the fields a Champion/Proxy edits';
+COMMENT ON TABLE IB_PROCESS_DEPARTMENTS IS 'Departments; AREA decides the fields a Champion/Proxy edits; IS_ACTIVE N = history only';
 COMMENT ON TABLE IB_PROCESS_REASONS IS 'Reasons of the Excel list';
 COMMENT ON TABLE IB_PROCESS_WORKFLOW_STATUS IS 'Calculated workflow status';
 COMMENT ON TABLE IB_PROCESS_STATUS_CATEGORIES IS 'Status categories = options of the Excel COMMENTS column';

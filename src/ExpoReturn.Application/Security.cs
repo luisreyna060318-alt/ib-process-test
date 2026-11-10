@@ -4,7 +4,7 @@ namespace ExpoReturn.Application;
 
 /// <summary>
 /// Functional area that owns a block of fields (the Excel "Areas responsible to fill out information" row).
-/// It comes from the user's department (QMM → Qmm, MFQ/PUQ → Requestor, GS/OSD43 → Gs, …).
+/// It comes from the user's department (QMM1 → Qmm, MFQ8/MFE5/TEF6 → Requestor, GS/OSD43 → Gs, …).
 /// AdminQmmPe and Viewer are kept for the Owner and read-only users.
 /// </summary>
 public enum RoleCode { AdminQmmPe, Qmm, Requestor, Gs, Lop, Mfo, Low, Hse, Viewer }
@@ -18,7 +18,7 @@ public static class RoleInfo
     {
         RoleCode.AdminQmmPe => "Owner (QMM / Process Excellence)",
         RoleCode.Qmm => "QMM",
-        RoleCode.Requestor => "Requestor (MFQ / QMM-C / PUQ)",
+        RoleCode.Requestor => "Requestor (MFQ / MFE / TEF)",
         RoleCode.Gs => "Customs GS/OSD43",
         RoleCode.Lop => "Plant Logistics (LOP)",
         RoleCode.Mfo => "Manufacturing (MFO)",
@@ -37,16 +37,17 @@ public static class RoleInfo
     /// <summary>Area of a department code (catalog Department.Area).</summary>
     public static RoleCode AreaOfDepartment(string? departmentCode)
     {
-        var dept = Catalogs.Departments.FirstOrDefault(d => string.Equals(d.Code, departmentCode, StringComparison.OrdinalIgnoreCase));
-        return dept?.Area switch
+        return Catalogs.FindDepartment(departmentCode)?.Area switch
         {
             "QMM" => RoleCode.Qmm,
-            "MFQ" or "PUQ" => RoleCode.Requestor,
+            // Requesting areas: they fill the request block. [VALIDATE] MFE / TEF.
+            "MFQ" or "PUQ" or "MFE" or "TEF" => RoleCode.Requestor,
             "GS" => RoleCode.Gs,
             "LOP" => RoleCode.Lop,
             "MFO" => RoleCode.Mfo,
             "LOW" => RoleCode.Low,
             "HSE" => RoleCode.Hse,
+            // CTG, DBE, QMM-L (controlling, digitalization, cross-functional): read only. [VALIDATE]
             _ => RoleCode.Viewer,
         };
     }

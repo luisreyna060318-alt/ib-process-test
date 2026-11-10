@@ -98,7 +98,7 @@ public static partial class LegacyExcelImporter
                 var qty = Int(C("Qty"));
                 if (pnRaw is null && qty is null) continue;
 
-                var p = new PalletReturn { ValueStreamId = vs, IsLegacy = true, LegacySource = $"{ws.Name}!fila {r}", CreatedBy = "MIGRACION" };
+                var p = new PalletReturn { ValueStreamId = vs, IsLegacy = true, LegacySource = $"{ws.Name}!row {r}", CreatedBy = "MIGRATION" };
                 var folioCell = ws.Cell(r, table.RangeAddress.FirstAddress.ColumnNumber - 1);
                 p.FolioNumber = Int(folioCell) ?? 900000 + r;
 

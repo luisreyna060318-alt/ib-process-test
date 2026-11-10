@@ -23,13 +23,13 @@ public static class SampleData
     };
 
     private static readonly string[] Requestors = { "Montaño, Sofía", "Quiroga, Tomás", "Bermúdez, Elena", "Cisneros, Marco", "Olvera, Rubén", "Treviño, Lucía" };
-    private static readonly string[] Depts = { "MFQ4", "LOP2", "MFQ7", "MFQ9", "PUQ", "LOP1" };
+    private static readonly string[] Depts = { "MFQ8", "LOP2", "MFE5", "TEF6", "QMM1", "LOP1" };
 
     /// <summary>Demo MM60 cost master: the materials used by the sample pallets.</summary>
     public static IReadOnlyList<MaterialCost> DemoCosts() =>
         Materials.Select(m => new MaterialCost(m.Pn, m.Desc, m.Cost, 1m, "USD")).ToList();
 
-    public static void Seed(IPalletReturnRepository repo, IAuditTrail audit, IUserDirectory users, IClock clock)
+    public static void Seed(InMemoryPalletRepository repo, IAuditTrail audit, IUserDirectory users, IClock clock)
     {
         var today = clock.Today;
         var scenarios = Enum.GetValues<Scenario>();

@@ -5,7 +5,10 @@
    Every table uses the IB_PROCESS_ prefix. Names are kept to 30 characters
    (works on any Oracle version). Flags are CHAR(1) 'Y' / 'N'.
    Field dictionary (app ↔ column ↔ Excel 2.0): entregables/Diccionario_Campos_ExpoReturn.xlsx
-   Run order: 01_create_tables.sql, then 02_seed_data.sql.
+   Run order (new install): 01_create_tables.sql, 02_seed_data.sql, 03_comments_and_triggers.sql,
+   04_integrity_rules.sql. Tables created with v0.2.x: run 05_upgrade_from_v0_2.sql, then 03 and 04.
+   Data rules: nothing is ever deleted (no DELETE, not even the Owner) and a value already captured can be
+   changed but never emptied (04_integrity_rules.sql enforces both in the database).
    ===================================================================== */
 
 /* =====================================================================
@@ -25,13 +28,17 @@ CREATE TABLE IB_PROCESS_VALUE_STREAMS (
 );
 
 -- Departments. AREA decides which fields a Champion/Proxy of the department edits.
+-- DEPARTMENT_GROUP: PROCESS (return flow) or CROSS_FUNCTIONAL (digitalization and cross-functional projects).
+-- IS_ACTIVE = 'N': code of the old list, kept only because historical records use it.
 CREATE TABLE IB_PROCESS_DEPARTMENTS (
     DEPARTMENT_CODE   VARCHAR2(20)    NOT NULL,
     AREA              VARCHAR2(10)    NOT NULL,
     CAN_REQUEST       CHAR(1)         DEFAULT 'N' NOT NULL,
     IS_ACTIVE         CHAR(1)         DEFAULT 'Y' NOT NULL,
+    DEPARTMENT_GROUP  VARCHAR2(20)    DEFAULT 'PROCESS' NOT NULL,
     CONSTRAINT IB_DEPT_PK PRIMARY KEY (DEPARTMENT_CODE),
-    CONSTRAINT IB_DEPT_CK_AREA CHECK (AREA IN ('QMM','MFQ','MFO','LOP','LOW','GS','HSE','PUQ')),
+    CONSTRAINT IB_DEPT_CK_AREA CHECK (AREA IN ('QMM','MFQ','MFO','MFE','TEF','LOP','LOW','CTG','DBE','QMM-L','GS','HSE','PUQ')),
+    CONSTRAINT IB_DEPT_CK_GROUP CHECK (DEPARTMENT_GROUP IN ('PROCESS','CROSS_FUNCTIONAL')),
     CONSTRAINT IB_DEPT_CK_REQ CHECK (CAN_REQUEST IN ('Y','N')),
     CONSTRAINT IB_DEPT_CK_ACTIVE CHECK (IS_ACTIVE IN ('Y','N'))
 );
@@ -234,7 +241,7 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
     REQUESTOR_NAME              NVARCHAR2(150),
     REASON_ID                   NUMBER(3),
     REASON_DETAIL               NVARCHAR2(500),
-    RETURNED_PART_NUMBER        VARCHAR2(18)    NOT NULL,
+    RETURNED_PART_NUMBER        VARCHAR2(18),                            -- required for new records (IB_PR_CK_PN_REQ)
     MM60_UNIT_COST_USD          NUMBER(18,6),
     UNIT_COST_SOURCE            VARCHAR2(10)    DEFAULT 'PENDING' NOT NULL,
     QTY_IMPORTED                NUMBER(9)       NOT NULL,
@@ -302,13 +309,16 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
 
     CONSTRAINT IB_PR_PK PRIMARY KEY (PALLET_RETURN_ID),
     CONSTRAINT IB_PR_UQ_FOLIO UNIQUE (VALUE_STREAM_ID, FOLIO_NUMBER),
+    CONSTRAINT IB_PR_UQ_LEGACY UNIQUE (LEGACY_SHEET, LEGACY_ROW),          -- an Excel row is loaded only once
     CONSTRAINT IB_PR_FK_VS FOREIGN KEY (VALUE_STREAM_ID) REFERENCES IB_PROCESS_VALUE_STREAMS (VALUE_STREAM_ID),
     CONSTRAINT IB_PR_FK_DEPT FOREIGN KEY (REQUESTING_DEPARTMENT) REFERENCES IB_PROCESS_DEPARTMENTS (DEPARTMENT_CODE),
     CONSTRAINT IB_PR_FK_REASON FOREIGN KEY (REASON_ID) REFERENCES IB_PROCESS_REASONS (REASON_ID),
     CONSTRAINT IB_PR_FK_SCAT FOREIGN KEY (STATUS_CATEGORY_ID) REFERENCES IB_PROCESS_STATUS_CATEGORIES (STATUS_CATEGORY_ID),
     CONSTRAINT IB_PR_FK_STATUS FOREIGN KEY (WORKFLOW_STATUS_ID) REFERENCES IB_PROCESS_WORKFLOW_STATUS (WORKFLOW_STATUS_ID),
     CONSTRAINT IB_PR_CK_FLAGS CHECK (IS_DUTY_RISK IN ('Y','N') AND IS_LEGACY IN ('Y','N')),
-    CONSTRAINT IB_PR_CK_QTY CHECK (QTY_IMPORTED > 0),
+    -- New records need part number and quantity; historical rows keep what the Excel had (flagged in DATA_QUALITY_FLAGS).
+    CONSTRAINT IB_PR_CK_PN_REQ CHECK (IS_LEGACY = 'Y' OR RETURNED_PART_NUMBER IS NOT NULL),
+    CONSTRAINT IB_PR_CK_QTY CHECK (IS_LEGACY = 'Y' OR QTY_IMPORTED > 0),
     CONSTRAINT IB_PR_CK_QTY_NONNEG CHECK (NVL(PHYSICAL_DELIVERED_QTY, 0) >= 0 AND NVL(REINSERTION_QTY, 0) >= 0
                                           AND NVL(OLD_MATERIAL_DELIVERED_QTY, 0) >= 0 AND NVL(SCRAP_QTY, 0) >= 0),
     CONSTRAINT IB_PR_CK_COST_SRC CHECK (UNIT_COST_SOURCE IN ('MM60','MANUAL','PENDING','LEGACY')),

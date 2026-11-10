@@ -11,7 +11,7 @@ from fields import FIELDS  # noqa: E402
 OUT = os.path.join(ROOT, "database", "oracle", "03_comments_and_triggers.sql")
 TABLES = {
     "IB_PROCESS_VALUE_STREAMS": "Value Streams (one per Excel sheet VS1, VS4, VS5, VS7, VS9)",
-    "IB_PROCESS_DEPARTMENTS": "Departments; AREA decides the fields a Champion/Proxy edits",
+    "IB_PROCESS_DEPARTMENTS": "Departments; AREA decides the fields a Champion/Proxy edits; IS_ACTIVE N = history only",
     "IB_PROCESS_REASONS": "Reasons of the Excel list",
     "IB_PROCESS_WORKFLOW_STATUS": "Calculated workflow status",
     "IB_PROCESS_STATUS_CATEGORIES": "Status categories = options of the Excel COMMENTS column",

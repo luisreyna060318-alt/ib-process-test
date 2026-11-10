@@ -138,7 +138,16 @@ public sealed partial class AlertsViewModel : PageViewModel
             System.Windows.Application.Current.MainWindow);
         if (string.IsNullOrWhiteSpace(comment)) return;
         var now = Services.Clock.UtcNow;
-        Services.AlertAcks.Acknowledge(new AlertAcknowledgement(row.PalletId, row.Alert.Type, User.NtUser, comment.Trim(), now));
+        try
+        {
+            Services.AlertAcks.Acknowledge(new AlertAcknowledgement(row.PalletId, row.Alert.Type, User.NtUser, comment.Trim(), now,
+                row.Alert.Severity, row.Alert.Message, row.Alert.Owner));
+        }
+        catch (Exception ex) when (ex is DataRuleException or Oracle.ManagedDataAccess.Client.OracleException)
+        {
+            System.Windows.MessageBox.Show(ex.Message, "Alert not saved", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            return;
+        }
         Services.Audit.Record(new[] { new AuditEntry(row.PalletId, row.FolioCode, "Alert", row.TypeText, $"Handled: {comment.Trim()}", User.NtUser, now, null) });
         Refresh();
     }
@@ -192,7 +201,7 @@ public sealed partial class UsersViewModel : PageViewModel
     public override string Title => "Users & Access";
     /// <summary>Only the real Owner edits (not someone previewing as another user).</summary>
     public bool CanEdit => _realUser.IsOwner && User.NtUser == _realUser.NtUser;
-    public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Code)).ToList();
+    public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Label)).ToList();
     public IReadOnlyList<int> ValueStreamOptions { get; } = new[] { 0 }.Concat(Catalogs.ValueStreams.Select(v => v.Id)).ToList();
     public IReadOnlyList<UserFunction> FunctionOptions { get; } = Enum.GetValues<UserFunction>();
     public string OwnersConfigText => Services.Config.Owners.Count == 0
@@ -246,7 +255,8 @@ public sealed partial class UsersViewModel : PageViewModel
             $"{row.DisplayName} ({row.NtUser})\n{row.CurrentDepartment} · {row.CurrentValueStreams}  →  {row.RequestedDepartment} · {row.RequestedValueStreams}\n\nComment (optional):",
             System.Windows.Application.Current.MainWindow, allowEmpty: true);
         if (comment is null) return;
-        Services.Users.Decide(row.Id, approve, _realUser.NtUser, string.IsNullOrWhiteSpace(comment) ? null : comment.Trim());
+        try { Services.Users.Decide(row.Id, approve, _realUser.NtUser, string.IsNullOrWhiteSpace(comment) ? null : comment.Trim()); }
+        catch (Exception ex) { Message = $"Not saved: {ex.Message}"; return; }
         Services.Audit.Record(new[] { new AuditEntry(0, "USERS", "Profile request", $"{row.CurrentDepartment} · {row.CurrentValueStreams}",
             $"{(approve ? "Approved" : "Rejected")}: {row.RequestedDepartment} · {row.RequestedValueStreams} ({row.NtUser})", _realUser.NtUser, Services.Clock.UtcNow, comment) });
         Message = approve
@@ -270,11 +280,11 @@ public sealed partial class UsersViewModel : PageViewModel
     [RelayCommand]
     private void RemoveAccess()
     {
-        if (SelectedEdit is null) { Message = "Select the row to remove."; return; }
+        if (SelectedEdit is null) { Message = "Select the access row to end."; return; }
         var row = SelectedEdit;
         EditRows.Remove(row);
         SelectedEdit = null;
-        Message = $"Row removed: {row.ToAccess().Describe}. Press Save changes to apply it.";
+        Message = $"Access to end: {row.ToAccess().Describe}. Press Save changes to apply it (the row is kept as history, never deleted).";
     }
 
     [RelayCommand]
@@ -297,11 +307,20 @@ public sealed partial class UsersViewModel : PageViewModel
         if (removed.Count + added.Count == 0) { Message = "No changes to save."; return; }
 
         var now = Services.Clock.UtcNow;
-        Services.Audit.Record(removed.Select(p => new AuditEntry(0, "USERS", "Users & Access", p.Describe, "(removed)", _realUser.NtUser, now, "Removed"))
+        try
+        {
+            // Nothing is deleted: rows that disappear from the grid are closed (VALID_TO) and stay as history.
+            Services.Users.ReplaceAccess(norm, _realUser.NtUser);      // raises Changed: the shell recalculates the current user's access
+        }
+        catch (Exception ex)
+        {
+            Message = $"Not saved: {ex.Message}";
+            return;
+        }
+        Services.Audit.Record(removed.Select(p => new AuditEntry(0, "USERS", "Users & Access", p.Describe, "(access ended, kept as history)", _realUser.NtUser, now, "Ended"))
             .Concat(added.Select(p => new AuditEntry(0, "USERS", "Users & Access", null, p.Describe, _realUser.NtUser, now, "Added"))));
-        Services.Users.ReplaceAccess(norm);      // raises Changed: the shell recalculates the current user's access
         Refresh();
-        Message = $"Access updated: {added.Count} added, {removed.Count} removed. It applies immediately.";
+        Message = $"Access updated: {added.Count} added, {removed.Count} ended (kept as history). It applies immediately.";
     }
 
     [RelayCommand]

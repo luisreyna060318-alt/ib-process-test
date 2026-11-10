@@ -72,6 +72,10 @@ public sealed class PalletReturn : NotifyBase
     public string DataQualityText => string.Join("; ", DataQualityFlags);
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public string CreatedBy { get; set; } = "";
+    public string? ModifiedBy { get; set; }
+    public DateTime? ModifiedAtUtc { get; set; }
+    /// <summary>Optimistic concurrency (IB_PROCESS_PALLET_RETURNS.ROW_VERSION): a save fails if someone saved first.</summary>
+    public int RowVersion { get; set; }
 
     public ClosureDocumentType ClosureType => ClosureDocument.Classify(CustomsExportReference);
 

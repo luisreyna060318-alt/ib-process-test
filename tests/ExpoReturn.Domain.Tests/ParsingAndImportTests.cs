@@ -48,7 +48,7 @@ public class ParsingAndImportTests
     public void Sample_data_covers_every_open_and_closed_status()
     {
         var repo = new InMemoryPalletRepository();
-        SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
+        SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
         var statuses = repo.GetAll().Select(p => p.Status).Distinct().ToList();
         foreach (var s in new[] { WorkflowStatus.Draft, WorkflowStatus.Requested, WorkflowStatus.Imported, WorkflowStatus.InRework,
                                   WorkflowStatus.PendingExport, WorkflowStatus.PendingHse, WorkflowStatus.DutyRisk,
@@ -62,7 +62,7 @@ public class ParsingAndImportTests
         var repo = new InMemoryPalletRepository();
         var audit = new InMemoryAuditTrail();
         var clock = new SystemClock();
-        SampleData.Seed(repo, audit, new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: true), clock);
+        SampleData.Seed(repo, audit, new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), clock);
         var svc = new PalletReturnService(repo, audit, clock);
         var open = repo.GetAll().First(p => p.Status == WorkflowStatus.Imported);
 

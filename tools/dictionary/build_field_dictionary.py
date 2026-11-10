@@ -17,6 +17,19 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Department list (code, area, can request, group, active): same as Catalogs.AllDepartments and 02_seed_data.sql.
+DEPARTMENTS = [
+    ("MFQ8", "MFQ", "Y", "PROCESS", "Y"), ("MFO1", "MFO", "Y", "PROCESS", "Y"), ("MFO12", "MFO", "Y", "PROCESS", "Y"),
+    ("MFO1-US", "MFO", "Y", "PROCESS", "Y"), ("MFE5", "MFE", "Y", "PROCESS", "Y"), ("QMM1", "QMM", "Y", "PROCESS", "Y"),
+    ("QMM2", "QMM", "Y", "PROCESS", "Y"), ("LOP1", "LOP", "Y", "PROCESS", "Y"), ("LOP2", "LOP", "Y", "PROCESS", "Y"),
+    ("LOW", "LOW", "N", "PROCESS", "Y"), ("CTG3", "CTG", "N", "PROCESS", "Y"), ("TEF6", "TEF", "Y", "PROCESS", "Y"),
+    ("GS/OSD43", "GS", "N", "PROCESS", "Y"), ("HSE", "HSE", "N", "PROCESS", "Y"),
+    ("QMM-L2", "QMM-L", "N", "CROSS_FUNCTIONAL", "Y"), ("DBE", "DBE", "N", "CROSS_FUNCTIONAL", "Y"),
+    ("TEF1", "TEF", "N", "CROSS_FUNCTIONAL", "Y"),
+    ("QMM", "QMM", "Y", "PROCESS", "N"), ("QMM-C1", "QMM", "Y", "PROCESS", "N"), ("QMM-C2", "QMM", "Y", "PROCESS", "N"),
+    ("MFQ", "MFQ", "Y", "PROCESS", "N")] + [(f"MFQ{i}", "MFQ", "Y", "PROCESS", "N") for i in (1, 2, 3, 4, 5, 6, 7, 9)] + [
+    ("MFO", "MFO", "Y", "PROCESS", "N")] + [(f"MFO{i}", "MFO", "Y", "PROCESS", "N") for i in (4, 5, 7, 9)] + [
+    ("LOP", "LOP", "Y", "PROCESS", "N"), ("PUQ", "PUQ", "Y", "PROCESS", "N")]
 OUT = os.path.join(ROOT, "entregables", "Diccionario_Campos_ExpoReturn.xlsx")
 
 FONT = "Arial"
@@ -70,7 +83,7 @@ TABLES = [
     ("IB_PROCESS_REQUEST_VS", "Value Streams of each profile request.", "Not in the Excel"),
     ("IB_PROCESS_FIELD_PERMISSIONS", "Fields each area edits.", "Area row above the headers"),
     ("IB_PROCESS_VALUE_STREAMS", "VS1, VS4, VS5, VS7, VS9.", "The 5 VS sheets"),
-    ("IB_PROCESS_DEPARTMENTS", "Department codes and the area each belongs to (MFQ4 → MFQ).", "Requesting department"),
+    ("IB_PROCESS_DEPARTMENTS", "Department codes, their area (MFQ8 → MFQ), group and whether they are active (sheet 'Departments').", "Requesting department"),
     ("IB_PROCESS_REASONS", "The 10 reasons (Excel text).", "'Reason' list"),
     ("IB_PROCESS_STATUS_CATEGORIES", "Status category options with their exact text, kind and responsible area.", "COMMENTS lists"),
     ("IB_PROCESS_STATUS_CAT_VS", "Which options each VS offers and in which order.", "COMMENTS drop-down of each sheet"),
@@ -201,7 +214,8 @@ def main():
 
     # ---- Sheet 3 · Oracle tables ----
     ws3 = wb.create_sheet("Oracle Tables")
-    title(ws3, "Oracle tables (prefix IB_PROCESS_)", "Scripts: database/oracle/01_create_tables.sql, 02_seed_data.sql, 03_comments_and_triggers.sql")
+    title(ws3, "Oracle tables (prefix IB_PROCESS_)", "Scripts: database/oracle/01 to 04 (new install) · 05 upgrades tables of v0.2.x · "
+                                                     "Nothing is deleted and a filled field is never emptied (04_integrity_rules.sql)")
     h3 = ["Table", "What it stores", "Equivalent in the Excel 2.0"]
     for i, h in enumerate(h3, 1):
         ws3.cell(4, i, h)
@@ -216,6 +230,29 @@ def main():
     note = 6 + len(TABLES)
     ws3.cell(note, 1, "The BALANCE sheet and the side blocks (AFTER JUNE 2025, FINISH GOOD RETURN, MISSING) are not tables: "
                       "they are sums of IB_PROCESS_PALLET_RETURNS by VS and period (Balance / Duties screen).").font = Font(name=FONT, size=10, italic=True)
+
+    # ---- Sheet 4 · Departments (same list as Catalogs.AllDepartments and 02_seed_data.sql) ----
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "tools", "database"))
+    ws4 = wb.create_sheet("Departments")
+    title(ws4, "Departments (IB_PROCESS_DEPARTMENTS)", "AREA decides the fields a Champion / Proxy edits. Inactive codes are only kept for historical records.")
+    permission = {"QMM": "QMM", "MFQ": "Requestor", "PUQ": "Requestor", "MFE": "Requestor [VALIDATE]", "TEF": "Requestor [VALIDATE]",
+                  "GS": "GS / OSD43", "LOP": "LOP", "MFO": "MFO", "LOW": "LOW", "HSE": "HSE",
+                  "CTG": "Read only [VALIDATE]", "DBE": "Read only [VALIDATE]", "QMM-L": "Read only [VALIDATE]"}
+    groups = {"PROCESS": "Process", "CROSS_FUNCTIONAL": "Digitalization / cross-functional projects"}
+    h4 = ["Department", "AREA", "Edits the fields of", "Can request a return", "Group", "Active"]
+    for i, h in enumerate(h4, 1):
+        ws4.cell(4, i, h)
+    style_header(ws4, 4, len(h4))
+    for k, (code, area, req, grp, active) in enumerate(DEPARTMENTS):
+        for c, v in enumerate([code, area, permission.get(area, "Read only"), "Yes" if req == "Y" else "No", groups[grp],
+                               "Yes" if active == "Y" else "No (history only)"], 1):
+            ws4.cell(5 + k, c, v)
+        ws4.cell(5 + k, 1).font = Font(name=FONT, bold=True)
+    body(ws4, 5, 4 + len(DEPARTMENTS), len(h4))
+    for i, w in enumerate([16, 10, 26, 20, 40, 18], 1):
+        ws4.column_dimensions[get_column_letter(i)].width = w
+    ws4.freeze_panes = "B5"
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     wb.save(OUT)

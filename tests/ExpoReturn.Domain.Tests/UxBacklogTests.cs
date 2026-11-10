@@ -63,7 +63,7 @@ public class UxBacklogTests
     public void Inbox_export_writes_a_protected_workbook()
     {
         var repo = new InMemoryPalletRepository();
-        SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
+        SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
         var path = Path.Combine(Path.GetTempPath(), $"export_{Guid.NewGuid():N}.xlsx");
         try
         {

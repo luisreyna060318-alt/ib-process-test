@@ -32,7 +32,7 @@ public sealed partial class ProfileViewModel : ObservableObject
         _existing = services.Users.Find(ntUser);
         IsOwner = services.Users.IsOwner(ntUser);
         _displayName = _existing?.DisplayName ?? Environment.UserName;
-        DepartmentOptions = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Code)).ToList();
+        DepartmentOptions = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Label)).ToList();
         var pending = services.Users.PendingRequestFor(ntUser);
         var dept = pending?.DepartmentCode ?? _existing?.DepartmentCode;
         _selectedDepartment = DepartmentOptions.FirstOrDefault(o => (string?)o.Value == dept);
@@ -72,8 +72,14 @@ public sealed partial class ProfileViewModel : ObservableObject
         var vss = ValueStreams.Where(v => v.IsSelected).Select(v => v.Id).ToList();
         if (string.IsNullOrWhiteSpace(DisplayName)) { Message = "Enter your name."; return; }
         if (!IsOwner && (dept is null || vss.Count == 0)) { Message = "Select your department and at least one Value Stream."; return; }
-        dept ??= "QMM";
+        if (_existing?.DepartmentCode is not null && dept is null) { Message = "Your department cannot be left empty; choose one."; return; }
 
+        try { SaveProfile(dept, vss); }
+        catch (Exception ex) { Message = $"Not saved: {ex.Message}"; }
+    }
+
+    private void SaveProfile(string? dept, List<int> vss)
+    {
         if (_existing is null)
         {
             _services.Users.Register(NtUser, DisplayName, dept, vss);
@@ -86,7 +92,7 @@ public sealed partial class ProfileViewModel : ObservableObject
 
         var changed = !string.Equals(_existing.DepartmentCode, dept, StringComparison.OrdinalIgnoreCase)
                       || !_existing.ValueStreams.OrderBy(v => v).SequenceEqual(vss.OrderBy(v => v));
-        if (changed)
+        if (changed && dept is not null)
         {
             var request = _services.Users.RequestChange(NtUser, dept, vss);
             if (IsOwner) _services.Users.Decide(request.Id, approve: true, NtUser, "Owner updated own profile");
