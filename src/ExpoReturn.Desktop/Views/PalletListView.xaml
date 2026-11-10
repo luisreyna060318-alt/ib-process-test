@@ -6,23 +6,23 @@
     </UserControl.InputBindings>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Bandeja de retornos" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Returns inbox" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}"
-                       Text="Un renglón por pallet retornado de El Paso WHS. El estatus y los montos se calculan solos. Doble clic o Enter para abrir el detalle. Orden: primero los abiertos más próximos a vencer su plazo IMMEX. Atajos: Ctrl+F buscar · Ctrl+E exportar · Ctrl+N nuevo retorno." />
+                       Text="One row per pallet returned from El Paso WHS. Status and amounts are calculated automatically. Double-click or Enter opens the detail. Order: open records closest to their IMMEX due date first. Shortcuts: Ctrl+F search · Ctrl+E export · Ctrl+N new return." />
 
             <!-- Indicadores -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Registros (filtro)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiCount}" Style="{StaticResource KpiValue}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Records (filter)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiCount}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Abiertos" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiOpen}" Style="{StaticResource KpiValue}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Open" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiOpen}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
-                <Border Style="{StaticResource KpiCard}" ToolTip="Estatus calculado por la aplicación">
-                    <StackPanel><TextBlock Text="En riesgo arancelario" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyRisk}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                <Border Style="{StaticResource KpiCard}" ToolTip="Status calculated by the application">
+                    <StackPanel><TextBlock Text="At duty risk" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyRisk}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}" ToolTip="Excel 2.0: Balance GENERAL DLLS">
-                    <StackPanel><TextBlock Text="Balance general no conciliado (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Unreconciled general balance (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
             </StackPanel>
 
@@ -30,28 +30,28 @@
             <Border Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,10">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="Exportar a Excel" Command="{Binding ExportCommand}" Style="{StaticResource SecondaryButton}" Margin="0"
-                                ToolTip="Exporta lo que ve con los filtros actuales a un Excel protegido de sólo lectura (Ctrl+E)" />
+                        <Button Content="Export to Excel" Command="{Binding ExportCommand}" Style="{StaticResource SecondaryButton}" Margin="0"
+                                ToolTip="Exports what you see with the current filters to a protected read-only Excel file (Ctrl+E)" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Value Stream" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                         <ComboBox ItemsSource="{Binding ValueStreamOptions}" SelectedItem="{Binding SelectedValueStream}" Width="130" Margin="0,0,16,0" />
-                        <TextBlock Text="Estatus" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="Status" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                         <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="210" Margin="0,0,16,0" />
-                        <TextBlock Text="Buscar" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                         <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="260" Margin="0,0,16,0"
-                                 ToolTip="Folio, número de parte, HU/lote, factura, responsable QMM o exportación aduanal (Ctrl+F)" />
-                        <CheckBox Content="Sólo riesgo arancelario" IsChecked="{Binding OnlyDutyRisk}" Margin="0,0,16,0" />
-                        <Button Content="Limpiar filtros" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
+                                 ToolTip="Folio, part number, HU/batch, invoice, QMM responsible or customs export (Ctrl+F)" />
+                        <CheckBox Content="Duty risk only" IsChecked="{Binding OnlyDutyRisk}" Margin="0,0,16,0" />
+                        <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
                     </StackPanel>
                 </DockPanel>
             </Border>
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
-            <Button Content="Abrir detalle" Command="{Binding OpenCommand}" Style="{StaticResource PrimaryButton}" ToolTip="Enter" />
+            <Button Content="Open detail" Command="{Binding OpenCommand}" Style="{StaticResource PrimaryButton}" ToolTip="Enter" />
             <TextBlock Text="{Binding Message}" VerticalAlignment="Center" Foreground="{StaticResource Success}" Margin="8,0,0,0" />
-            <TextBlock Text="Los filtros se recuerdan por usuario." VerticalAlignment="Center" Style="{StaticResource Hint}" Margin="16,0,0,0" />
+            <TextBlock Text="Filters are remembered per user." VerticalAlignment="Center" Style="{StaticResource Hint}" Margin="16,0,0,0" />
         </StackPanel>
 
         <DataGrid x:Name="Grid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
@@ -69,17 +69,17 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
                 <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="48" />
-                <DataGridTemplateColumn Header="Estatus" Width="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
-                <DataGridTextColumn Header="Número de parte" Binding="{Binding Material}" Width="140" />
-                <DataGridTextColumn Header="Cant." Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="60" />
-                <DataGridTextColumn Header="Valor SAP (USD)" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="105" />
+                <DataGridTemplateColumn Header="Status" Width="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
+                <DataGridTextColumn Header="Part number" Binding="{Binding Material}" Width="140" />
+                <DataGridTextColumn Header="Qty" Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="60" />
+                <DataGridTextColumn Header="SAP value (USD)" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="105" />
                 <DataGridTextColumn Header="Balance (USD)" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="105" />
-                <DataGridTextColumn Header="Días en JuP1" Binding="{Binding DaysInJuP1}" Width="95" />
-                <DataGridTextColumn Header="Días p/vencer" Binding="{Binding DaysToLegalDue}" Width="100" />
-                <DataGridTextColumn Header="Responsable QMM" Binding="{Binding Qmm}" Width="145" />
-                <DataGridTextColumn Header="Factura" Binding="{Binding Invoice}" Width="105" />
-                <DataGridTextColumn Header="Categoría de estatus" Binding="{Binding Category}" Width="*" MinWidth="215" />
-                <DataGridTextColumn x:Name="DqColumn" Header="Calidad de datos" Binding="{Binding DqText}" Width="*" />
+                <DataGridTextColumn Header="Days in JuP1" Binding="{Binding DaysInJuP1}" Width="95" />
+                <DataGridTextColumn Header="Days to due" Binding="{Binding DaysToLegalDue}" Width="100" />
+                <DataGridTextColumn Header="QMM responsible" Binding="{Binding Qmm}" Width="145" />
+                <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" Width="105" />
+                <DataGridTextColumn Header="Status category" Binding="{Binding Category}" Width="*" MinWidth="215" />
+                <DataGridTextColumn x:Name="DqColumn" Header="Data quality" Binding="{Binding DqText}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

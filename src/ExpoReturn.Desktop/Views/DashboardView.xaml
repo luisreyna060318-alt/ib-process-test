@@ -24,48 +24,48 @@
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <TextBlock Text="Balance / Aranceles por pagar" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Balance / Duties to Pay" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}"
-                       Text="Sustituye la hoja BALANCE y los bloques 'AFTER JUNE 2025' de cada VS. Se agrupa por año fiscal de la fecha de cruce El Paso → JuP1, sin fechas fijas en fórmulas. Clic en un Value Stream o en un estatus para ver esos registros en la bandeja." />
+                       Text="Replaces the BALANCE sheet and the 'AFTER JUNE 2025' blocks of each VS. Grouped by fiscal year of the El Paso → JuP1 crossing date, with no fixed dates in formulas. Click a Value Stream or a status to see those records in the inbox." />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                <TextBlock Text="Periodo" VerticalAlignment="Center" Margin="0,0,8,0" Style="{StaticResource FieldLabel}" />
+                <TextBlock Text="Period" VerticalAlignment="Center" Margin="0,0,8,0" Style="{StaticResource FieldLabel}" />
                 <ComboBox ItemsSource="{Binding YearOptions}" SelectedItem="{Binding SelectedYear}" Width="260" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12" DataContext="{Binding Total}">
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Total importado (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding TotalImportedUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Total Imported (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding TotalImportedUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Conciliado: exportado + scrap (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding ExportedUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Reconciled: exported + scrap (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding ExportedUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}" ToolTip="Excel 2.0: Balance GENERAL DLLS">
-                    <StackPanel><TextBlock Text="Balance general (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding BalanceGeneralUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                    <StackPanel><TextBlock Text="General Balance (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding BalanceGeneralUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}" ToolTip="Excel 2.0: DUTIES TO PAY USD">
-                    <StackPanel><TextBlock Text="Aranceles por pagar (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding DutiesToPayUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Duties to Pay (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding DutiesToPayUsd, StringFormat={}{0:N0}}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Pallets en riesgo arancelario" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding DutyRiskPallets}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Pallets at duty risk" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding DutyRiskPallets}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
                 </Border>
             </StackPanel>
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="Balance por Value Stream (doble clic en un renglón para abrir sus registros abiertos)" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Text="Balance by Value Stream (double-click a row to open its open records)" Style="{StaticResource SectionTitle}" />
                     <DataGrid x:Name="Grid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" RowHeight="30" MouseDoubleClick="OnRowDoubleClick">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="60" />
                             <DataGridTextColumn Header="Pallets" Binding="{Binding Pallets}" Width="65" />
-                            <DataGridTextColumn Header="Abiertos" Binding="{Binding OpenPallets}" Width="70" />
-                            <DataGridTextColumn Header="Total importado" Binding="{Binding TotalImportedUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="Inventario MFO" Binding="{Binding MfoInventoryUsd, StringFormat={}{0:N2}}" Width="*" />
+                            <DataGridTextColumn Header="Open" Binding="{Binding OpenPallets}" Width="70" />
+                            <DataGridTextColumn Header="Total imported" Binding="{Binding TotalImportedUsd, StringFormat={}{0:N2}}" Width="*" />
+                            <DataGridTextColumn Header="MFO inventory" Binding="{Binding MfoInventoryUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="Scrap HSE" Binding="{Binding HseScrapUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="Falla MFO-LOW" Binding="{Binding MfoLowFailureUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="Exportado / conciliado" Binding="{Binding ExportedUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="Balance general" Binding="{Binding BalanceGeneralUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="Aranceles por pagar" Binding="{Binding DutiesToPayUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="En riesgo" Binding="{Binding DutyRiskPallets}" Width="75" />
+                            <DataGridTextColumn Header="MFO-LOW failure" Binding="{Binding MfoLowFailureUsd, StringFormat={}{0:N2}}" Width="*" />
+                            <DataGridTextColumn Header="Exported / reconciled" Binding="{Binding ExportedUsd, StringFormat={}{0:N2}}" Width="*" />
+                            <DataGridTextColumn Header="General balance" Binding="{Binding BalanceGeneralUsd, StringFormat={}{0:N2}}" Width="*" />
+                            <DataGridTextColumn Header="Duties to pay" Binding="{Binding DutiesToPayUsd, StringFormat={}{0:N2}}" Width="*" />
+                            <DataGridTextColumn Header="At risk" Binding="{Binding DutyRiskPallets}" Width="75" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>
@@ -75,12 +75,12 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                 <Border Style="{StaticResource Card}" Margin="0,0,6,0">
                     <StackPanel>
-                        <TextBlock Text="Balance general (USD) por VS" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="General balance (USD) by VS" Style="{StaticResource SectionTitle}" />
                         <ItemsControl ItemsSource="{Binding BalanceBars}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource BarButton}" Command="{Binding DataContext.OpenBarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" ToolTip="Ver los registros abiertos de este VS" HorizontalAlignment="Left">
+                                            CommandParameter="{Binding}" ToolTip="See the open records of this VS" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal" Margin="0,2">
                                             <TextBlock Text="{Binding Label}" Width="50" VerticalAlignment="Center" />
                                             <Border Background="{StaticResource Accent}" Height="20" Width="{Binding Width}" CornerRadius="2" />
@@ -94,12 +94,12 @@
                 </Border>
                 <Border Grid.Column="1" Style="{StaticResource Card}" Margin="6,0,0,0">
                     <StackPanel>
-                        <TextBlock Text="Pallets por estatus (todos los años)" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="Pallets by status (all years)" Style="{StaticResource SectionTitle}" />
                         <ItemsControl ItemsSource="{Binding StatusBars}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource BarButton}" Command="{Binding DataContext.OpenBarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" ToolTip="Ver los registros con este estatus" HorizontalAlignment="Left">
+                                            CommandParameter="{Binding}" ToolTip="See the records with this status" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal" Margin="0,1">
                                             <TextBlock Text="{Binding Label}" Width="190" VerticalAlignment="Center" />
                                             <Border Background="{StaticResource Primary}" Height="16" Width="{Binding Width}" CornerRadius="2" />

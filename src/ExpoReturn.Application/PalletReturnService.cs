@@ -7,13 +7,13 @@ namespace ExpoReturn.Application;
 public sealed record SaveResult(bool Success, IReadOnlyList<ValidationIssue> Issues, IReadOnlyList<string> DeniedFields, PalletReturn? Saved)
 {
     public string Summary => Success
-        ? "Guardado correctamente."
+        ? "Saved."
         : DeniedFields.Count > 0
-            ? $"Sin permiso para modificar: {string.Join(", ", DeniedFields)}"
-            : $"No se guardó: {Issues.Count(i => i.Severity == Severity.Error)} error(es) de validación.";
+            ? $"No permission to change: {string.Join(", ", DeniedFields)}"
+            : $"Not saved: {Issues.Count(i => i.Severity == Severity.Error)} validation error(s).";
 }
 
-/// <summary>Casos de uso del registro: alta, guardado (permisos + validación + recálculo + auditoría).</summary>
+/// <summary>Record use cases: create and save (permissions + validation + recalculation + audit).</summary>
 public sealed class PalletReturnService
 {
     private readonly IPalletReturnRepository _repo;
@@ -31,9 +31,9 @@ public sealed class PalletReturnService
     public PalletReturn NewDraft(int valueStreamId, UserContext user) => new()
     {
         ValueStreamId = valueStreamId,
-        FolioNumber = 0, // se asigna al guardar
+        FolioNumber = 0, // assigned on first save
         CreatedBy = user.NtUser,
-        QmmResponsible = user.Role == RoleCode.Qmm ? user.DisplayName : null,
+        QmmResponsible = user.CanEditArea(RoleCode.Qmm, valueStreamId) && !user.IsOwner ? user.DisplayName : null,
     };
 
     public SaveResult Save(PalletReturn edited, UserContext user, string? reason = null)
@@ -60,15 +60,15 @@ public sealed class PalletReturnService
         var now = _clock.UtcNow;
         var entries = changes.Select(c => new AuditEntry(edited.Id, edited.FolioCode, c.Field, c.Old, c.New, user.NtUser, now, reason)).ToList();
         if (statusBefore != edited.Status)
-            entries.Add(new AuditEntry(edited.Id, edited.FolioCode, "Status", statusBefore?.DisplayName(), edited.Status.DisplayName(), "SISTEMA", now, "Recálculo automático"));
+            entries.Add(new AuditEntry(edited.Id, edited.FolioCode, "Status", statusBefore?.DisplayName(), edited.Status.DisplayName(), "SYSTEM", now, "Automatic recalculation"));
         _audit.Record(entries);
         return new SaveResult(true, evaluation.Issues, Array.Empty<string>(), edited);
     }
 
     private static bool CanEditForSave(UserContext user, PalletReturn reference, string field)
     {
-        if (user.IsAdmin) return true;
-        // En el alta (Id = 0) el estatus aún no está cerrado; se valida sólo rol + VS.
+        if (user.IsOwner) return true;
+        // On create (Id = 0) the status is not closed yet: only area + VS are checked.
         return FieldPermissions.CanEdit(user, reference, field);
     }
 
@@ -92,7 +92,7 @@ public sealed class PalletReturnService
         string s when string.IsNullOrWhiteSpace(s) => null,
         DateTime d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         decimal m => m.ToString(CultureInfo.InvariantCulture),
-        bool b => b ? "Sí" : "No",
+        bool b => b ? "Yes" : "No",
         _ => Convert.ToString(v, CultureInfo.InvariantCulture),
     };
 }

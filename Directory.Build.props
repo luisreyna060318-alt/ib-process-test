@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Company>Bosch JuP1 · ME/QMM · Process Excellence</Company>
     <Product>Expo &amp; Return FG Follow Up (borrador)</Product>
-    <Version>0.1.7</Version>
+    <Version>0.2.0</Version>
     <!-- Permite compilar el proyecto WPF desde Linux/macOS (CI); sólo se ejecuta en Windows -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>

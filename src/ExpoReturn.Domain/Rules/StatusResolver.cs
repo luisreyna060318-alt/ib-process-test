@@ -28,11 +28,11 @@ public static class DutyRisk
         var daysLeft = (int)(due - today.Date).TotalDays;
         if (r.QtyOpenTotal == 0) return new(false, null, due, null);
 
-        if (daysLeft < 0) return new(true, $"Plazo IMMEX vencido hace {-daysLeft} días", due, daysLeft);
-        if (daysLeft <= prm.AlertCriticalDaysLeft) return new(true, $"Vence plazo IMMEX en {daysLeft} días", due, daysLeft);
-        if (r.QtyMissing > prm.QtyTolerancePcs) return new(true, $"Faltante de {r.QtyMissing} pzs sin evidencia", due, daysLeft);
+        if (daysLeft < 0) return new(true, $"IMMEX term expired {-daysLeft} days ago", due, daysLeft);
+        if (daysLeft <= prm.AlertCriticalDaysLeft) return new(true, $"IMMEX term expires in {daysLeft} days", due, daysLeft);
+        if (r.QtyMissing > prm.QtyTolerancePcs) return new(true, $"{r.QtyMissing} pcs missing without evidence", due, daysLeft);
         var cat = Catalogs.FindCategory(p.StatusCategoryCode);
-        if (cat is { AffectsDuty: true }) return new(true, $"Discrepancia: {cat.Description}", due, daysLeft);
+        if (cat is { AffectsDuty: true }) return new(true, $"Discrepancy: {cat.Description}", due, daysLeft);
         return new(false, null, due, daysLeft);
     }
 }

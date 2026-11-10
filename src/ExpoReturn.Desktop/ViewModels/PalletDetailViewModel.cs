@@ -22,7 +22,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     {
         _back = back;
         _original = pallet;
-        _edit = pallet?.Clone() ?? services.Pallets.NewDraft(user.ValueStreams.FirstOrDefault(1), user);
+        _edit = pallet?.Clone() ?? services.Pallets.NewDraft(user.EditGrants.Select(g => g.ValueStreamId).DefaultIfEmpty(1).First(), user);
         if (pallet is null && _edit.ValueStreamId == 0) _edit.ValueStreamId = 1;
         if (pallet is null) FillCostFromCatalog();
         Hook();
@@ -31,7 +31,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         LoadAudit();
     }
 
-    public override string Title => IsNew ? "Nuevo retorno" : $"Retorno {Edit.FolioCode}";
+    public override string Title => IsNew ? "New return" : $"Return {Edit.FolioCode}";
 
     // ---------- Catálogos para los ComboBox ----------
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; } = Catalogs.ValueStreams.Select(v => new LookupItem(v.Id, v.Code)).ToList();
@@ -39,7 +39,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     public IReadOnlyList<Reason> ReasonOptions { get; } = Catalogs.Reasons;
     /// <summary>Lista de COMMENTS de la hoja VS del registro, con el texto exacto del Excel.</summary>
     public IReadOnlyList<string> CommentsOptions => Catalogs.CommentsOptions(Edit.ValueStreamId, Edit.StatusCategoryCode);
-    public IReadOnlyList<string> QmmOptions => Services.Champions.QmmFor(Edit.ValueStreamId);
+    public IReadOnlyList<string> QmmOptions => Services.Users.QmmFor(Edit.ValueStreamId);
 
     // ---------- Estado ----------
     [ObservableProperty] private PalletReturn _edit;
@@ -62,8 +62,8 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     public ObservableCollection<ValidationIssue> PendingIssues { get; } = new();
     public HelpMap Help => HelpMap.Instance;
     /// <summary>UX-B02: en el alta el folio aún no existe.</summary>
-    public string FolioDisplay => IsNew ? "Se asignará al guardar" : Edit.FolioCode;
-    public string PendingHeader => $"Pendientes para pasar a Solicitado ({PendingIssues.Count})";
+    public string FolioDisplay => IsNew ? "Assigned on save" : Edit.FolioCode;
+    public string PendingHeader => $"Pending to move to Requested ({PendingIssues.Count})";
     public bool HasPending => PendingIssues.Count > 0;
     [ObservableProperty] private bool _pendingExpanded;
     public ObservableCollection<AuditEntry> AuditEntries { get; } = new();
@@ -78,7 +78,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         get
         {
             var n = Identifiers.NormalizeMaterial(Edit.ReturnedMaterial);
-            return n is not null && n != Edit.ReturnedMaterial ? $"Se guardará como {n}" : null;
+            return n is not null && n != Edit.ReturnedMaterial ? $"Will be saved as {n}" : null;
         }
     }
     public int? DaysInJuP1 => Edit.DaysInJuP1(Services.Clock.Today);
@@ -86,17 +86,17 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     public int WarningCount => Issues.Count(i => i.Severity == Severity.Warning) + PendingIssues.Count;
     public int QtyExported => ClosureDocument.Closes(Edit.ClosureType) ? Edit.OldMaterialDeliveredQty ?? 0 : 0;
     public int QtyScrapConfirmed => Edit.HseConfirmationDate is not null ? Edit.ScrapQty ?? 0 : 0;
-    public string RoleText => $"Editando como: {User.Role.DisplayName()}";
+    public string RoleText => $"Editing as: {User.FunctionText}";
     public string EditableSummary
     {
         get
         {
-            if (IsLegacy) return "Registro histórico importado del Excel: sólo lectura. Revise las observaciones de calidad de datos.";
-            if (Edit.Status.IsClosed() && !User.IsAdmin) return "Registro cerrado: sólo Admin QMM/PE puede reabrirlo (con motivo).";
-            if (!User.IsAdmin && FieldPermissions.EditableFields(User.Role).Count == 0) return "Su rol no edita campos (sólo lectura).";
-            if (!User.CoversValueStream(Edit.ValueStreamId)) return $"Su usuario no está asignado a VS{Edit.ValueStreamId} en la matriz Champions VS: sólo lectura.";
+            if (IsLegacy) return "Historical record imported from the Excel: read-only. Check the data quality findings.";
+            if (Edit.Status.IsClosed() && !User.IsOwner) return "Closed record: only the Owner can reopen it (with a reason).";
+            if (!User.IsOwner && !User.EditGrants.Any()) return "Your function is Viewer (read-only). The Owner assigns Champion or Proxy in Users & Access.";
+            if (!User.CoversValueStream(Edit.ValueStreamId)) return $"You are not Champion or Proxy in VS{Edit.ValueStreamId}: read-only.";
             var n = Fields.All.Count(CanEdit);
-            return n == 0 ? "Su rol no edita campos de este registro (sólo lectura)." : $"Puede editar {n} campos (resaltados en verde). El resto pertenece a otras áreas.";
+            return n == 0 ? "Your area does not edit fields of this record (read-only)." : $"You can edit {n} fields (highlighted in green). The rest belong to other areas.";
         }
     }
 
@@ -105,9 +105,10 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         if (field == nameof(PalletReturn.ValueStreamId)) return IsNew;
         if (IsNew)
         {
-            // En el alta sólo se captura la Etapa 1 (QMM / solicitante / admin).
+            // On create only stage 1 is captured (QMM / requestor / Owner), in a VS where the user is Champion or Proxy.
             if (!Fields.Stage1.Contains(field)) return false;
-            return User.IsAdmin || FieldPermissions.EditableFields(User.Role).Contains(field);
+            return User.IsOwner || User.EditGrants.Any(g => g.ValueStreamId == Edit.ValueStreamId
+                                                           && FieldPermissions.EditableFields(g.Area).Contains(field));
         }
         if (_original is null) return false;
         return FieldPermissions.CanEdit(User, _original, field);
@@ -177,16 +178,16 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     [RelayCommand]
     private void Save()
     {
-        if (User.IsAdmin && _original is { } o && o.Status.IsClosed() && string.IsNullOrWhiteSpace(SaveReason))
+        if (User.IsOwner && _original is { } o && o.Status.IsClosed() && string.IsNullOrWhiteSpace(SaveReason))
         {
-            ShowMessage("Para modificar un registro cerrado capture el motivo (Admin).", true);
+            ShowMessage("To change a closed record, enter the reason (Owner).", true);
             return;
         }
         var result = Services.Pallets.Save(Edit, User, SaveReason);
         if (!result.Success)
         {
             ShowMessage(result.DeniedFields.Count > 0
-                ? $"Sin permiso para modificar: {string.Join(", ", result.DeniedFields.Select(FieldLabels.Get))}"
+                ? $"No permission to change: {string.Join(", ", result.DeniedFields.Select(FieldLabels.Get))}"
                 : result.Summary, true);
             if (result.Issues.Count > 0) FillIssues(result.Issues);
             PendingExpanded = true;
@@ -202,7 +203,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         Reevaluate();
         LoadAudit();
         foreach (var n in new[] { nameof(Title), nameof(IsNew), nameof(EditableSummary), nameof(IsReadOnlyRecord), nameof(FolioDisplay) }) OnPropertyChanged(n);
-        ShowMessage($"Guardado. Folio {Edit.FolioCode} · Estatus: {Edit.StatusName}.", false);
+        ShowMessage($"Saved. Folio {Edit.FolioCode} · Status: {Edit.StatusName}.", false);
     }
 
     [RelayCommand]
@@ -214,13 +215,13 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         Hook();
         IsDirty = false;
         Reevaluate();
-        ShowMessage("Cambios descartados.", false);
+        ShowMessage("Changes discarded.", false);
     }
 
     [RelayCommand]
     private void Back()
     {
-        if (IsDirty && MessageBox.Show("Hay cambios sin guardar. ¿Descartarlos?", "Cambios sin guardar",
+        if (IsDirty && MessageBox.Show("There are unsaved changes. Discard them?", "Unsaved changes",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         IsDirty = false;
         _back();

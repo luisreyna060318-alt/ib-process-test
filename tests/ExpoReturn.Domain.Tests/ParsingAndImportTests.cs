@@ -48,7 +48,7 @@ public class ParsingAndImportTests
     public void Sample_data_covers_every_open_and_closed_status()
     {
         var repo = new InMemoryPalletRepository();
-        SampleData.Seed(repo, new InMemoryAuditTrail(), new ChampionsDirectory(), new SystemClock());
+        SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
         var statuses = repo.GetAll().Select(p => p.Status).Distinct().ToList();
         foreach (var s in new[] { WorkflowStatus.Draft, WorkflowStatus.Requested, WorkflowStatus.Imported, WorkflowStatus.InRework,
                                   WorkflowStatus.PendingExport, WorkflowStatus.PendingHse, WorkflowStatus.DutyRisk,
@@ -62,17 +62,17 @@ public class ParsingAndImportTests
         var repo = new InMemoryPalletRepository();
         var audit = new InMemoryAuditTrail();
         var clock = new SystemClock();
-        SampleData.Seed(repo, audit, new ChampionsDirectory(), clock);
+        SampleData.Seed(repo, audit, new UserDirectory(null, Array.Empty<string>(), includeDemoUsers: true), clock);
         var svc = new PalletReturnService(repo, audit, clock);
         var open = repo.GetAll().First(p => p.Status == WorkflowStatus.Imported);
 
-        var mfoOtherVs = new UserContext("T\\MFO", "MFO", RoleCode.Mfo, new[] { open.ValueStreamId == 1 ? 4 : 1 });
+        var mfoOtherVs = new UserContext("T\\MFO", "MFO", "MFO", false, new[] { new AccessGrant("MFO", open.ValueStreamId == 1 ? 4 : 1, UserFunction.Champion) });
         var edit = open.Clone(); edit.ImportInvoice = "MPS26999999";
         var denied = svc.Save(edit, mfoOtherVs);
         Assert.False(denied.Success);
         Assert.Contains(nameof(PalletReturn.ImportInvoice), denied.DeniedFields);
 
-        var gs = new UserContext("T\\GS", "GS", RoleCode.Gs, new[] { open.ValueStreamId });
+        var gs = new UserContext("T\\GS", "GS", "GS/OSD43", false, new[] { new AccessGrant("GS/OSD43", open.ValueStreamId, UserFunction.Proxy) });
         var edit2 = open.Clone(); edit2.ImportInvoice = $"MPS{open.ImportDate:yy}999999";
         var ok = svc.Save(edit2, gs);
         Assert.True(ok.Success, ok.Summary);

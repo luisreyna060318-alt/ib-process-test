@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace ExpoReturn.Desktop;
 
-/// <summary>Últimos filtros de la bandeja por usuario (UX-B06). Se guardan en %LOCALAPPDATA%\ExpoReturnBorrador\preferencias.json.</summary>
+/// <summary>Last inbox filters per user (UX-B06), stored in %LOCALAPPDATA%\ExpoReturn\preferences.json.</summary>
 public sealed class ListFilterPreference
 {
     public int? ValueStreamId { get; set; }
@@ -17,7 +17,7 @@ public sealed class UserPreferences
     public Dictionary<string, ListFilterPreference> ListFilters { get; set; } = new();
 
     private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExpoReturnBorrador", "preferencias.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExpoReturn", "preferences.json");
 
     public static UserPreferences Load()
     {

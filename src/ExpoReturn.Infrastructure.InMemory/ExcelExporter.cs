@@ -12,13 +12,13 @@ public static class ExcelExporter
     public static void ExportPallets(IEnumerable<PalletReturn> pallets, string path, DateTime today, string filterDescription)
     {
         using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add("Retornos");
+        var ws = wb.Worksheets.Add("Returns");
         string[] headers =
         {
-            "Folio", "VS", "Estatus", "Número de parte", "Cantidad importada", "Valor total SAP (USD)", "Balance general (USD)",
-            "Días en JuP1", "Días para vencer", "Responsable QMM", "Factura de importación", "Exportación aduanal", "Categoría de estatus", "Calidad de datos",
+            "Folio", "VS", "Status", "Returned Part Number", "Quantity Imported", "SAP Total (USD)", "General Balance (USD)",
+            "Days in JuP1", "Days to Due", "QMM Responsible", "Import Invoice", "Customs Export", "Status Category", "Data Quality",
         };
-        ws.Cell(1, 1).Value = $"Expo & Return FG Follow Up · Bandeja exportada el {DateTime.Now:dd/MM/yyyy HH:mm} · Filtro: {filterDescription}";
+        ws.Cell(1, 1).Value = $"Expo & Return FG Follow Up · Inbox exported {DateTime.Now:dd/MM/yyyy HH:mm} · Filter: {filterDescription}";
         ws.Cell(1, 1).Style.Font.Italic = true;
         for (var c = 0; c < headers.Length; c++)
         {

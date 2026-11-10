@@ -18,19 +18,19 @@ public sealed record Alert(AlertType Type, Severity Severity, int PalletId, stri
 {
     public string TypeText => Type switch
     {
-        AlertType.AgingWarning => "Antigüedad IMMEX (aviso)",
-        AlertType.AgingCritical => "Antigüedad IMMEX (crítica)",
-        AlertType.LegalExpired => "Plazo IMMEX vencido",
-        AlertType.ReworkSla => "Plazo interno de retrabajo (MFO)",
-        AlertType.ExportSla => "Plazo interno de exportación",
-        AlertType.HseSla => "Plazo interno de confirmación HSE",
-        AlertType.QtyMismatch => "Faltante de piezas",
-        _ => "Costo MM60 pendiente",
+        AlertType.AgingWarning => "IMMEX aging (warning)",
+        AlertType.AgingCritical => "IMMEX aging (critical)",
+        AlertType.LegalExpired => "IMMEX term expired",
+        AlertType.ReworkSla => "Internal rework deadline (MFO)",
+        AlertType.ExportSla => "Internal export deadline",
+        AlertType.HseSla => "Internal HSE confirmation deadline",
+        AlertType.QtyMismatch => "Missing pieces",
+        _ => "MM60 cost pending",
     };
-    public string SeverityText => Severity switch { Severity.Error => "CRÍTICA", Severity.Warning => "AVISO", _ => "INFO" };
+    public string SeverityText => Severity switch { Severity.Error => "CRITICAL", Severity.Warning => "WARNING", _ => "INFO" };
 }
 
-/// <summary>Equivalente a rpt.vw_Balance_ByVS_Period y al Worker de alertas (doc 03 §5).</summary>
+/// <summary>Balance by VS / fiscal year and alert rules (SRS chapter 03).</summary>
 public sealed class ReportingService
 {
     private readonly IPalletReturnRepository _repo;
@@ -80,25 +80,25 @@ public sealed class ReportingService
             var vs = $"VS{p.ValueStreamId}";
             var f = p.Financials;
             if (p.UnitCostUsd is null or 0)
-                list.Add(new(AlertType.CostPending, Severity.Info, p.Id, p.FolioCode, vs, $"{p.ReturnedMaterial}: sin costo MM60.", "QMM"));
+                list.Add(new(AlertType.CostPending, Severity.Info, p.Id, p.FolioCode, vs, $"{p.ReturnedMaterial}: no MM60 cost.", "QMM"));
             if (p.ImportDateElpJup1 is null) continue;
             var days = (today - p.ImportDateElpJup1.Value.Date).Days;
             if (p.LegalDueDate is { } due && f.QtyOpenTotal > 0)
             {
                 var left = (due - today).Days;
-                if (left < 0) list.Add(new(AlertType.LegalExpired, Severity.Error, p.Id, p.FolioCode, vs, $"Plazo IMMEX vencido hace {-left} días (USD {f.BalanceGeneralUsd:N2}).", "GS/OSD43 + QMM"));
-                else if (left <= _prm.AlertCriticalDaysLeft) list.Add(new(AlertType.AgingCritical, Severity.Error, p.Id, p.FolioCode, vs, $"Vence en {left} días (USD {f.BalanceGeneralUsd:N2}).", "GS/OSD43 + QMM"));
-                else if (left <= _prm.AlertWarningDaysLeft) list.Add(new(AlertType.AgingWarning, Severity.Warning, p.Id, p.FolioCode, vs, $"Vence en {left} días.", "QMM"));
+                if (left < 0) list.Add(new(AlertType.LegalExpired, Severity.Error, p.Id, p.FolioCode, vs, $"IMMEX term expired {-left} days ago (USD {f.BalanceGeneralUsd:N2}).", "GS/OSD43 + QMM"));
+                else if (left <= _prm.AlertCriticalDaysLeft) list.Add(new(AlertType.AgingCritical, Severity.Error, p.Id, p.FolioCode, vs, $"Expires in {left} days (USD {f.BalanceGeneralUsd:N2}).", "GS/OSD43 + QMM"));
+                else if (left <= _prm.AlertWarningDaysLeft) list.Add(new(AlertType.AgingWarning, Severity.Warning, p.Id, p.FolioCode, vs, $"Expires in {left} days.", "QMM"));
             }
             if (f.QtyOpenFloor > 0 && days > _prm.SlaReworkDays)
-                list.Add(new(AlertType.ReworkSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyOpenFloor} pzs en piso MFO desde hace {days} días.", "MFO"));
+                list.Add(new(AlertType.ReworkSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyOpenFloor} pcs on the MFO floor for {days} days.", "MFO"));
             var deliveredOn = p.DateSentBack;
             if (f.QtyPendingExport > 0 && deliveredOn is not null && (today - deliveredOn.Value.Date).Days > _prm.SlaExportDays)
-                list.Add(new(AlertType.ExportSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingExport} pzs en LOW sin pedimento desde hace {(today - deliveredOn.Value.Date).Days} días.", "LOW + GS"));
+                list.Add(new(AlertType.ExportSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingExport} pcs in LOW without export pedimento for {(today - deliveredOn.Value.Date).Days} days.", "LOW + GS"));
             if (f.QtyPendingHse > 0 && p.ScrapDate is not null && (today - p.ScrapDate.Value.Date).Days > _prm.SlaHseDays)
-                list.Add(new(AlertType.HseSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingHse} {(f.QtyPendingHse == 1 ? "pz" : "pzs")} de scrap sin confirmación HSE.", "HSE + MFO"));
+                list.Add(new(AlertType.HseSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingHse} {(f.QtyPendingHse == 1 ? "pc" : "pcs")} of scrap without HSE confirmation.", "HSE + MFO"));
             if (f.QtyMissing > 0)
-                list.Add(new(AlertType.QtyMismatch, Severity.Error, p.Id, p.FolioCode, vs, $"{(f.QtyMissing == 1 ? "Falta 1 pz" : $"Faltan {f.QtyMissing} pzs")} (USD {f.QtyMissing * (p.UnitCostUsd ?? 0):N2}).", "QMM + MFO + LOW"));
+                list.Add(new(AlertType.QtyMismatch, Severity.Error, p.Id, p.FolioCode, vs, $"{(f.QtyMissing == 1 ? "1 pc missing" : $"{f.QtyMissing} pcs missing")} (USD {f.QtyMissing * (p.UnitCostUsd ?? 0):N2}).", "QMM + MFO + LOW"));
         }
         return list.OrderBy(a => a.Severity).ThenBy(a => a.FolioCode).ToList();
     }

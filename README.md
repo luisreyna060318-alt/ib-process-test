@@ -3,7 +3,7 @@
 Digitalización de la **Matriz de Rastreo de Productos Terminados Importados Temporalmente 2.0**
 Bosch Mobility Electronics · Planta Juárez 1 (JuP1, SAP 8640) · ME/QMM · Pilar Process Excellence (Q2E)
 
-La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8) con SQL Server centralizado. La arquitectura es API-first, para que la interfaz de escritorio (WPF) se pueda reemplazar por una Web sin reescribir la lógica de negocio ni el modelo de datos. La integración con SAP queda **fuera del alcance** actual.
+La matriz pasa de un Excel compartido en SharePoint a una aplicación C# (.NET 8) con base de datos Oracle centralizada. La arquitectura es API-first, para que la interfaz de escritorio (WPF) se pueda reemplazar por una Web sin reescribir la lógica de negocio ni el modelo de datos. La integración con SAP queda **fuera del alcance** actual.
 
 ## 1. Documento del proyecto (fuente de verdad)
 
@@ -30,9 +30,14 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Borrador de la aplicación (.NET 8 / WPF)
+## 3. Aplicación (.NET 8 / WPF) · v0.2.0
 
-Solución `ExpoReturn.sln` con las pantallas esperadas, **sin base de datos**: bandeja, formulario de 6 bloques con permisos por rol/VS, cálculo en vivo, validaciones, Balance/Aranceles, alertas, Champions y bitácora. Puede importar el Excel real **en memoria y en sólo lectura**.
+Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (las columnas que tenían dos datos se dividieron: PO + posición, expo LOW número + fecha).
+
+* **Usuario real:** al abrir, la app lee el usuario de Windows. La primera vez pide nombre, Department y Value Stream(s); la función inicial es **Viewer** (sólo lectura).
+* **Users & Access:** tabla User / Department / Value Stream / Function (Viewer, Proxy, Champion, Owner). Sólo el **Owner** la modifica; para el Owner el department y el VS son irrelevantes. El Owner se configura con su usuario de Windows en `appsettings.json` (`"Owners"`) o con una fila OWNER en la base de datos.
+* **My profile:** cambiar Department o VS después queda como **solicitud** que el Owner aprueba o rechaza.
+* Pallets en memoria (sin base de datos todavía); usuarios en un archivo JSON (`UserStorePath` en `appsettings.json`) hasta conectar Oracle.
 
 Instrucciones, guion de revisión y limitaciones en [`src/README.md`](src/README.md).
 
@@ -44,13 +49,16 @@ dotnet run --project src/ExpoReturn.Desktop
 dotnet test
 ```
 
-## 4. Base de datos (diseño para producción, SQL Server 2019+)
+## 4. Base de datos Oracle (prefijo `IB_PROCESS_`)
 
-Estructura alineada con la app v0.1.7: sólo los campos de la Matriz 2.0, con nombres limpios. El **diccionario** [`entregables/Diccionario_Campos_ExpoReturn.xlsx`](entregables/Diccionario_Campos_ExpoReturn.xlsx) relaciona cada campo de la app con su columna en la BD y su encabezado y columna en cada hoja del Excel (se regenera con `python3 tools/dictionary/build_field_dictionary.py`).
+Scripts en [`database/oracle/`](database/oracle/), en este orden:
 
-1. [`database/01_schema.sql`](database/01_schema.sql): esquemas, catálogos (incluye las opciones de categoría de estatus por VS), RBAC, tabla transaccional temporal, alertas con atención, auditoría append-only
-2. [`database/02_seed_catalogs.sql`](database/02_seed_catalogs.sql): VS, departamentos, 10 motivos, estatus, categorías de estatus (texto exacto del Excel) y su lista por VS, roles, permisos por campo y parámetros
-3. [`database/03_views_powerbi.sql`](database/03_views_powerbi.sql): vistas `rpt.*` para Power BI
-4. [`database/04_staging_migration.sql`](database/04_staging_migration.sql): staging y transformación del histórico Excel
+1. [`01_create_tables.sql`](database/oracle/01_create_tables.sql): `CREATE TABLE` de las 19 tablas (catálogos, usuarios y acceso, solicitudes de perfil, permisos por campo, parámetros, pallets, historial de estatus, alertas, bitácora y comentarios).
+2. [`02_seed_data.sql`](database/oracle/02_seed_data.sql): VS, departamentos, motivos, estatus, categorías de estatus y su lista por VS, permisos por campo, parámetros, contadores de folio y la plantilla para dar de alta al primer Owner (generado con `tools/database/build_oracle_seed.py`).
+3. [`03_comments_and_triggers.sql`](database/oracle/03_comments_and_triggers.sql): comentarios de tablas y columnas (nombre en la app y columna del Excel) y el trigger que impide modificar la bitácora (generado con `tools/database/build_oracle_comments.py`).
 
-> Los valores marcados **[VALIDAR]** (plazo IMMEX, tasa de duty, motivos, F4/V1, HU/lote, Date PO, matriz Champions) son provisionales hasta que los confirmen QMM y GS/OSD43. Ver SRS, capítulo 03.
+Nombres de máximo 30 caracteres (compatibles con cualquier versión de Oracle); requiere Oracle 12c R2 o superior por las columnas `IDENTITY`.
+
+El **diccionario** [`entregables/Diccionario_Campos_ExpoReturn.xlsx`](entregables/Diccionario_Campos_ExpoReturn.xlsx) relaciona cada campo de la app con su columna en Oracle y su columna en cada hoja del Excel. Se genera desde [`tools/dictionary/fields.py`](tools/dictionary/fields.py) con `python3 tools/dictionary/build_field_dictionary.py` (la misma lista alimenta los comentarios de las columnas).
+
+> Los valores marcados **[VALIDATE]** (plazo IMMEX, tasa de aranceles, F4/V1, HU/lote, Date PO) son provisionales hasta que los confirmen QMM y GS/OSD43.

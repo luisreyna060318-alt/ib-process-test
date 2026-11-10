@@ -1,8 +1,9 @@
 namespace ExpoReturn.Domain;
 
 /// <summary>
-/// Un pallet retornado de El Paso WHS a JuP1 (un renglón de la Matriz 2.0).
-/// Fiel a las columnas del Excel 2.0 (sin campos adicionales). Los nombres de propiedad coinciden con trk.Pallets_Return_Tracking.
+/// A pallet returned from El Paso WHS to JuP1 (one row of the Excel Matrix 2.0).
+/// Excel 2.0 columns only; columns that held two values are split (PO number / item, LOW export number / date).
+/// Property names map to IB_PROCESS_PALLET_RETURNS columns (see the field dictionary).
 /// </summary>
 public sealed class PalletReturn : NotifyBase
 {
@@ -32,6 +33,7 @@ public sealed class PalletReturn : NotifyBase
     private string? _importInvoice; public string? ImportInvoice { get => _importInvoice; set => Set(ref _importInvoice, value); }
     private DateTime? _importDateElpJup1; public DateTime? ImportDateElpJup1 { get => _importDateElpJup1; set => Set(ref _importDateElpJup1, value); }
     private string? _returnPONumber; public string? ReturnPONumber { get => _returnPONumber; set => Set(ref _returnPONumber, value); }
+    private string? _returnPOItem; public string? ReturnPOItem { get => _returnPOItem; set => Set(ref _returnPOItem, value); }
     private string? _deliveryNumber; public string? DeliveryNumber { get => _deliveryNumber; set => Set(ref _deliveryNumber, value); }
 
     // ---------- Etapa 3 · Ejecución en planta (MFO / LOW) ----------
@@ -46,7 +48,8 @@ public sealed class PalletReturn : NotifyBase
     private DateTime? _scrapDate; public DateTime? ScrapDate { get => _scrapDate; set => Set(ref _scrapDate, value); }
 
     // ---------- Etapa 4 · Cierre aduanal de salida / confirmación de scrap ----------
-    private string? _lowExport; public string? LowExport { get => _lowExport; set => Set(ref _lowExport, value); }
+    private int? _lowExportNumber; public int? LowExportNumber { get => _lowExportNumber; set => Set(ref _lowExportNumber, value); }
+    private DateTime? _lowExportDate; public DateTime? LowExportDate { get => _lowExportDate; set => Set(ref _lowExportDate, value); }
     private string? _customsExportReference; public string? CustomsExportReference { get => _customsExportReference; set => Set(ref _customsExportReference, value); }
     private string? _scrapGrNumber; public string? ScrapGrNumber { get => _scrapGrNumber; set => Set(ref _scrapGrNumber, value); }
     private decimal? _hseScrapKg; public decimal? HseScrapKg { get => _hseScrapKg; set => Set(ref _hseScrapKg, value); }
@@ -73,7 +76,7 @@ public sealed class PalletReturn : NotifyBase
 
     public ClosureDocumentType ClosureType => ClosureDocument.Classify(CustomsExportReference);
 
-    /// <summary>Días desde el cruce; en un registro cerrado se detiene en "Date send Back" (o la confirmación HSE).</summary>
+    /// <summary>Days since the crossing; for a closed record it stops at the sent-back date (or the HSE confirmation).</summary>
     public int? DaysInJuP1(DateTime today) =>
         ImportDateElpJup1 is null ? null
         : (int)(((Status.IsClosed() ? DateSentBack ?? HseConfirmationDate : null) ?? today).Date - ImportDateElpJup1.Value.Date).TotalDays;

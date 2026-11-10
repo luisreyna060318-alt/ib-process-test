@@ -3,20 +3,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Alertas" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Alerts" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}"
-                       Text="Lo que hoy nadie ve en el Excel: plazos IMMEX por vencer, faltantes, material en LOW sin pedimento y scrap sin confirmar. Agrupadas por área responsable. Al atender una alerta, registre la acción tomada; queda en la bitácora." />
+                       Text="What nobody sees in the Excel today: IMMEX terms about to expire, missing pieces, material in LOW without pedimento and unconfirmed scrap. Grouped by responsible area. When you handle an alert, record the action taken; it goes to the audit log." />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Críticas pendientes" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Critical}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Critical pending" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Critical}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Avisos pendientes" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Warnings}" Style="{StaticResource KpiValue}" Foreground="#B45309" /></StackPanel>
+                    <StackPanel><TextBlock Text="Warnings pending" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Warnings}" Style="{StaticResource KpiValue}" Foreground="#B45309" /></StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Atendidas" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Acknowledged}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" /></StackPanel>
+                    <StackPanel><TextBlock Text="Handled" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Acknowledged}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" /></StackPanel>
                 </Border>
-                <CheckBox Content="Mostrar atendidas" IsChecked="{Binding ShowAcknowledged}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <CheckBox Content="Show handled" IsChecked="{Binding ShowAcknowledged}" VerticalAlignment="Center" Margin="8,0,0,0" />
             </StackPanel>
         </StackPanel>
         <DataGrid ItemsSource="{Binding Alerts}" RowHeight="34">
@@ -26,7 +26,7 @@
                         <DataTemplate>
                             <Border Background="#E8EDF5" Padding="8,5" Margin="0,6,0,0">
                                 <TextBlock FontWeight="SemiBold" Foreground="{StaticResource Primary}">
-                                    <Run Text="Responsable: " /><Run Text="{Binding Name, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding ItemCount, Mode=OneWay}" /><Run Text=" alerta(s)" />
+                                    <Run Text="Responsible: " /><Run Text="{Binding Name, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding ItemCount, Mode=OneWay}" /><Run Text=" alert(s)" />
                                 </TextBlock>
                             </Border>
                         </DataTemplate>
@@ -34,7 +34,7 @@
                 </GroupStyle>
             </DataGrid.GroupStyle>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severidad" Width="95">
+                <DataGridTemplateColumn Header="Severity" Width="95">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding Severity, Converter={StaticResource SeverityBrush}}" CornerRadius="9" Padding="8,1" HorizontalAlignment="Left">
@@ -43,18 +43,18 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Tipo" Binding="{Binding TypeText}" Width="210" />
+                <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="210" />
                 <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
                 <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" />
-                <DataGridTextColumn Header="Detalle" Binding="{Binding Message}" Width="*" />
-                <DataGridTextColumn Header="Atención" Binding="{Binding AckText}" Width="*" />
+                <DataGridTextColumn Header="Detail" Binding="{Binding Message}" Width="*" />
+                <DataGridTextColumn Header="Handling" Binding="{Binding AckText}" Width="*" />
                 <DataGridTemplateColumn Header="" Width="170">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="Abrir" Style="{StaticResource LinkButton}"
+                                <Button Content="Open" Style="{StaticResource LinkButton}"
                                         Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                <Button Content="Marcar atendida" Style="{StaticResource LinkButton}"
+                                <Button Content="Mark as handled" Style="{StaticResource LinkButton}"
                                         Visibility="{Binding IsAcknowledged, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"
                                         Command="{Binding DataContext.AcknowledgeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                             </StackPanel>

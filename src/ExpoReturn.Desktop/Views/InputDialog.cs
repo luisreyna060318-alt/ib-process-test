@@ -3,15 +3,15 @@ using System.Windows.Controls;
 
 namespace ExpoReturn.Desktop.Views;
 
-/// <summary>Diálogo simple para pedir un texto obligatorio (comentario al atender una alerta).</summary>
+/// <summary>Simple dialog that asks for a text (e.g. the comment when handling an alert). Returns null on cancel.</summary>
 public static class InputDialog
 {
-    public static string? Ask(string title, string prompt, Window? owner)
+    public static string? Ask(string title, string prompt, Window? owner, bool allowEmpty = false)
     {
         var box = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 90, Margin = new Thickness(0, 8, 0, 12),
                                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        var ok = new Button { Content = "Aceptar", IsDefault = false, Width = 100, Margin = new Thickness(8, 0, 0, 0) };
-        var cancel = new Button { Content = "Cancelar", IsCancel = true, Width = 100 };
+        var ok = new Button { Content = "OK", IsDefault = false, Width = 100, Margin = new Thickness(8, 0, 0, 0) };
+        var cancel = new Button { Content = "Cancel", IsCancel = true, Width = 100 };
         if (System.Windows.Application.Current.TryFindResource("PrimaryButton") is Style p) ok.Style = p;
         if (System.Windows.Application.Current.TryFindResource("SecondaryButton") is Style s) cancel.Style = s;
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -30,7 +30,7 @@ public static class InputDialog
         };
         ok.Click += (_, _) =>
         {
-            if (string.IsNullOrWhiteSpace(box.Text)) { box.Focus(); return; }
+            if (!allowEmpty && string.IsNullOrWhiteSpace(box.Text)) { box.Focus(); return; }
             win.DialogResult = true;
         };
         win.Loaded += (_, _) => box.Focus();

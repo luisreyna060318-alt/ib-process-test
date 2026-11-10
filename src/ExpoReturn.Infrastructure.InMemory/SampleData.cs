@@ -25,7 +25,7 @@ public static class SampleData
     private static readonly string[] Requestors = { "Montaño, Sofía", "Quiroga, Tomás", "Bermúdez, Elena", "Cisneros, Marco", "Olvera, Rubén", "Treviño, Lucía" };
     private static readonly string[] Depts = { "MFQ4", "LOP2", "MFQ7", "MFQ9", "PUQ", "LOP1" };
 
-    public static void Seed(IPalletReturnRepository repo, IAuditTrail audit, IChampionsDirectory champions, IClock clock)
+    public static void Seed(IPalletReturnRepository repo, IAuditTrail audit, IUserDirectory users, IClock clock)
     {
         var today = clock.Today;
         var scenarios = Enum.GetValues<Scenario>();
@@ -40,7 +40,7 @@ public static class SampleData
                 if (round == 2 && n % 2 == 1) { n++; continue; }      // ~32 registros
                 var vs = vsList[n % vsList.Length];
                 folio[vs] = folio.GetValueOrDefault(vs) + 1;
-                var p = Build(sc, vs, folio[vs], n, today, champions);
+                var p = Build(sc, vs, folio[vs], n, today, users);
                 PalletEvaluator.Apply(p, CalcParameters.Default, today);
                 list.Add(p);
                 n++;
@@ -52,18 +52,19 @@ public static class SampleData
         {
             audit.Record(new[]
             {
-                new AuditEntry(p.Id, p.FolioCode, "Registro", null, "Alta de solicitud", p.CreatedBy, p.CreatedAtUtc, null),
+                new AuditEntry(p.Id, p.FolioCode, "Record", null, "Request created", p.CreatedBy, p.CreatedAtUtc, null),
             });
             if (p.ImportDateElpJup1 is not null)
                 audit.Record(new[] { new AuditEntry(p.Id, p.FolioCode, nameof(PalletReturn.ImportDateElpJup1), null,
-                    p.ImportDateElpJup1.Value.ToString("yyyy-MM-dd"), GsUser(champions, p.ValueStreamId), p.ImportDateElpJup1.Value.ToUniversalTime().AddHours(10), null) });
+                    p.ImportDateElpJup1.Value.ToString("yyyy-MM-dd"), GsUser(users, p.ValueStreamId), p.ImportDateElpJup1.Value.ToUniversalTime().AddHours(10), null) });
         }
     }
 
-    private static string GsUser(IChampionsDirectory champions, int vs) =>
-        ChampionsDirectory.DemoNtUser(champions.All().FirstOrDefault(c => c.Role == RoleCode.Gs && c.ValueStreamId == vs && !c.IsPlaceholder)?.Name ?? "gs osd43");
+    private static string GsUser(IUserDirectory users, int vs) =>
+        users.Access().FirstOrDefault(a => a.ValueStreamId == vs && a.Function == UserFunction.Champion
+                                           && RoleInfo.AreaOfDepartment(a.DepartmentCode) == RoleCode.Gs)?.NtUser ?? "DEMO\\GS.OSD43";
 
-    private static PalletReturn Build(Scenario sc, int vs, int folio, int n, DateTime today, IChampionsDirectory champions)
+    private static PalletReturn Build(Scenario sc, int vs, int folio, int n, DateTime today, IUserDirectory users)
     {
         var m = Materials[n % Materials.Length];
         var qty = new[] { 48, 96, 168, 240, 288, 528, 576, 960, 1440 }[n % 9];
@@ -77,7 +78,7 @@ public static class SampleData
             _ => 20 + (n * 13) % 200,
         };
         var cross = today.AddDays(-age);
-        var qmm = champions.QmmFor(vs).FirstOrDefault() ?? "QMM VS" + vs;
+        var qmm = users.QmmFor(vs).FirstOrDefault() ?? "QMM VS" + vs;
         var p = new PalletReturn
         {
             ValueStreamId = vs,
@@ -86,7 +87,7 @@ public static class SampleData
             RequestingDepartment = Depts[n % Depts.Length],
             RequestorName = Requestors[n % Requestors.Length],
             ReasonId = (n % 10) + 1,
-            ReturnReasonDetail = sc == Scenario.Missing ? "Contaminación en conector, sorteo 100%" : "Revisión solicitada por cliente",
+            ReturnReasonDetail = sc == Scenario.Missing ? "Connector contamination, 100% sorting" : "Inspection requested by customer",
             ReturnedMaterial = m.Pn,
             UnitCostUsd = n % 11 == 10 ? null : m.Cost,
             UnitCostSource = n % 11 == 10 ? "PENDING" : "MM60",
@@ -94,12 +95,13 @@ public static class SampleData
             OriginalHU = (2107100000 + n * 37).ToString(),
             OriginalBatch = $"AA{23700000 + n * 11}",
             CreatedAtUtc = cross.AddDays(-3).ToUniversalTime(),
-            CreatedBy = ChampionsDirectory.DemoNtUser(qmm),
+            CreatedBy = UserDirectory.DemoNtUser(qmm),
         };
         if (sc == Scenario.Draft) { p.ReasonId = null; p.RequestorName = null; return p; }
 
         p.DateReturnedToWhs = cross.AddDays(-2);
         p.ReturnPONumber = (49845000 + n * 7).ToString();
+        p.ReturnPOItem = n % 3 == 0 ? "10" : null;
         if (sc == Scenario.Requested) return p;
 
         p.ImportDate = cross;
@@ -131,7 +133,8 @@ public static class SampleData
         if (sc is Scenario.PendingExport or Scenario.PendingExportOld) return p;
         if (old > 0)
         {
-            p.LowExport = $"Incluido en expo #{1 + n % 5} de el dia {cross.AddDays(4):dd/MM/yyyy}";
+            p.LowExportNumber = 1 + n % 5;
+            p.LowExportDate = cross.AddDays(4);
             p.CustomsExportReference = sc == Scenario.ClosedF4 ? "F4" : $"PR{cross:yy}-{(100 + n):00000}";
         }
         if (scrap > 0 && sc != Scenario.PendingHse)

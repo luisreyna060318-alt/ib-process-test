@@ -1,30 +1,30 @@
 <Window x:Class="ExpoReturn.Desktop.Views.FeedbackWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Enviar comentario sobre el borrador" Width="560" SizeToContent="Height" WindowStartupLocation="CenterOwner"
+        Title="Send feedback about the draft" Width="560" SizeToContent="Height" WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize" Background="{StaticResource AppBackground}"
         FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}">
     <Border Style="{StaticResource Card}" Margin="14">
         <StackPanel>
-            <TextBlock Text="¿Qué le cambiarías a esta pantalla?" Style="{StaticResource SectionTitle}" FontSize="16" />
+            <TextBlock Text="What would you change on this screen?" Style="{StaticResource SectionTitle}" FontSize="16" />
             <TextBlock x:Name="ContextText" Style="{StaticResource Hint}" Margin="0,0,0,12" />
-            <TextBlock Text="Tipo" Style="{StaticResource FieldLabel}" />
+            <TextBlock Text="Type" Style="{StaticResource FieldLabel}" />
             <ComboBox x:Name="Category" Margin="0,0,0,12" SelectedIndex="0">
-                <ComboBoxItem Content="Falta un campo / dato" />
-                <ComboBoxItem Content="Sobra un campo / dato" />
-                <ComboBoxItem Content="Regla o cálculo incorrecto" />
-                <ComboBoxItem Content="Difícil de usar / confuso" />
-                <ComboBoxItem Content="Permisos (quién edita qué)" />
-                <ComboBoxItem Content="Idea de mejora" />
-                <ComboBoxItem Content="Error de la aplicación" />
+                <ComboBoxItem Content="Missing field / data" />
+                <ComboBoxItem Content="Unnecessary field / data" />
+                <ComboBoxItem Content="Wrong rule or calculation" />
+                <ComboBoxItem Content="Hard to use / confusing" />
+                <ComboBoxItem Content="Permissions (who edits what)" />
+                <ComboBoxItem Content="Improvement idea" />
+                <ComboBoxItem Content="Application error" />
             </ComboBox>
-            <TextBlock Text="Comentario" Style="{StaticResource FieldLabel}" />
+            <TextBlock Text="Comment" Style="{StaticResource FieldLabel}" />
             <TextBox x:Name="Comment" Style="{StaticResource MultiLine}" Height="150" Margin="0,0,0,12" />
             <TextBlock x:Name="PathText" Style="{StaticResource Hint}" Margin="0,0,0,12" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Abrir carpeta" Click="OnOpenFolder" Style="{StaticResource SecondaryButton}" />
-                <Button Content="Cancelar" IsCancel="True" Style="{StaticResource SecondaryButton}" />
-                <Button Content="Guardar comentario" Click="OnSave" Style="{StaticResource PrimaryButton}" Margin="0" />
+                <Button Content="Open folder" Click="OnOpenFolder" Style="{StaticResource SecondaryButton}" />
+                <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" />
+                <Button Content="Save comment" Click="OnSave" Style="{StaticResource PrimaryButton}" Margin="0" />
             </StackPanel>
         </StackPanel>
     </Border>

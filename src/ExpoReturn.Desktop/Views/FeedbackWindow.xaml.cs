@@ -8,8 +8,7 @@ using ExpoReturn.Application;
 namespace ExpoReturn.Desktop.Views;
 
 /// <summary>
-/// Captura comentarios de los revisores del borrador en un CSV local
-/// (%LOCALAPPDATA%\ExpoReturnBorrador\comentarios.csv) para consolidarlos después.
+/// Stores reviewer feedback in a local CSV (%LOCALAPPDATA%\ExpoReturn\feedback.csv) to be consolidated later.
 /// </summary>
 public partial class FeedbackWindow : Window
 {
@@ -17,15 +16,15 @@ public partial class FeedbackWindow : Window
     private readonly UserContext _user;
 
     public static string FeedbackFile => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExpoReturnBorrador", "comentarios.csv");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExpoReturn", "feedback.csv");
 
     public FeedbackWindow(string screen, UserContext user)
     {
         InitializeComponent();
         _screen = screen;
         _user = user;
-        ContextText.Text = $"Pantalla: {screen} · Rol simulado: {user.Role.DisplayName()} · Usuario Windows: {Environment.UserName}";
-        PathText.Text = $"Se guarda en: {FeedbackFile}";
+        ContextText.Text = $"Screen: {screen} · Function: {user.FunctionText} · Windows user: {user.NtUser}";
+        PathText.Text = $"Saved to: {FeedbackFile}";
         Comment.Focus();
     }
 
@@ -33,19 +32,19 @@ public partial class FeedbackWindow : Window
     {
         if (string.IsNullOrWhiteSpace(Comment.Text))
         {
-            MessageBox.Show(this, "Escriba un comentario.", "Comentario", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "Write a comment.", "Feedback", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         Directory.CreateDirectory(Path.GetDirectoryName(FeedbackFile)!);
         var isNew = !File.Exists(FeedbackFile);
         static string Q(string s) => "\"" + s.Replace("\"", "\"\"").Replace("\r", " ").Replace("\n", " ") + "\"";
-        var line = string.Join(",", Q(DateTime.Now.ToString("yyyy-MM-dd HH:mm")), Q(Environment.UserName), Q(_user.Role.DisplayName()),
+        var line = string.Join(",", Q(DateTime.Now.ToString("yyyy-MM-dd HH:mm")), Q(_user.NtUser), Q(_user.FunctionText),
             Q(_screen), Q((Category.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? ""), Q(Comment.Text.Trim()));
         var sb = new StringBuilder();
-        if (isNew) sb.AppendLine("Fecha,UsuarioWindows,RolSimulado,Pantalla,Tipo,Comentario");
+        if (isNew) sb.AppendLine("Date,WindowsUser,Function,Screen,Type,Comment");
         sb.AppendLine(line);
         File.AppendAllText(FeedbackFile, sb.ToString(), new UTF8Encoding(true));
-        MessageBox.Show(this, "¡Gracias! Comentario guardado.", "Comentario", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(this, "Thank you! Feedback saved.", "Feedback", MessageBoxButton.OK, MessageBoxImage.Information);
         DialogResult = true;
     }
 

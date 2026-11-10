@@ -2,56 +2,104 @@ using ExpoReturn.Domain;
 
 namespace ExpoReturn.Application;
 
+/// <summary>
+/// Functional area that owns a block of fields (the Excel "Areas responsible to fill out information" row).
+/// It comes from the user's department (QMM → Qmm, MFQ/PUQ → Requestor, GS/OSD43 → Gs, …).
+/// AdminQmmPe and Viewer are kept for the Owner and read-only users.
+/// </summary>
 public enum RoleCode { AdminQmmPe, Qmm, Requestor, Gs, Lop, Mfo, Low, Hse, Viewer }
+
+/// <summary>What a user may do in a department and Value Stream. Owner ignores department and VS.</summary>
+public enum UserFunction { Viewer = 0, Proxy = 1, Champion = 2, Owner = 3 }
 
 public static class RoleInfo
 {
     public static string DisplayName(this RoleCode r) => r switch
     {
-        RoleCode.AdminQmmPe => "Admin QMM / Process Excellence",
-        RoleCode.Qmm => "QMM Champion/Proxy",
-        RoleCode.Requestor => "Solicitante (MFQ / QMM-C / LOP / PUQ)",
-        RoleCode.Gs => "Comercio Exterior GS/OSD43",
-        RoleCode.Lop => "Logística de Planta (LOP)",
-        RoleCode.Mfo => "Manufactura (MFO)",
-        RoleCode.Low => "Almacén (LOW)",
+        RoleCode.AdminQmmPe => "Owner (QMM / Process Excellence)",
+        RoleCode.Qmm => "QMM",
+        RoleCode.Requestor => "Requestor (MFQ / QMM-C / PUQ)",
+        RoleCode.Gs => "Customs GS/OSD43",
+        RoleCode.Lop => "Plant Logistics (LOP)",
+        RoleCode.Mfo => "Manufacturing (MFO)",
+        RoleCode.Low => "Warehouse (LOW)",
         RoleCode.Hse => "HSE",
-        _ => "Consulta",
+        _ => "Viewer",
     };
 
-    /// <summary>Nombre corto del área en la matriz Champions VS.</summary>
+    /// <summary>Short area name used in the access matrix.</summary>
     public static string ShortName(this RoleCode r) => r switch
     {
         RoleCode.Mfo => "MFO", RoleCode.Qmm => "QMM", RoleCode.Requestor => "MFQ", RoleCode.Gs => "GS / OSD43",
-        RoleCode.Lop => "LOP", RoleCode.Low => "LOW", RoleCode.Hse => "HSE", RoleCode.AdminQmmPe => "Admin", _ => "Consulta",
+        RoleCode.Lop => "LOP", RoleCode.Low => "LOW", RoleCode.Hse => "HSE", RoleCode.AdminQmmPe => "Owner", _ => "Viewer",
     };
+
+    /// <summary>Area of a department code (catalog Department.Area).</summary>
+    public static RoleCode AreaOfDepartment(string? departmentCode)
+    {
+        var dept = Catalogs.Departments.FirstOrDefault(d => string.Equals(d.Code, departmentCode, StringComparison.OrdinalIgnoreCase));
+        return dept?.Area switch
+        {
+            "QMM" => RoleCode.Qmm,
+            "MFQ" or "PUQ" => RoleCode.Requestor,
+            "GS" => RoleCode.Gs,
+            "LOP" => RoleCode.Lop,
+            "MFO" => RoleCode.Mfo,
+            "LOW" => RoleCode.Low,
+            "HSE" => RoleCode.Hse,
+            _ => RoleCode.Viewer,
+        };
+    }
+
+    public static bool CanEdit(this UserFunction f) => f is UserFunction.Champion or UserFunction.Proxy or UserFunction.Owner;
 }
 
-/// <summary>Usuario actual. En producción sale de Active Directory + Champions_Matrix; en el borrador se simula.</summary>
-public sealed record UserContext(string NtUser, string DisplayName, RoleCode Role, IReadOnlyList<int> ValueStreams)
+/// <summary>One row of the user access table: user × department × Value Stream × function.</summary>
+public sealed record AccessGrant(string DepartmentCode, int ValueStreamId, UserFunction Function)
 {
-    public bool IsAdmin => Role == RoleCode.AdminQmmPe;
-    /// <summary>Sólo Admin y Consulta ven todos los VS; las demás áreas quedan delimitadas por la matriz Champions VS.</summary>
-    public bool SeesAllValueStreams => Role is RoleCode.AdminQmmPe or RoleCode.Viewer;
-    public bool CoversValueStream(int vs) => IsAdmin || ValueStreams.Contains(vs);
-    public string ValueStreamText => SeesAllValueStreams ? "Todos los VS"
-        : ValueStreams.Count == 0 ? "Sin VS asignado" : string.Join(", ", ValueStreams.Select(v => $"VS{v}"));
-    public string Label => $"{DisplayName} · {Role.DisplayName()} · {ValueStreamText}";
-    public string AreaText => SeesAllValueStreams ? Role.DisplayName() : Role.ShortName();
-    /// <summary>Grupo en el selector de usuario simulado.</summary>
-    public string Group => SeesAllValueStreams ? "General" : Role.DisplayName();
+    public RoleCode Area => RoleInfo.AreaOfDepartment(DepartmentCode);
 }
 
-/// <summary>Campos editables (nombres = propiedades de PalletReturn = columnas SQL).</summary>
+/// <summary>
+/// The user running the application, read from Windows. Department and Value Streams come from the user's
+/// profile; what they can edit comes from the access grants (Champion/Proxy) the Owner assigned.
+/// </summary>
+public sealed record UserContext(string NtUser, string DisplayName, string? DepartmentCode, bool IsOwner, IReadOnlyList<AccessGrant> Grants)
+{
+    /// <summary>Owner = full access (department and VS are irrelevant).</summary>
+    public bool IsAdmin => IsOwner;
+    public IEnumerable<AccessGrant> EditGrants => Grants.Where(g => g.Function is UserFunction.Champion or UserFunction.Proxy);
+
+    /// <summary>Main area (for labels and defaults): first editing grant, else the profile department.</summary>
+    public RoleCode Role => IsOwner ? RoleCode.AdminQmmPe
+        : EditGrants.Select(g => (RoleCode?)g.Area).FirstOrDefault() ?? RoleCode.Viewer;
+
+    public UserFunction Function => IsOwner ? UserFunction.Owner
+        : Grants.Count == 0 ? UserFunction.Viewer : Grants.Max(g => g.Function);
+
+    public IReadOnlyList<int> ValueStreams => Grants.Select(g => g.ValueStreamId).Distinct().OrderBy(v => v).ToList();
+    public bool SeesAllValueStreams => IsOwner;
+    public bool CoversValueStream(int vs) => IsOwner || EditGrants.Any(g => g.ValueStreamId == vs);
+    public bool CanEditArea(RoleCode area, int vs) => IsOwner || EditGrants.Any(g => g.Area == area && g.ValueStreamId == vs);
+
+    public string ValueStreamText => IsOwner ? "All VS"
+        : ValueStreams.Count == 0 ? "No VS" : string.Join(", ", ValueStreams.Select(v => $"VS{v}"));
+    public string AreaText => IsOwner ? "Owner" : DepartmentCode ?? "—";
+    public string FunctionText => Function.ToString();
+    public string Label => $"{DisplayName} · {AreaText} · {ValueStreamText} · {FunctionText}";
+    public string Group => IsOwner ? "Owner" : RoleInfo.AreaOfDepartment(DepartmentCode).DisplayName();
+}
+
+/// <summary>Editable fields (names = PalletReturn properties = database columns), in Excel column order.</summary>
 public static class Fields
 {
-    // Campos = columnas del Excel 2.0, en su orden. "Date PO" y "PO Number" se capturan en la Solicitud.
+    // "PO Date" and "Return PO" are captured in the Request tab.
     public static readonly string[] Stage1 =
     {
         nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.RequestingDepartment), nameof(PalletReturn.RequestorName),
         nameof(PalletReturn.ReasonId), nameof(PalletReturn.ReturnReasonDetail), nameof(PalletReturn.ReturnedMaterial),
         nameof(PalletReturn.QtyImported), nameof(PalletReturn.OriginalHU), nameof(PalletReturn.OriginalBatch),
-        nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
+        nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber), nameof(PalletReturn.ReturnPOItem),
     };
     public static readonly string[] Stage2 =
     {
@@ -66,24 +114,25 @@ public static class Fields
     };
     public static readonly string[] Stage4 =
     {
-        nameof(PalletReturn.LowExport), nameof(PalletReturn.CustomsExportReference), nameof(PalletReturn.ScrapGrNumber),
-        nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate),
+        nameof(PalletReturn.LowExportNumber), nameof(PalletReturn.LowExportDate), nameof(PalletReturn.CustomsExportReference),
+        nameof(PalletReturn.ScrapGrNumber), nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate),
     };
     public static readonly string[] Stage5 = { nameof(PalletReturn.StatusCategoryCode) };
     public static IEnumerable<string> All => Stage1.Concat(Stage2).Concat(Stage3).Concat(Stage4).Concat(Stage5);
 }
 
-/// <summary>Matriz rol × campo (sec.Field_Permissions). Replica los encabezados de área del Excel.</summary>
+/// <summary>Area × field matrix (IB_PROCESS_FIELD_PERMISSIONS). Mirrors the Excel area row.</summary>
 public static class FieldPermissions
 {
-    /// <summary>Fila de áreas del Excel: QMM (Solicitud, Date PO, PO Number, COMMENTS), GS/OSD43 (importación y Customs Export),
-    /// LOP (Delivery Number), MFO (ejecución y GR Number), LOW (LOW export), HSE (kg y confirmación).</summary>
+    /// <summary>QMM (request, PO date, return PO, status category), GS/OSD43 (import and customs export),
+    /// LOP (delivery number), MFO (rework and GR number), LOW (LOW export), HSE (kg and confirmation).</summary>
     private static readonly Dictionary<RoleCode, HashSet<string>> Map = new()
     {
         [RoleCode.Qmm] = new(Fields.Stage1.Append(nameof(PalletReturn.StatusCategoryCode))),
         [RoleCode.Requestor] = new(Fields.Stage1.Except(new[]
         {
-            nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
+            nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.DateReturnedToWhs),
+            nameof(PalletReturn.ReturnPONumber), nameof(PalletReturn.ReturnPOItem),
         })),
         [RoleCode.Gs] = new(new[]
         {
@@ -92,19 +141,20 @@ public static class FieldPermissions
         }),
         [RoleCode.Lop] = new(new[] { nameof(PalletReturn.DeliveryNumber) }),
         [RoleCode.Mfo] = new(Fields.Stage3.Append(nameof(PalletReturn.ScrapGrNumber))),
-        [RoleCode.Low] = new(new[] { nameof(PalletReturn.LowExport) }),
+        [RoleCode.Low] = new(new[] { nameof(PalletReturn.LowExportNumber), nameof(PalletReturn.LowExportDate) }),
         [RoleCode.Hse] = new(new[] { nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate) }),
         [RoleCode.Viewer] = new(),
     };
 
+    /// <summary>Owner edits everything; others need a Champion/Proxy grant for the pallet's VS in an area that owns the field.</summary>
     public static bool CanEdit(UserContext user, PalletReturn pallet, string field)
     {
-        if (user.IsAdmin) return true;
-        if (!user.CoversValueStream(pallet.ValueStreamId)) return false;
+        if (user.IsOwner) return true;
         if (pallet.Status.IsClosed() || pallet.IsLegacy) return false;
-        return Map.TryGetValue(user.Role, out var set) && set.Contains(field);
+        return user.EditGrants.Any(g => g.ValueStreamId == pallet.ValueStreamId
+                                        && Map.TryGetValue(g.Area, out var set) && set.Contains(field));
     }
 
     public static IReadOnlyCollection<string> EditableFields(RoleCode role) =>
-        role == RoleCode.AdminQmmPe ? Fields.All.ToArray() : Map.TryGetValue(role, out var s) ? s : Array.Empty<string>();
+        role == RoleCode.AdminQmmPe ? Fields.All.ToList() : Map.TryGetValue(role, out var set) ? set : Array.Empty<string>();
 }

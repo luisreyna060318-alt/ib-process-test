@@ -21,7 +21,7 @@ public class FinancialAndStatusTests
         p.ImportDate = p.ImportDateElpJup1 = new DateTime(2026, 10, 30);
         p.ImportInvoice = "MPS26000222";
         p.PhysicalDeliveredQty = 576; p.OldMaterialDeliveredQty = 576; p.ReinsertionQty = 0;
-        p.LowExport = "Incluido en expo #4 de el dia 03/11/2026"; // sin PRyy-#####
+        p.LowExportNumber = 4; p.LowExportDate = new DateTime(2026, 11, 3); // no PRyy-#####
 
         var e = PalletEvaluator.Evaluate(p, CalcParameters.Default, Today);
 

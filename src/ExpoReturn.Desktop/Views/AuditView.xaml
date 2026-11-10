@@ -3,35 +3,35 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Bitácora de cambios" Style="{StaticResource PageTitle}" />
-            <TextBlock Style="{StaticResource PageSubtitle}" Text="Todos los cambios a nivel campo, de todos los registros, incluidas las alertas atendidas y los cambios a la matriz Champions. En producción es inmodificable." />
+            <TextBlock Text="Audit log" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Every field-level change of every record, including handled alerts and changes to users and access. In production it cannot be modified." />
             <!-- UX-B08: filtros -->
             <Border Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,10">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Folio" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <TextBox Text="{Binding FolioFilter, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,16,0" />
-                    <TextBlock Text="Usuario" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="User" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding UserOptions}" SelectedItem="{Binding SelectedUser}" Width="150" Margin="0,0,16,0" />
-                    <TextBlock Text="Campo" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="Field" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding FieldOptions}" SelectedItem="{Binding SelectedField}" Width="230" Margin="0,0,16,0" />
-                    <TextBlock Text="Desde" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <DatePicker SelectedDate="{Binding From}" Width="130" Margin="0,0,12,0" />
-                    <TextBlock Text="Hasta" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="To" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <DatePicker SelectedDate="{Binding To}" Width="130" Margin="0,0,16,0" />
-                    <Button Content="Limpiar filtros" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
-                    <TextBlock Text="{Binding VisibleCount, StringFormat='{}{0} cambio(s)'}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource TextMuted}" />
+                    <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
+                    <TextBlock Text="{Binding VisibleCount, StringFormat='{}{0} change(s)'}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource TextMuted}" />
                 </StackPanel>
             </Border>
         </StackPanel>
         <DataGrid ItemsSource="{Binding Entries}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Fecha / hora" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
+                <DataGridTextColumn Header="Date / time" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
                 <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="100" />
-                <DataGridTextColumn Header="Usuario" Binding="{Binding NtUser}" Width="130" />
-                <DataGridTextColumn Header="Campo" Binding="{Binding Field, Converter={StaticResource FieldNameConv}}" Width="230" />
-                <DataGridTextColumn Header="Valor anterior" Binding="{Binding OldValue}" Width="*" />
-                <DataGridTextColumn Header="Valor nuevo" Binding="{Binding NewValue}" Width="*" />
-                <DataGridTextColumn Header="Motivo" Binding="{Binding Reason}" Width="160" />
+                <DataGridTextColumn Header="User" Binding="{Binding NtUser}" Width="130" />
+                <DataGridTextColumn Header="Field" Binding="{Binding Field, Converter={StaticResource FieldNameConv}}" Width="230" />
+                <DataGridTextColumn Header="Old value" Binding="{Binding OldValue}" Width="*" />
+                <DataGridTextColumn Header="New value" Binding="{Binding NewValue}" Width="*" />
+                <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="160" />
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

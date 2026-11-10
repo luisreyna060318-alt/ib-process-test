@@ -13,52 +13,76 @@ public sealed record NavItem(string Key, string Title, string Glyph);
 public sealed partial class ShellViewModel : ObservableObject
 {
     private readonly AppServices _services;
+    private readonly string _ntUser;
 
-    public ShellViewModel(AppServices services)
+    public ShellViewModel(AppServices services, string ntUser)
     {
         _services = services;
-        Users = services.Champions.DemoUsers();
-        _currentUser = Users[0];
+        _ntUser = ntUser;
         NavItems = new[]
         {
-            new NavItem("list", "Bandeja de retornos", ""),
-            new NavItem("new", "Nuevo retorno", ""),
-            new NavItem("dashboard", "Balance / Aranceles", ""),
-            new NavItem("alerts", "Alertas", ""),
-            new NavItem("champions", "Champions VS", ""),
-            new NavItem("audit", "Bitácora", ""),
+            new NavItem("list", "Returns inbox", "\uE8FD"),
+            new NavItem("new", "New return", "\uE710"),
+            new NavItem("dashboard", "Balance / Duties", "\uE9D2"),
+            new NavItem("alerts", "Alerts", "\uE7BA"),
+            new NavItem("users", "Users & Access", "\uE716"),
+            new NavItem("audit", "Audit log", "\uE81C"),
         };
+        _realUser = services.Users.ContextFor(ntUser);
+        _currentUser = _realUser;
+        BuildViewAs();
         _selectedNav = NavItems[0];
         _currentPage = new PalletListViewModel(services, _currentUser, OpenPallet);
-        services.Champions.Changed += (_, _) => RefreshUsers();
-    }
-
-    /// <summary>La matriz Champions VS cambió: se recalculan los usuarios simulados y sus VS; se conserva el usuario actual si sigue en la matriz.</summary>
-    private void RefreshUsers()
-    {
-        var current = CurrentUser;
-        Users = _services.Champions.DemoUsers();
-        CurrentUser = Users.FirstOrDefault(u => u.NtUser == current.NtUser && u.Role == current.Role) ?? Users[0];
+        _dataSourceLabel = services.DataSourceLabel;
+        services.Users.Changed += (_, _) => RefreshIdentity();
     }
 
     public IReadOnlyList<NavItem> NavItems { get; }
     public string AppTitle => "Expo & Return FG Follow Up";
-    public string DraftNotice => "BORRADOR PARA REVISIÓN · sin base de datos: los cambios se pierden al cerrar";
+    public string DraftNotice => "DRAFT FOR REVIEW · no database yet: pallet changes are lost when the app closes";
 
-    [ObservableProperty] private IReadOnlyList<UserContext> _users;
-    /// <summary>Usuarios agrupados por área para el selector (con ~50 usuarios demo, uno por área y VS).</summary>
-    [ObservableProperty] private ICollectionView _usersView = null!;
+    /// <summary>The Windows user running the app.</summary>
+    [ObservableProperty] private UserContext _realUser;
+    public bool IsOwner => RealUser.IsOwner;
+    public string IdentityText => $"{RealUser.DisplayName} ({RealUser.NtUser})";
+    public string AccessText => RealUser.IsOwner ? "Owner · full access"
+        : $"{RealUser.DepartmentCode ?? "No department"} · {RealUser.ValueStreamText} · {RealUser.FunctionText}";
+    public string PendingRequestsText => IsOwner && _services.Users.Requests().Count is var n and > 0 ? $"{n} pending request(s)" : "";
 
-    partial void OnUsersChanged(IReadOnlyList<UserContext> value)
+    /// <summary>Owner only: preview the application as another user (test functions without their PC).</summary>
+    [ObservableProperty] private ICollectionView _viewAsOptions = null!;
+
+    partial void OnRealUserChanged(UserContext value)
     {
-        var view = new ListCollectionView(value.ToList());
-        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(UserContext.Group)));
-        UsersView = view;
+        OnPropertyChanged(nameof(IsOwner));
+        OnPropertyChanged(nameof(IdentityText));
+        OnPropertyChanged(nameof(AccessText));
+        OnPropertyChanged(nameof(PendingRequestsText));
     }
+
+    private void BuildViewAs()
+    {
+        var list = new List<UserContext> { RealUser };
+        list.AddRange(_services.Users.Users().Where(u => u.NtUser != RealUser.NtUser).Select(u => _services.Users.ContextFor(u.NtUser)));
+        var view = new ListCollectionView(list);
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(UserContext.Group)));
+        ViewAsOptions = view;
+    }
+
+    private void RefreshIdentity()
+    {
+        var viewing = CurrentUser.NtUser;
+        RealUser = _services.Users.ContextFor(_ntUser);
+        BuildViewAs();
+        CurrentUser = IsOwner && viewing != RealUser.NtUser
+            ? ViewAsOptions.Cast<UserContext>().FirstOrDefault(u => u.NtUser == viewing) ?? RealUser
+            : RealUser;
+    }
+
     private UserContext _currentUser;
     /// <summary>
-    /// Usuario simulado. Al reemplazar la lista de usuarios, el ComboBox puede mandar null momentáneamente:
-    /// se ignora y enseguida se asigna el usuario correspondiente de la lista nueva.
+    /// Effective user: the Windows user, or the user the Owner is previewing. The ComboBox can send null while its
+    /// list is replaced: ignored, the matching user of the new list is assigned right after.
     /// </summary>
     public UserContext CurrentUser
     {
@@ -66,15 +90,31 @@ public sealed partial class ShellViewModel : ObservableObject
         set
         {
             if (value is null || ReferenceEquals(value, _currentUser)) return;
+            if (!RealUser.IsOwner && value.NtUser != RealUser.NtUser) return;
             _currentUser = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsPreviewing));
             CurrentPage.User = value;
         }
     }
+    public bool IsPreviewing => CurrentUser.NtUser != RealUser.NtUser;
+
     [ObservableProperty] private NavItem? _selectedNav;
     [ObservableProperty] private PageViewModel _currentPage;
-    [ObservableProperty] private string _dataSourceLabel = "Datos de demostración (sintéticos)";
+    [ObservableProperty] private string _dataSourceLabel;
 
+    [RelayCommand]
+    private void EditProfile()
+    {
+        var win = new Views.ProfileWindow
+        {
+            DataContext = new ProfileViewModel(_services, _ntUser, firstRun: false),
+            Owner = System.Windows.Application.Current.MainWindow,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+        win.ShowDialog();
+        RefreshIdentity();
+    }
 
     private bool _suppressNav;
 
@@ -87,7 +127,7 @@ public sealed partial class ShellViewModel : ObservableObject
             "new" => new PalletDetailViewModel(_services, CurrentUser, null, Back),
             "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenList),
             "alerts" => new AlertsViewModel(_services, CurrentUser, OpenPallet),
-            "champions" => new ChampionsViewModel(_services, CurrentUser),
+            "users" => new UsersViewModel(_services, CurrentUser, RealUser),
             "audit" => new AuditViewModel(_services, CurrentUser),
             _ => new PalletListViewModel(_services, CurrentUser, OpenPallet),
         };
@@ -96,7 +136,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private bool ConfirmLeave()
     {
         if (CurrentPage is PalletDetailViewModel { IsDirty: true })
-            return MessageBox.Show("Hay cambios sin guardar. ¿Descartarlos?", "Cambios sin guardar",
+            return MessageBox.Show("There are unsaved changes. Discard them?", "Unsaved changes",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         return true;
     }
@@ -109,7 +149,7 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = new PalletDetailViewModel(_services, CurrentUser, pallet, Back);
     }
 
-    /// <summary>UX-B13: abre la bandeja con un filtro (desde Balance / Aranceles).</summary>
+    /// <summary>UX-B13: opens the inbox with a filter (from Balance / Duties).</summary>
     private void OpenList(ListFilter filter)
     {
         if (!ConfirmLeave()) return;
@@ -119,7 +159,7 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenPallet, filter);
     }
 
-    /// <summary>UX-B12: Ctrl+N abre un retorno nuevo desde cualquier pantalla.</summary>
+    /// <summary>UX-B12: Ctrl+N opens a new return from any screen.</summary>
     [RelayCommand]
     private void NewReturn()
     {
@@ -144,7 +184,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!ConfirmLeave()) return;
         var dlg = new OpenFileDialog
         {
-            Title = "Seleccione la MATRIZ DE RASTREO 2.0 (.xlsx)",
+            Title = "Select the MATRIZ DE RASTREO 2.0 (.xlsx)",
             Filter = "Excel (*.xlsx)|*.xlsx",
         };
         if (dlg.ShowDialog() != true) return;
@@ -152,18 +192,16 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             Mouse.SetWait();
             var result = _services.ImportLegacy(dlg.FileName);
-            Users = _services.Champions.DemoUsers();
-            CurrentUser = Users[0];
             DataSourceLabel = _services.DataSourceLabel;
             Back();
             var top = string.Join("\n", result.IssueCounts.OrderByDescending(k => k.Value).Take(8).Select(k => $"  • {k.Key}: {k.Value}"));
-            MessageBox.Show($"{result.Summary}\n\nPrincipales observaciones:\n{top}\n\nLos registros históricos son de SÓLO LECTURA y nada se guarda en el Excel.",
-                "Importación del Excel 2.0", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"{result.Summary}\n\nMain findings:\n{top}\n\nHistorical records are READ-ONLY and nothing is written to the Excel file.",
+                "Excel 2.0 import", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"No se pudo leer el archivo:\n{ex.Message}\n\nSi está abierto en Excel, ciérrelo e intente de nuevo.",
-                "Importación", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show($"The file could not be read:\n{ex.Message}\n\nIf it is open in Excel, close it and try again.",
+                "Import", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { Mouse.Clear(); }
     }
@@ -173,8 +211,6 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (!ConfirmLeave()) return;
         _services.ResetDemo();
-        Users = _services.Champions.DemoUsers();
-        CurrentUser = Users[0];
         DataSourceLabel = _services.DataSourceLabel;
         Back();
     }

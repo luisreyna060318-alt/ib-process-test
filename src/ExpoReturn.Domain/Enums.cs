@@ -22,16 +22,16 @@ public static class WorkflowStatusInfo
 
     public static string DisplayName(this WorkflowStatus s) => s switch
     {
-        WorkflowStatus.Draft => "Borrador",
-        WorkflowStatus.Requested => "Solicitado",
-        WorkflowStatus.Imported => "Importado",
-        WorkflowStatus.InRework => "En retrabajo",
-        WorkflowStatus.PendingHse => "Pendiente HSE",
-        WorkflowStatus.PendingExport => "Pendiente exportación",
-        WorkflowStatus.DutyRisk => "Riesgo arancelario",
-        WorkflowStatus.Exported => "Exportado",
-        WorkflowStatus.Scrapped => "Scrap confirmado",
-        WorkflowStatus.ClosedDutyPaid => "Cerrado c/aranceles pagados",
+        WorkflowStatus.Draft => "Draft",
+        WorkflowStatus.Requested => "Requested",
+        WorkflowStatus.Imported => "Imported",
+        WorkflowStatus.InRework => "In rework",
+        WorkflowStatus.PendingHse => "Pending HSE",
+        WorkflowStatus.PendingExport => "Pending export",
+        WorkflowStatus.DutyRisk => "Duty risk",
+        WorkflowStatus.Exported => "Exported",
+        WorkflowStatus.Scrapped => "Scrap confirmed",
+        WorkflowStatus.ClosedDutyPaid => "Closed (duty paid)",
         _ => s.ToString(),
     };
 }

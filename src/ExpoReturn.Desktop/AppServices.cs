@@ -4,35 +4,37 @@ using ExpoReturn.Infrastructure.InMemory;
 namespace ExpoReturn.Desktop;
 
 /// <summary>
-/// Composición de servicios. En el borrador todo vive en memoria; en producción este es el único
-/// lugar que cambia (cliente HTTP hacia la Web API en lugar de repositorios en memoria).
+/// Service composition. In the draft pallets live in memory and users in a JSON file; in production this is the only
+/// place that changes (Oracle-backed repositories instead of the in-memory / file ones).
 /// </summary>
 public sealed class AppServices
 {
+    public required AppConfig Config { get; init; }
     public required InMemoryPalletRepository Repository { get; init; }
     public required InMemoryAuditTrail Audit { get; init; }
-    public required ChampionsDirectory Champions { get; init; }
+    public required IUserDirectory Users { get; init; }
     public required IClock Clock { get; init; }
     public required PalletReturnService Pallets { get; init; }
     public required ReportingService Reporting { get; init; }
     public required InMemoryAlertAcknowledgementStore AlertAcks { get; init; }
     public UserPreferences Preferences { get; } = UserPreferences.Load();
 
-    public string DataSourceLabel { get; set; } = "Datos de demostración (sintéticos)";
+    public string DataSourceLabel { get; set; } = "Demo data (synthetic)";
 
-    public static AppServices CreateDemo()
+    public static AppServices Create(AppConfig config)
     {
         var repo = new InMemoryPalletRepository();
         var audit = new InMemoryAuditTrail();
-        var champions = new ChampionsDirectory();
+        var users = new UserDirectory(config.ResolvedUserStorePath, config.Owners, config.DemoUsers);
         var clock = new SystemClock();
-        SampleData.Seed(repo, audit, champions, clock);
+        if (config.DemoData) SampleData.Seed(repo, audit, users, clock);
         return new AppServices
         {
-            Repository = repo, Audit = audit, Champions = champions, Clock = clock,
+            Config = config, Repository = repo, Audit = audit, Users = users, Clock = clock,
             Pallets = new PalletReturnService(repo, audit, clock),
             Reporting = new ReportingService(repo, clock),
             AlertAcks = new InMemoryAlertAcknowledgementStore(),
+            DataSourceLabel = config.DemoData ? "Demo data (synthetic)" : "No data loaded",
         };
     }
 
@@ -40,9 +42,8 @@ public sealed class AppServices
     {
         Audit.Clear();
         AlertAcks.Clear();
-        Champions.Replace(new ChampionsDirectory().All());
-        SampleData.Seed(Repository, Audit, Champions, Clock);
-        DataSourceLabel = "Datos de demostración (sintéticos)";
+        SampleData.Seed(Repository, Audit, Users, Clock);
+        DataSourceLabel = "Demo data (synthetic)";
     }
 
     public LegacyImportResult ImportLegacy(string path)
@@ -51,8 +52,7 @@ public sealed class AppServices
         Audit.Clear();
         AlertAcks.Clear();
         Repository.ReplaceAll(result.Pallets);
-        if (result.Champions.Count > 0) Champions.Replace(result.Champions);
-        DataSourceLabel = $"Excel importado (sólo lectura, en memoria): {System.IO.Path.GetFileName(path)}";
+        DataSourceLabel = $"Imported Excel (read-only, in memory): {System.IO.Path.GetFileName(path)}";
         return result;
     }
 }

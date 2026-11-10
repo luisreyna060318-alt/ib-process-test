@@ -10,7 +10,7 @@ public static partial class Identifiers
     [GeneratedRegex(@"^\d{10}$")] private static partial Regex HuRx();
     [GeneratedRegex(@"^[A-Z]{2}\d{8}$")] private static partial Regex BatchRx();
     [GeneratedRegex(@"^MPS\d{8}$")] private static partial Regex InvoiceRx();
-    [GeneratedRegex(@"^\d{8}(\s*-\s*\d{1,5})?$")] private static partial Regex PoRx();
+    [GeneratedRegex(@"^\d{8}$")] private static partial Regex PoRx();
     [GeneratedRegex(@"^\d{10}$")] private static partial Regex GrRx();
 
     /// <summary>

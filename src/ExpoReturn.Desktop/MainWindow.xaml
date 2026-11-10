@@ -14,7 +14,7 @@
         <DataTemplate DataType="{x:Type vm:PalletDetailViewModel}"><v:PalletDetailView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><v:DashboardView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AlertsViewModel}"><v:AlertsView /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ChampionsViewModel}"><v:ChampionsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:UsersViewModel}"><v:UsersView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AuditViewModel}"><v:AuditView /></DataTemplate>
     </Window.Resources>
 
@@ -24,7 +24,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ===== Navegación lateral ===== -->
+        <!-- ===== Side navigation ===== -->
         <DockPanel Background="{StaticResource Primary}">
             <StackPanel DockPanel.Dock="Top" Margin="18,20,18,24">
                 <TextBlock Text="JuP1 · ME/QMM" Foreground="#93C5FD" FontSize="11.5" />
@@ -32,11 +32,11 @@
                 <TextBlock Text="FG Follow Up" Foreground="White" FontSize="15" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Bottom" Margin="16,12,16,18">
-                <Button Content="Importar Excel 2.0…" Command="{Binding ImportExcelCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
-                        ToolTip="Carga la MATRIZ DE RASTREO 2.0 en memoria (sólo lectura) para ver datos reales" />
-                <Button Content="Restaurar datos demo" Command="{Binding ResetDemoCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8" />
-                <Button Content="✎  Enviar comentario" Command="{Binding OpenFeedbackCommand}" Style="{StaticResource PrimaryButton}" Background="#2E75B6" BorderBrush="#2E75B6" Margin="0" />
-                <TextBlock Text="v0.1.7 · borrador" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
+                <Button Content="Import Excel 2.0…" Command="{Binding ImportExcelCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
+                        ToolTip="Loads the MATRIZ DE RASTREO 2.0 in memory (read-only) to see real data" />
+                <Button Content="Reset demo data" Command="{Binding ResetDemoCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8" />
+                <Button Content="✎  Send feedback" Command="{Binding OpenFeedbackCommand}" Style="{StaticResource PrimaryButton}" Background="#2E75B6" BorderBrush="#2E75B6" Margin="0" />
+                <TextBlock Text="v0.2.0 · draft" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
             </StackPanel>
             <ListBox ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}" Background="Transparent" BorderThickness="0"
                      ItemContainerStyle="{StaticResource NavItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -51,7 +51,7 @@
             </ListBox>
         </DockPanel>
 
-        <!-- ===== Contenido ===== -->
+        <!-- ===== Content ===== -->
         <DockPanel Grid.Column="1">
             <Border DockPanel.Dock="Top" Background="White" BorderBrush="{StaticResource BorderBrushLight}" BorderThickness="0,0,0,1" Padding="20,10">
                 <Grid>
@@ -62,31 +62,47 @@
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding DraftNotice}" Foreground="#B45309" FontWeight="SemiBold" FontSize="12" />
                         <TextBlock Text="{Binding DataSourceLabel}" Foreground="{StaticResource TextMuted}" FontSize="12" />
+                        <TextBlock Foreground="#7C3AED" FontWeight="SemiBold" FontSize="12"
+                                   Visibility="{Binding IsPreviewing, Converter={StaticResource BoolToVis}}">
+                            <Run Text="PREVIEW · you are seeing the app with the access of " /><Run Text="{Binding CurrentUser.DisplayName, Mode=OneWay}" />
+                        </TextBlock>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Usuario simulado (rol / VS):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextMuted}" />
-                        <ComboBox ItemsSource="{Binding UsersView}" SelectedItem="{Binding CurrentUser}" Width="520" MaxDropDownHeight="560"
-                                  IsSynchronizedWithCurrentItem="False"
-                                  ToolTip="Usuarios de la matriz Champions VS agrupados por área (cada uno edita sólo en sus VS). En producción el usuario sale de Windows (Active Directory)">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock>
-<Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" · " Foreground="#6B7280" /><Run Text="{Binding AreaText, Mode=OneWay}" /><Run Text=" · " Foreground="#6B7280" /><Run Text="{Binding ValueStreamText, Mode=OneWay}" />
-                                    </TextBlock>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                            <ComboBox.GroupStyle>
-                                <GroupStyle>
-                                    <GroupStyle.HeaderTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#E5E7EB" Padding="8,3">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1F3864" FontSize="12" />
-                                            </Border>
-                                        </DataTemplate>
-                                    </GroupStyle.HeaderTemplate>
-                                </GroupStyle>
-                            </ComboBox.GroupStyle>
-                        </ComboBox>
+                        <!-- Windows user running the app and the access the Owner assigned -->
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding IdentityText}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding AccessText}" Foreground="{StaticResource TextMuted}" FontSize="12" HorizontalAlignment="Right" />
+                        </StackPanel>
+                        <Button Content="My profile" Command="{Binding EditProfileCommand}" Style="{StaticResource SecondaryButton}"
+                                ToolTip="Change your name, department or Value Streams (department / VS changes need Owner approval)" />
+                        <!-- Owner only: preview as another user -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
+                                    Visibility="{Binding IsOwner, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding PendingRequestsText}" Foreground="#B45309" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock Text="View as:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextMuted}" />
+                            <ComboBox ItemsSource="{Binding ViewAsOptions}" SelectedItem="{Binding CurrentUser}" Width="360" MaxDropDownHeight="560"
+                                      IsSynchronizedWithCurrentItem="False"
+                                      ToolTip="Owner only: see the application with another user's access to check their functions">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+<Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" · " Foreground="#6B7280" /><Run Text="{Binding AreaText, Mode=OneWay}" /><Run Text=" · " Foreground="#6B7280" /><Run Text="{Binding ValueStreamText, Mode=OneWay}" /><Run Text=" · " Foreground="#6B7280" /><Run Text="{Binding FunctionText, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                                <ComboBox.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#E5E7EB" Padding="8,3">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1F3864" FontSize="12" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ComboBox.GroupStyle>
+                            </ComboBox>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>

@@ -20,10 +20,10 @@ public static class ClosureDocument
 
     public static string Describe(ClosureDocumentType t) => t switch
     {
-        ClosureDocumentType.None => "Sin documento",
-        ClosureDocumentType.ExportPedimento => "Exportación (PRyy-#####)",
-        ClosureDocumentType.CambioRegimenF4 => "Cambio de régimen F4 (duty pagado)",
-        ClosureDocumentType.PedimentoVirtualV1 => "Pedimento virtual V1 (envío nacional)",
-        _ => "Texto no reconocido (no cierra)",
+        ClosureDocumentType.None => "No document",
+        ClosureDocumentType.ExportPedimento => "Export (PRyy-#####)",
+        ClosureDocumentType.CambioRegimenF4 => "Regime change F4 (duty paid)",
+        ClosureDocumentType.PedimentoVirtualV1 => "Virtual pedimento V1 (domestic shipment)",
+        _ => "Unrecognized text (does not close)",
     };
 }

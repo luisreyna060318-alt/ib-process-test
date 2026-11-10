@@ -56,9 +56,9 @@ public sealed partial class PalletListViewModel : PageViewModel
     public PalletListViewModel(AppServices services, UserContext user, Action<int> open, ListFilter? initial = null) : base(services, user)
     {
         _open = open;
-        ValueStreamOptions = new[] { new LookupItem(null, "Todos los VS") }
+        ValueStreamOptions = new[] { new LookupItem(null, "All VS") }
             .Concat(Catalogs.ValueStreams.Select(v => new LookupItem(v.Id, v.Code))).ToList();
-        StatusOptions = new[] { new LookupItem("open", "Abiertos"), new LookupItem(null, "Todos") }
+        StatusOptions = new[] { new LookupItem("open", "Open"), new LookupItem(null, "All") }
             .Concat(Enum.GetValues<WorkflowStatus>().Select(s => new LookupItem(s, s.DisplayName()))).ToList();
         _selectedValueStream = ValueStreamOptions[0];
         _selectedStatus = StatusOptions[0];
@@ -70,7 +70,7 @@ public sealed partial class PalletListViewModel : PageViewModel
         Refresh();
     }
 
-    public override string Title => "Bandeja de retornos";
+    public override string Title => "Returns inbox";
     public ICollectionView Rows { get; }
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; }
     public IReadOnlyList<LookupItem> StatusOptions { get; }
@@ -186,7 +186,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     private string FilterDescription =>
         $"{SelectedValueStream?.Label} · {SelectedStatus?.Label}" +
         (string.IsNullOrWhiteSpace(SearchText) ? "" : $" · \"{SearchText}\"") +
-        (OnlyDutyRisk ? " · sólo riesgo arancelario" : "");
+        (OnlyDutyRisk ? " · duty risk only" : "");
 
     [RelayCommand]
     private void Open(PalletRow? row)
@@ -210,20 +210,20 @@ public sealed partial class PalletListViewModel : PageViewModel
     {
         var dlg = new SaveFileDialog
         {
-            Title = "Exportar bandeja (sólo lectura)",
+            Title = "Export inbox (read-only)",
             Filter = "Excel (*.xlsx)|*.xlsx",
-            FileName = $"Bandeja_retornos_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
+            FileName = $"Returns_inbox_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
         };
         if (dlg.ShowDialog() != true) return;
         try
         {
             var visible = Rows.Cast<PalletRow>().Select(r => r.Pallet).ToList();
             ExcelExporter.ExportPallets(visible, dlg.FileName, Services.Clock.Today, FilterDescription);
-            Message = $"Se exportaron {visible.Count} registros a {System.IO.Path.GetFileName(dlg.FileName)} (hoja protegida, sólo lectura).";
+            Message = $"{visible.Count} records exported to {System.IO.Path.GetFileName(dlg.FileName)} (protected, read-only sheet).";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"No se pudo exportar:\n{ex.Message}\n\nSi el archivo está abierto en Excel, ciérrelo.", "Exportar", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show($"Could not export:\n{ex.Message}\n\nIf the file is open in Excel, close it.", "Export", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 }

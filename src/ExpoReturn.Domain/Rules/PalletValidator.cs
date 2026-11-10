@@ -6,7 +6,7 @@ public sealed record ValidationIssue(string Code, Severity Severity, string Fiel
 {
     private static readonly HashSet<string> RequiredCodes = new() { "VAL-001", "VAL-012", "VAL-015", "VAL-016", "VAL-017" };
 
-    public string SeverityText => Severity switch { Severity.Error => "Error", Severity.Warning => "Advertencia", _ => "Info" };
+    public string SeverityText => Severity switch { Severity.Error => "Error", Severity.Warning => "Warning", _ => "Info" };
 
     /// <summary>Aviso de dato obligatorio pendiente para pasar a "Solicitado" (no bloquea el guardado).</summary>
     public bool IsRequiredPending => Severity == Severity.Warning && RequiredCodes.Contains(Code);
@@ -23,86 +23,87 @@ public static class PalletValidator
 
         // ---- Transversales ----
         foreach (var (field, date) in Dates(p))
-            if (date?.Date > today.Date) E("VAL-003", field, $"{field}: no se permiten fechas futuras.");
+            if (date?.Date > today.Date) E("VAL-003", field, $"{field}: future dates are not allowed.");
 
         // ---- Etapa 1 ----
-        if (string.IsNullOrWhiteSpace(p.ReturnedMaterial)) W("VAL-001", nameof(p.ReturnedMaterial), "Falta el número de parte devuelto (requerido para pasar a Solicitado).");
-        else if (!Identifiers.IsValidMaterial(p.ReturnedMaterial)) E("VAL-010", nameof(p.ReturnedMaterial), "P/N no cumple el formato XXXX.XXX.XXX-XX(X).");
-        if (p.UnitCostUsd is null or 0) W("VAL-011", nameof(p.UnitCostUsd), "Material sin costo MM60 ('COSTEAR'): el valor en riesgo se calcula en 0.");
-        if (p.QtyImported < 0) E("VAL-012", nameof(p.QtyImported), "La cantidad importada no puede ser negativa.");
-        else if (p.QtyImported == 0) W("VAL-012", nameof(p.QtyImported), "Capture la cantidad importada (requerida para pasar a Solicitado).");
+        if (string.IsNullOrWhiteSpace(p.ReturnedMaterial)) W("VAL-001", nameof(p.ReturnedMaterial), "Returned part number is missing (required to move to Requested).");
+        else if (!Identifiers.IsValidMaterial(p.ReturnedMaterial)) E("VAL-010", nameof(p.ReturnedMaterial), "Part number does not match XXXX.XXX.XXX-XX(X).");
+        if (p.UnitCostUsd is null or 0) W("VAL-011", nameof(p.UnitCostUsd), "No MM60 cost for this material ('COSTEAR'): the value at risk is calculated as 0.");
+        if (p.QtyImported < 0) E("VAL-012", nameof(p.QtyImported), "Quantity imported cannot be negative.");
+        else if (p.QtyImported == 0) W("VAL-012", nameof(p.QtyImported), "Enter the quantity imported (required to move to Requested).");
         if (string.IsNullOrWhiteSpace(p.OriginalHU) && string.IsNullOrWhiteSpace(p.OriginalBatch))
-            W("VAL-001", nameof(p.OriginalHU), "Capture el HU original o el lote original.");
+            W("VAL-001", nameof(p.OriginalHU), "Enter the original HU or the original batch.");
         if (!string.IsNullOrWhiteSpace(p.OriginalHU) && !Identifiers.IsHandlingUnit(p.OriginalHU))
-            W("VAL-013", nameof(p.OriginalHU), "El HU original no es de 10 dígitos (si es un lote, captúrelo en Lote original). [VALIDAR regla]");
+            W("VAL-013", nameof(p.OriginalHU), "Original HU is not 10 digits (if it is a batch, enter it in Original batch). [VALIDATE rule]");
         if (!string.IsNullOrWhiteSpace(p.OriginalBatch) && !Identifiers.IsBatch(p.OriginalBatch))
-            W("VAL-014", nameof(p.OriginalBatch), "El lote original no tiene el formato AA99999999.");
-        if (p.ReasonId is null) W("VAL-015", nameof(p.ReasonId), "Seleccione el motivo oficial (requerido para pasar a Solicitado).");
-        if (string.IsNullOrWhiteSpace(p.RequestingDepartment)) W("VAL-016", nameof(p.RequestingDepartment), "Seleccione el departamento solicitante (requerido para pasar a Solicitado).");
-        if (string.IsNullOrWhiteSpace(p.RequestorName)) W("VAL-001", nameof(p.RequestorName), "Capture el nombre del solicitante (requerido para pasar a Solicitado).");
-        if (string.IsNullOrWhiteSpace(p.QmmResponsible)) W("VAL-017", nameof(p.QmmResponsible), "Asigne el QMM Responsible (Champion/Proxy del VS) para pasar a Solicitado.");
+            W("VAL-014", nameof(p.OriginalBatch), "Original batch does not match AA99999999.");
+        if (p.ReasonId is null) W("VAL-015", nameof(p.ReasonId), "Select the reason (required to move to Requested).");
+        if (string.IsNullOrWhiteSpace(p.RequestingDepartment)) W("VAL-016", nameof(p.RequestingDepartment), "Select the requesting department (required to move to Requested).");
+        if (string.IsNullOrWhiteSpace(p.RequestorName)) W("VAL-001", nameof(p.RequestorName), "Enter the requestor name (required to move to Requested).");
+        if (string.IsNullOrWhiteSpace(p.QmmResponsible)) W("VAL-017", nameof(p.QmmResponsible), "Assign the QMM responsible (VS Champion/Proxy) to move to Requested.");
 
         // ---- Etapa 2 ----
         var stage2Data = p.ImportDate is not null || p.ImportDateElpJup1 is not null || !string.IsNullOrWhiteSpace(p.ImportInvoice);
-        if (stage2Data && !StageGuards.Stage1Complete(p)) E("VAL-020", nameof(p.ImportDateElpJup1), "Complete la Etapa 1 (solicitud) antes de registrar la importación.");
-        if (p.ImportDate < p.DateReturnedToWhs) W("VAL-021", nameof(p.ImportDate), "La fecha de importación es anterior a la fecha PO. [VALIDAR regla]");
-        if (p.ImportDateElpJup1 < p.DateReturnedToWhs) W("VAL-021", nameof(p.ImportDateElpJup1), "El cruce El Paso → JuP1 es anterior a la fecha PO. [VALIDAR regla]");
+        if (stage2Data && !StageGuards.Stage1Complete(p)) E("VAL-020", nameof(p.ImportDateElpJup1), "Complete the request (tab 1) before recording the import.");
+        if (p.ImportDate < p.DateReturnedToWhs) W("VAL-021", nameof(p.ImportDate), "Import date is earlier than the PO date. [VALIDATE rule]");
+        if (p.ImportDateElpJup1 < p.DateReturnedToWhs) W("VAL-021", nameof(p.ImportDateElpJup1), "El Paso → JuP1 crossing is earlier than the PO date. [VALIDATE rule]");
         if (p.ImportDateElpJup1 is not null && (p.ImportDate is null || string.IsNullOrWhiteSpace(p.ImportInvoice)))
-            E("VAL-022", nameof(p.ImportDateElpJup1), "El cruce El Paso → JuP1 requiere fecha de importación y factura.");
+            E("VAL-022", nameof(p.ImportDateElpJup1), "El Paso → JuP1 crossing requires import date and invoice.");
         if (!string.IsNullOrWhiteSpace(p.ImportInvoice))
         {
-            if (!Identifiers.IsInvoice(p.ImportInvoice)) W("VAL-023", nameof(p.ImportInvoice), "La factura no cumple el formato MPS########.");
+            if (!Identifiers.IsInvoice(p.ImportInvoice)) W("VAL-023", nameof(p.ImportInvoice), "Invoice does not match MPS########.");
             else if (p.ImportDate is not null && Identifiers.InvoiceYear(p.ImportInvoice) != p.ImportDate.Value.Year)
-                W("VAL-023", nameof(p.ImportInvoice), $"El año de la factura ({Identifiers.InvoiceYear(p.ImportInvoice)}) no coincide con la fecha de importación ({p.ImportDate:yyyy}).");
+                W("VAL-023", nameof(p.ImportInvoice), $"Invoice year ({Identifiers.InvoiceYear(p.ImportInvoice)}) does not match the import date ({p.ImportDate:yyyy}).");
         }
         if (!string.IsNullOrWhiteSpace(p.ReturnPONumber) && !Identifiers.IsPurchaseOrder(p.ReturnPONumber))
-            W("VAL-024", nameof(p.ReturnPONumber), "La PO de retorno debe tener 8 dígitos (opcionalmente ' - posición', p. ej. 49398082 - 999).");
+            W("VAL-024", nameof(p.ReturnPONumber), "Return PO must have 8 digits (the item goes in its own field).");
 
         // ---- Etapa 3 ----
         var stage3Data = p.PhysicalDeliveredQty is not null || p.OldMaterialDeliveredQty is not null || (p.ScrapQty ?? 0) > 0 || p.NewHU is not null;
-        if (stage3Data && p.ImportDateElpJup1 is null) E("VAL-030", nameof(p.PhysicalDeliveredQty), "No se puede registrar la ejecución MFO sin el cruce El Paso → JuP1.");
+        if (stage3Data && p.ImportDateElpJup1 is null) E("VAL-030", nameof(p.PhysicalDeliveredQty), "MFO execution cannot be recorded without the El Paso → JuP1 crossing.");
         var reason = Catalogs.FindReason(p.ReasonId);
         if (reason is { RequiresNewMaterial: true })
         {
-            if (stage3Data && string.IsNullOrWhiteSpace(p.NewMaterial)) E("VAL-031", nameof(p.NewMaterial), "Reflash: capture el número de parte nuevo.");
-            else if (!string.IsNullOrWhiteSpace(p.NewMaterial) && p.NewMaterial == p.ReturnedMaterial) E("VAL-031", nameof(p.NewMaterial), "Reflash: el número de parte nuevo debe ser distinto al original.");
+            if (stage3Data && string.IsNullOrWhiteSpace(p.NewMaterial)) E("VAL-031", nameof(p.NewMaterial), "Reflash: enter the new part number.");
+            else if (!string.IsNullOrWhiteSpace(p.NewMaterial) && p.NewMaterial == p.ReturnedMaterial) E("VAL-031", nameof(p.NewMaterial), "Reflash: the new part number must differ from the original.");
         }
         else if (!string.IsNullOrWhiteSpace(p.NewMaterial) && p.NewMaterial != p.ReturnedMaterial)
-            W("VAL-031", nameof(p.NewMaterial), "El número de parte nuevo es distinto al original pero el motivo no es 'reflash'.");
+            W("VAL-031", nameof(p.NewMaterial), "New part number differs from the original but the reason is not 'reflash'.");
         if (!string.IsNullOrWhiteSpace(p.NewMaterial) && !Identifiers.IsValidMaterial(p.NewMaterial))
-            E("VAL-010", nameof(p.NewMaterial), "El número de parte nuevo no cumple el formato XXXX.XXX.XXX-XX(X).");
+            E("VAL-010", nameof(p.NewMaterial), "New part number does not match XXXX.XXX.XXX-XX(X).");
         if (p.PhysicalDeliveredQty is not null && p.OldMaterialDeliveredQty is not null
             && p.PhysicalDeliveredQty != p.OldMaterialDeliveredQty + (p.ReinsertionQty ?? 0))
-            E("VAL-032", nameof(p.PhysicalDeliveredQty), "Entregado físicamente a LOW debe ser igual a material original devuelto + material reinsertado.");
+            E("VAL-032", nameof(p.PhysicalDeliveredQty), "Physical delivered to LOW must equal old material delivered + reinsertion quantity.");
         var outQty = (p.OldMaterialDeliveredQty ?? 0) + (p.ScrapQty ?? 0);
-        if (outQty > p.QtyImported) E("VAL-033", nameof(p.OldMaterialDeliveredQty), $"Material devuelto + scrap ({outQty}) excede lo importado ({p.QtyImported}).");
+        if (outQty > p.QtyImported) E("VAL-033", nameof(p.OldMaterialDeliveredQty), $"Old material delivered + scrap ({outQty}) exceeds the quantity imported ({p.QtyImported}).");
         if (p.PhysicalDeliveredQty is not null && outQty < p.QtyImported)
-            W("VAL-034", nameof(p.PhysicalDeliveredQty), $"Faltan {p.QtyImported - outQty} pzs por conciliar: quedan como faltante y el pallet pasa a riesgo arancelario. QMM debe clasificarlo en Categoría de estatus.");
-        if ((p.ScrapQty ?? 0) > 0 && p.ScrapDate is null) E("VAL-035", nameof(p.ScrapDate), "Una cantidad a scrap mayor a 0 requiere la fecha de scrap.");
-        if (p.ScrapDate < p.ImportDateElpJup1) E("VAL-035", nameof(p.ScrapDate), "La fecha de scrap no puede ser anterior al cruce.");
+            W("VAL-034", nameof(p.PhysicalDeliveredQty), $"{p.QtyImported - outQty} pcs not reconciled: they are counted as missing and the pallet goes to duty risk. QMM must classify it in Status category.");
+        if ((p.ScrapQty ?? 0) > 0 && p.ScrapDate is null) E("VAL-035", nameof(p.ScrapDate), "A scrap quantity greater than 0 requires the scrap date.");
+        if (p.ScrapDate < p.ImportDateElpJup1) E("VAL-035", nameof(p.ScrapDate), "Scrap date cannot be earlier than the crossing.");
         if (!string.IsNullOrWhiteSpace(p.NewHU) && !Identifiers.IsHandlingUnit(p.NewHU))
-            W("VAL-036", nameof(p.NewHU), "El HU nuevo no es de 10 dígitos. [VALIDAR regla]");
-        if (p.DateSentBack < p.ImportDateElpJup1) E("VAL-037", nameof(p.DateSentBack), "La fecha de regreso no puede ser anterior al cruce.");
+            W("VAL-036", nameof(p.NewHU), "New HU is not 10 digits. [VALIDATE rule]");
+        if (p.DateSentBack < p.ImportDateElpJup1) E("VAL-037", nameof(p.DateSentBack), "Sent-back date cannot be earlier than the crossing.");
 
         // ---- Etapa 4 ----
-        if (!string.IsNullOrWhiteSpace(p.LowExport) && (p.OldMaterialDeliveredQty ?? 0) == 0)
-            W("VAL-040", nameof(p.LowExport), "Expo LOW capturada sin material original devuelto a LOW.");
+        if ((p.LowExportNumber is not null || p.LowExportDate is not null) && (p.OldMaterialDeliveredQty ?? 0) == 0)
+            E("VAL-040", nameof(p.LowExportNumber), "LOW export requires old material delivered to LOW.");
+        if (p.LowExportDate < p.DateSentBack) W("VAL-040", nameof(p.LowExportDate), "LOW export date is earlier than the sent-back date.");
         var hseAny = p.HseConfirmationDate is not null || p.HseScrapKg is not null || !string.IsNullOrWhiteSpace(p.ScrapGrNumber);
         if (hseAny)
         {
-            if ((p.ScrapQty ?? 0) <= 0) E("VAL-041", nameof(p.ScrapQty), "HSE confirmó la destrucción, pero la cantidad a scrap es 0.");
-            if (p.HseConfirmationDate < p.ScrapDate) E("VAL-043", nameof(p.HseConfirmationDate), "La confirmación HSE no puede ser anterior a la fecha de scrap.");
-            if (!string.IsNullOrWhiteSpace(p.ScrapGrNumber) && !Identifiers.IsGrNumber(p.ScrapGrNumber)) E("VAL-044", nameof(p.ScrapGrNumber), "El número de GR debe ser numérico de 10 dígitos.");
+            if ((p.ScrapQty ?? 0) <= 0) E("VAL-041", nameof(p.ScrapQty), "HSE confirmed the destruction, but the scrap quantity is 0.");
+            if (p.HseConfirmationDate < p.ScrapDate) E("VAL-043", nameof(p.HseConfirmationDate), "HSE confirmation cannot be earlier than the scrap date.");
+            if (!string.IsNullOrWhiteSpace(p.ScrapGrNumber) && !Identifiers.IsGrNumber(p.ScrapGrNumber)) E("VAL-044", nameof(p.ScrapGrNumber), "GR number must be 10 digits.");
             if (p.HseConfirmationDate is not null && (string.IsNullOrWhiteSpace(p.ScrapGrNumber) || p.HseScrapKg is null or <= 0))
-                E("VAL-045", nameof(p.HseConfirmationDate), "La confirmación HSE requiere número de GR y kg mayores a 0.");
+                E("VAL-045", nameof(p.HseConfirmationDate), "HSE confirmation requires GR number and kg greater than 0.");
         }
         switch (p.ClosureType)
         {
             case ClosureDocumentType.Unrecognized:
-                E("VAL-046", nameof(p.CustomsExportReference), "La exportación aduanal debe ser PRyy-##### (o F4 / V1). Textos como 'scrap marzo' no cierran el pallet.");
+                E("VAL-046", nameof(p.CustomsExportReference), "Customs export must be PRyy-##### (or F4 / V1). Text such as 'scrap marzo' does not close the pallet.");
                 break;
             case ClosureDocumentType.ExportPedimento when (p.OldMaterialDeliveredQty ?? 0) == 0:
-                E("VAL-046", nameof(p.CustomsExportReference), "La exportación requiere material original devuelto a LOW.");
+                E("VAL-046", nameof(p.CustomsExportReference), "Customs export requires old material delivered to LOW.");
                 break;
         }
         return v;
@@ -115,6 +116,7 @@ public static class PalletValidator
         yield return (nameof(p.ImportDateElpJup1), p.ImportDateElpJup1);
         yield return (nameof(p.DateSentBack), p.DateSentBack);
         yield return (nameof(p.ScrapDate), p.ScrapDate);
+        yield return (nameof(p.LowExportDate), p.LowExportDate);
         yield return (nameof(p.HseConfirmationDate), p.HseConfirmationDate);
     }
 }

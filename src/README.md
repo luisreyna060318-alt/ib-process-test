@@ -1,6 +1,6 @@
-# Borrador de la aplicación (v0.1.7): Expo & Return FG Follow Up
+# Aplicación (v0.2.0): Expo & Return FG Follow Up
 
-Prototipo **ejecutable** para recoger opiniones reales de los usuarios antes de construir la versión definitiva. Respeta la arquitectura del documento (Sección 01): Domain → Application → Infrastructure → Desktop. **No usa base de datos**: todo vive en memoria y se pierde al cerrar.
+Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop. **Todavía sin base de datos**: los pallets viven en memoria y se pierden al cerrar; los usuarios y sus accesos se guardan en un archivo JSON hasta conectar Oracle.
 
 ## Cómo abrirlo
 
@@ -36,18 +36,37 @@ set EXPORETURN_LEGACY_XLSX=C:\ruta\PRODUCTOS_TERMINADOS_IMPORTADOS_TEMPORALMENTE
 dotnet test
 ```
 
+## Configuración (`appsettings.json`, junto al ejecutable)
+
+Se crea con valores por defecto la primera vez que se abre la app.
+
+```json
+{
+  "Owners": [ "DOMINIO\\usuario.owner" ],
+  "UserStorePath": "",
+  "DemoData": true,
+  "DemoUsers": true
+}
+```
+
+* **Owners:** usuarios de Windows con la función Owner (con o sin dominio). También puede haber filas OWNER en la tabla de accesos.
+* **UserStorePath:** archivo de usuarios. Vacío = `%LOCALAPPDATA%\ExpoReturn\users.json`. Si se apunta a una carpeta compartida, varios equipos ven los mismos usuarios (piloto).
+* **DemoData / DemoUsers:** pallets sintéticos y usuarios ficticios (uno por área y VS) para que el Owner pruebe funciones con "View as". Los usuarios demo nunca se guardan.
+
 ## Qué incluye
 
 | Pantalla | Qué permite revisar |
 |---|---|
-| **Bandeja de retornos** | Lista filtrable por VS, estatus, texto y riesgo arancelario; indicadores (abiertos, en riesgo arancelario, Balance GENERAL DLLS); orden por proximidad al vencimiento IMMEX; **filtros recordados por usuario**; **exportar a Excel de sólo lectura**; la columna "Calidad de datos" sólo aparece con datos importados |
-| **Detalle / Nuevo retorno** | Sólo las columnas del Excel 2.0, con **nombres limpios en español**; al pasar el cursor, cada campo muestra su encabezado en el Excel, la regla y un ejemplo (diccionario completo en `entregables/Diccionario_Campos_ExpoReturn.xlsx`). Fecha PO y PO de retorno se capturan en la Solicitud. **Asterisco en obligatorios**; los avisos obligatorios se agrupan en "Pendientes para pasar a Solicitado". **Categoría de estatus** ofrece la lista COMMENTS de su hoja VS, igual que en el Excel. Los campos que el usuario puede editar se resaltan en **verde ligero** y el resto queda en gris. Indicadores, estatus y conciliación se **recalculan mientras se escribe**; las validaciones son navegables |
-| **Balance / Aranceles** | Sustituto de la hoja BALANCE: por VS y año fiscal, con barras por VS y por estatus. **Clic en un VS o estatus abre la bandeja filtrada** |
-| **Alertas** | Plazo IMMEX por vencer o vencido, faltantes, plazos internos de retrabajo, exportación y HSE, costo pendiente. **Agrupadas por área responsable; "Marcar atendida" con comentario** (queda en la bitácora) |
-| **Champions VS** | Matriz Champion/Proxy por VS y área (QMM, MFQ, GS/OSD43, LOP, MFO, LOW, HSE) y los campos que edita cada rol. **La matriz delimita en qué VS edita cada usuario, en todas las áreas**; una persona puede estar en varios VS. El Admin QMM/PE agrega asignaciones y da de baja (sin fechas de vigencia; la bitácora guarda cada alta y baja). Al guardar se actualizan los usuarios simulados y sus permisos |
-| **Bitácora** | Quién cambió qué campo, cuándo y con qué valor anterior y nuevo. **Filtros por folio, usuario, campo y fechas** |
-| **Importar Excel 2.0…** | Carga la MATRIZ DE RASTREO real **en memoria y en sólo lectura**: muestra los 625 registros con las reglas nuevas y la columna "Calidad de datos" con los problemas detectados. Nada se escribe en el Excel |
-| **Enviar comentario** | Guarda la opinión del revisor (pantalla, rol, tipo, texto) en `%LOCALAPPDATA%\ExpoReturnBorrador\comentarios.csv` |
+| **Primera ejecución / My profile** | Lee el usuario de Windows automáticamente y pide nombre, Department y Value Stream(s). Empieza como **Viewer**. Después, cambiar Department o VS queda como **solicitud** para el Owner; el nombre se cambia directo. La función nunca se elige aquí |
+| **Barra superior** | Usuario de Windows, department, VS y función. El Owner ve las solicitudes pendientes y un selector **View as** para ver la app con el acceso de otro usuario (aparece el aviso "PREVIEW") |
+| **Returns inbox** | Lista filtrable por VS, estatus, texto y riesgo arancelario; indicadores; orden por vencimiento IMMEX; filtros recordados por usuario; exportar a Excel de sólo lectura |
+| **Return detail / New return** | Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **PO + PO item** y **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función (Champion/Proxy) del usuario en el VS del registro |
+| **Balance / Duties** | Sustituto de la hoja BALANCE, por VS y año fiscal; clic en un VS o estatus abre la bandeja filtrada |
+| **Alerts** | Agrupadas por área responsable; "Mark as handled" con comentario |
+| **Users & Access** | Tabla **User / Department / Value Stream / Function** (Viewer, Proxy, Champion, Owner); sólo el Owner la edita. Solicitudes pendientes con **Approve / Reject**. Matriz Champion/Proxy por VS y área, y campos que edita cada área |
+| **Audit log** | Quién cambió qué campo, cuándo, valor anterior y nuevo, incluidos accesos y solicitudes; filtros por folio, usuario, campo y fechas |
+| **Import Excel 2.0…** | Carga la MATRIZ DE RASTREO en memoria y en sólo lectura; divide PO/posición y expo LOW número/fecha |
+| **Send feedback** | Guarda el comentario en `%LOCALAPPDATA%\ExpoReturn\feedback.csv` |
 
 ## Atajos de teclado
 
@@ -63,31 +82,31 @@ dotnet test
 
 ## Guion de revisión sugerido (10 minutos)
 
-1. **Bandeja:** filtrar por "Sólo riesgo arancelario" y abrir un folio. Revisar la razón del riesgo en el encabezado.
-2. Cambiar el **usuario simulado** (arriba a la derecha; agrupado por área, hay al menos un usuario por área y por VS) a *Patricia Lozano · GS / OSD43 · VS1*. En un registro de VS1 sólo los campos de aduana quedan en verde; en un registro de otro VS todo queda en gris porque no está asignada ahí en la matriz.
-3. Abrir un registro en **Pendiente exportación** de VS1 y capturar en *Exportación aduanal* `PR26-00123`. El estatus pasa a *Exportado* y el balance a 0. Probar con un texto como `scrap marzo`: aparece el error VAL-046 y no cierra.
-4. Con *Paola Esquer · Manufactura (MFO) · VS7*, abrir un registro *En retrabajo* de VS7 y capturar *Material original devuelto a LOW* menor a lo importado y luego *Entregado físicamente a LOW*. Aparece el aviso VAL-034 (faltante) y el pallet pasa a *Riesgo arancelario*; QMM lo clasifica en *Categoría de estatus*.
-5. **Nuevo retorno** con el usuario *QMM*. Capturar un P/N sin puntos (`0265957012-24W`): se normaliza solo. Guardar y ver el folio asignado y la bitácora.
-6. Con el usuario *Admin*, en **Champions VS** seleccionar a *Andrea Salinas · QMM · VS7*, **Dar de baja** y **Guardar cambios**. En el selector de usuario Andrea queda sólo con VS1 y la bitácora registra la baja.
-7. **Importar Excel 2.0…** con el archivo real y revisar Balance / Aranceles y la columna "Calidad de datos".
-8. **Enviar comentario** en cada pantalla con lo que falte, sobre o confunda.
+1. **Primera ejecución:** abrir la app; aparece *Welcome*. El usuario de Windows ya viene escrito; elegir Department y VS y guardar. Arriba a la derecha aparece como **Viewer**: todo en gris.
+2. Poner su usuario de Windows en `"Owners"` de `appsettings.json` y volver a abrir: ahora es **Owner**.
+3. **Users & Access:** agregar una fila con otro usuario (o el suyo con otra configuración) como *Champion* de un VS y guardar; la bitácora registra el cambio.
+4. **View as** *Patricia Lozano · GS/OSD43 · VS1 · Champion*: en un registro de VS1 sólo los campos de aduana quedan en verde; en otro VS todo queda en gris.
+5. **My profile** con un usuario no Owner: cambiar el VS. Aparece como solicitud; el Owner la aprueba en **Users & Access** y el VS nuevo entra como Viewer.
+6. Abrir un registro *Pending export* de VS1 (como Owner o un GS de VS1) y capturar *Customs Export* `PR26-00123`: pasa a *Exported*. Con `scrap marzo` aparece VAL-046.
+7. **Import Excel 2.0…** con el archivo real y revisar *Return PO Item* y *LOW Export Number / Date*.
+8. **Send feedback** en cada pantalla.
 
-## Limitaciones conocidas del borrador
+## Limitaciones actuales
 
-* Sin base de datos ni Web API: los cambios se pierden al cerrar.
-* El usuario es **simulado**: la lista sale de la matriz Champions VS (cada persona con su área y todos sus VS), más Admin y Consulta. Los datos demo traen un Champion dedicado por área y por VS (35) y Proxies, algunos en varios VS. En producción el usuario sale de Active Directory y sus VS de la misma matriz.
-* Los nombres de los datos demo son **ficticios**. Con el Excel importado se usan los Champions reales de la hoja "Champions VS", sólo en memoria.
-* El costo MM60 de un P/N nuevo se toma de los registros existentes. En producción vendrá del maestro `cat.Material_Cost_MM60`.
+* Pallets sin base de datos: los cambios se pierden al cerrar. Los usuarios se guardan en el archivo JSON hasta conectar Oracle (scripts en `database/oracle/`).
+* Con el archivo en `%LOCALAPPDATA%`, cada equipo tiene sus propios usuarios; para compartirlos antes de Oracle, apuntar `UserStorePath` a una carpeta de red.
+* Los usuarios demo (`DEMO\...`) son **ficticios** y sólo existen en memoria.
+* El costo MM60 de un P/N nuevo se toma de los registros existentes; en producción vendrá de `IB_PROCESS_MM60_COSTS`.
 * Las alertas se ven en pantalla; el envío por correo o Teams es de la fase de producción.
 * **Sin integración con SAP** (fuera de alcance).
-* Parámetros provisionales [VALIDAR GS/OSD43]: tasa de duty 0.19 y plazo IMMEX de 540 días.
+* Parámetros provisionales [VALIDATE GS/OSD43]: tasa de aranceles 0.19 y plazo IMMEX de 540 días.
 
 ## Estructura
 
 | Proyecto | Contenido |
 |---|---|
 | `ExpoReturn.Domain` | `PalletReturn`, catálogos, `Identifiers` (P/N, HU, lote, factura), `FinancialCalculator`, `DutyRisk`, `StatusResolver`, `PalletValidator`, `PalletEvaluator` |
-| `ExpoReturn.Application` | Roles y matriz de permisos por campo (`FieldPermissions`), `PalletReturnService` (permisos → validación → recálculo → auditoría), `ReportingService` (Balance y alertas) |
-| `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `SampleData` (sintético), `ChampionsDirectory`, `LegacyExcelImporter` (ClosedXML) |
-| `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `ShellViewModel`, vistas y `Themes/Theme.xaml` |
-| `tests/ExpoReturn.Domain.Tests` | 41 pruebas: casos golden, invariante de balance, normalizadores, fechas heredadas, permisos e importación del Excel real |
+| `ExpoReturn.Application` | Usuario actual y accesos (`UserContext`, `AccessGrant`, `UserFunction`), `IUserDirectory`, matriz de permisos por área (`FieldPermissions`), `PalletReturnService` (permisos → validación → recálculo → auditoría), `ReportingService` |
+| `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `UserDirectory` (usuarios, accesos y solicitudes en JSON), `SampleData` (sintético), `LegacyExcelImporter` (ClosedXML) |
+| `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `AppConfig` (appsettings.json), `ProfileWindow`, `ShellViewModel`, `UsersViewModel`, vistas y `Themes/Theme.xaml` |
+| `tests/ExpoReturn.Domain.Tests` | 44 pruebas: casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |

@@ -9,14 +9,17 @@ namespace ExpoReturn.Infrastructure.InMemory;
 
 public sealed record LegacyImportResult(
     IReadOnlyList<PalletReturn> Pallets,
-    IReadOnlyList<Person> Champions,
+    IReadOnlyList<LegacyChampion> Champions,
     IReadOnlyDictionary<string, int> IssueCounts,
     IReadOnlyDictionary<string, int> RowsPerSheet)
 {
     public string Summary =>
-        $"{Pallets.Count} registros importados ({string.Join(", ", RowsPerSheet.Select(kv => $"{kv.Key}: {kv.Value}"))}); " +
-        $"{IssueCounts.Values.Sum()} observaciones de calidad de datos.";
+        $"{Pallets.Count} records imported ({string.Join(", ", RowsPerSheet.Select(kv => $"{kv.Key}: {kv.Value}"))}); " +
+        $"{IssueCounts.Values.Sum()} data quality findings.";
 }
+
+/// <summary>A name in the Excel "Champions VS" sheet (reference only: users are registered with their Windows account).</summary>
+public sealed record LegacyChampion(string Name, string Area, int ValueStreamId, string Assignment);
 
 /// <summary>
 /// Lee la MATRIZ DE RASTREO 2.0 (tablas VS_1, VS_4, VS_5, VS_7, VS_9 y hoja "Champions VS") y la convierte
@@ -149,9 +152,10 @@ public static partial class LegacyExcelImporter
                 var po = Text(C("PO"));
                 if (po is not null)
                 {
+                    // The Excel column holds "PO - item" (e.g. "49398082 - 999"): split into PO number and item.
                     var pm = PoRx().Match(po);
-                    p.ReturnPONumber = po.Length > 30 ? po[..30] : po;      // como en el Excel (p. ej. "49398082 - 999")
-                    if (!pm.Success) Flag(p, "DQ-PO-FORMAT");
+                    if (pm.Success) { p.ReturnPONumber = pm.Groups["po"].Value; if (pm.Groups["item"].Success) p.ReturnPOItem = pm.Groups["item"].Value; }
+                    else { p.ReturnPONumber = po.Length > 20 ? po[..20] : po; Flag(p, "DQ-PO-FORMAT"); }
                 }
                 p.DeliveryNumber = Text(C("Delivery"));
 
@@ -170,7 +174,15 @@ public static partial class LegacyExcelImporter
                 p.ScrapDate = Date(C("ScrapDate"));
 
                 var low = Text(C("LowExport"));
-                if (low is not null) p.LowExport = low.Length > 200 ? low[..200] : low;
+                if (low is not null)
+                {
+                    // "Incluido en expo #4 de el dia 17/07/2026" → export number 4 and date 17/07/2026.
+                    var lm = LowExportRx().Match(low);
+                    if (lm.Success) p.LowExportNumber = int.Parse(lm.Groups[1].Value);
+                    var dm = DateInTextRx().Match(low);
+                    if (dm.Success) p.LowExportDate = LegacyDate.Parse(dm.Value);
+                    if (!lm.Success && !dm.Success) Flag(p, "DQ-LOWEXPORT-TEXT");
+                }
                 var customs = C("Customs");
                 if (customs is not null && customs.HasFormula) Flag(p, "DQ-CUSTOMS-FORMULA");
                 else
@@ -207,9 +219,9 @@ public static partial class LegacyExcelImporter
     }
 
     /// <summary>Hoja "Champions VS": fila 2 = área, fila 3 = Champion/Proxy, filas 4+ = VS.</summary>
-    private static List<Person> ReadChampions(XLWorkbook wb)
+    private static List<LegacyChampion> ReadChampions(XLWorkbook wb)
     {
-        var people = new List<Person>();
+        var people = new List<LegacyChampion>();
         var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Trim().Equals("Champions VS", StringComparison.OrdinalIgnoreCase));
         if (ws is null) return people;
         var lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
@@ -223,15 +235,9 @@ public static partial class LegacyExcelImporter
                 var name = Clean(ws.Cell(r, c).GetString());
                 if (name is null) continue;
                 var area = Clean(ws.Cell(2, c).GetString())?.ToUpperInvariant();
-                var role = area switch
-                {
-                    "MFO" => RoleCode.Mfo, "QMM" => RoleCode.Qmm, "LOW" => RoleCode.Low,
-                    "OSD43" or "GS/OSD43" => RoleCode.Gs, "MFQ" => RoleCode.Requestor,
-                    "LOP" => RoleCode.Lop, "HSE" => RoleCode.Hse, _ => (RoleCode?)null,
-                };
-                if (role is null) continue;
+                if (area is null) continue;
                 var assignment = Clean(ws.Cell(3, c).GetString()) ?? "Champion";
-                people.Add(new Person(name, role.Value, vs, assignment));
+                people.Add(new LegacyChampion(name, area, vs, assignment));
             }
         }
         return people;
@@ -291,6 +297,8 @@ public static partial class LegacyExcelImporter
     [GeneratedRegex(@"^\s*(?<dept>(QMM|MFQ|MFO|LOP|LOW|PUQ)[\w\-]*?\d?)\s*(,\s*\w+)?\s*[:\-.]\s*(?<name>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex RequestorRx();
     [GeneratedRegex(@"^\s*(?<po>\d{8})(\.\d+)?\s*(-\s*(?<item>\d{1,6}))?\s*$")] private static partial Regex PoRx();
+    [GeneratedRegex(@"expo\s*#?\s*(\d{1,2})", RegexOptions.IgnoreCase)] private static partial Regex LowExportRx();
+    [GeneratedRegex(@"\d{1,2}[/.-](\d{1,2}|[A-Za-z]{3})[/.-]\d{2,4}")] private static partial Regex DateInTextRx();
 }
 
 /// <summary>Fechas heredadas: 'JAN.20.2025', 'DIC.11.24', 'Juio/16/2026', '17/07/2026', '20-Mar.26', '29/11/24'.</summary>
