@@ -58,7 +58,19 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
     };
 
     // Captured + calculated columns written on INSERT / UPDATE (identity, virtual and control columns are handled apart).
-    private List<Col> Columns() => new()
+    private List<Col> Columns() => BuildColumns(CategoryId, id => _categoryCodes.GetValueOrDefault(id));
+
+    /// <summary>Every column INSERT / UPDATE write (checked against 01_create_tables.sql by the tests).</summary>
+    public static IReadOnlyList<string> WrittenColumns { get; } =
+        BuildColumns(_ => null, _ => null).Select(c => c.Name)
+            .Concat(new[] { "CALC_VERSION", "CALCULATED_AT", "IS_LEGACY", "LEGACY_SHEET", "LEGACY_ROW", "CREATED_BY", "MODIFIED_BY", "MODIFIED_AT", "ROW_VERSION" })
+            .ToList();
+
+    /// <summary>Text lengths checked before saving (must equal the VARCHAR2 / NVARCHAR2 sizes of the table).</summary>
+    public static IReadOnlyDictionary<string, int> MaxLengths { get; } =
+        BuildColumns(_ => null, _ => null).Where(c => c.MaxLength is not null).ToDictionary(c => c.Name, c => c.MaxLength!.Value);
+
+    private static List<Col> BuildColumns(Func<string?, object?> categoryId, Func<int, string?> categoryCode) => new()
     {
         new("VALUE_STREAM_ID", p => p.ValueStreamId, (p, r) => p.ValueStreamId = Int(r, "VALUE_STREAM_ID") ?? 0),
         new("FOLIO_NUMBER", p => p.FolioNumber, (p, r) => p.FolioNumber = Int(r, "FOLIO_NUMBER") ?? 0),
@@ -94,8 +106,8 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
         new("GR_NUMBER", p => p.ScrapGrNumber, (p, r) => p.ScrapGrNumber = Str(r, "GR_NUMBER"), 10),
         new("HSE_SCRAP_KG", p => p.HseScrapKg, (p, r) => p.HseScrapKg = Dec(r, "HSE_SCRAP_KG")),
         new("HSE_CONFIRMATION_DATE", p => p.HseConfirmationDate, (p, r) => p.HseConfirmationDate = Date(r, "HSE_CONFIRMATION_DATE")),
-        new("STATUS_CATEGORY_ID", p => CategoryId(p.StatusCategoryCode),
-            (p, r) => p.StatusCategoryCode = Int(r, "STATUS_CATEGORY_ID") is { } id ? _categoryCodes.GetValueOrDefault(id) : null),
+        new("STATUS_CATEGORY_ID", p => categoryId(p.StatusCategoryCode),
+            (p, r) => p.StatusCategoryCode = Int(r, "STATUS_CATEGORY_ID") is { } id ? categoryCode(id) : null),
         // Calculated by the application (Stage 5) — stored so reports and SQL users see the same numbers.
         new("QTY_OPEN_FLOOR", p => p.Financials.QtyOpenFloor, (_, _) => { }),
         new("QTY_PENDING_EXPORT", p => p.Financials.QtyPendingExport, (_, _) => { }),
@@ -306,7 +318,7 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
             p.DataQualityFlags.Add($"DQ-COMMENTS-NOT-IN-LIST:{s}");
             p.StatusCategoryCode = null;
         }
-        if (p.LowExportNumber is > 9999 or < 0) { p.DataQualityFlags.Add($"DQ-LOWEXPORT-NUMBER:{p.LowExportNumber}"); p.LowExportNumber = null; }
+        if (p.LowExportNumber is > 9999 or <= 0) { p.DataQualityFlags.Add($"DQ-LOWEXPORT-NUMBER:{p.LowExportNumber}"); p.LowExportNumber = null; }
         if (folios.Contains((p.ValueStreamId, p.FolioNumber)))
         {
             p.DataQualityFlags.Add($"DQ-FOLIO-REPEATED:{p.FolioNumber}");

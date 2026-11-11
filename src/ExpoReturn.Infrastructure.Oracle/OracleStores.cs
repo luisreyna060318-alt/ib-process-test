@@ -43,7 +43,7 @@ public sealed class OracleAuditTrail : IAuditTrail
                     VALUES (:t, :id, :folio, :action, :field, :oldValue, :newValue, :nt, :machine, :version, :corr, :reason)", tx);
                 cmd.Parameters.Add("t", table);
                 cmd.Parameters.Add("id", id);
-                cmd.Parameters.Add("folio", Db(Cut(e.FolioCode, 12)));
+                cmd.Parameters.Add("folio", Db(Cut(e.FolioCode, 14)));
                 cmd.Parameters.Add("action", e.OldValue is null ? "I" : "U");
                 cmd.Parameters.Add("field", Db(Cut(OraclePalletRepository.ColumnOfProperty.GetValueOrDefault(e.Field, e.Field), 30)));
                 cmd.Parameters.Add("oldValue", Db(Cut(e.OldValue, 2000)));
@@ -230,7 +230,7 @@ public sealed class OracleMaterialCostCatalog : IMaterialCostCatalog
     {
         var incoming = new Dictionary<string, MaterialCost>();
         foreach (var c in costs)
-            if (Key(c.Material) is { Length: <= 18 } k && c.PriceUnit > 0) incoming[k] = c with { Material = k };
+            if (Key(c.Material) is { Length: <= 40 } k && c.PriceUnit > 0) incoming[k] = c with { Material = k };
         Dictionary<string, Row> current;
         lock (_gate) current = new Dictionary<string, Row>(_items);
 

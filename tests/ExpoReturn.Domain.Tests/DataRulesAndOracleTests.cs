@@ -192,3 +192,192 @@ public class DataRulesAndOracleTests
     public void Legacy_source_splits_into_sheet_and_row(string source, string sheet, int row) =>
         Assert.Equal((sheet, (int?)row), OraclePalletRepository.SplitLegacy(source));
 }
+
+/// <summary>
+/// Static checks of the Oracle install script (no database needed): every name, reference and seed row is coherent
+/// with itself and with the SQL the application sends.
+/// </summary>
+public class OracleScriptCoherenceTests
+{
+    private static string Root()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "ExpoReturn.sln"))) dir = dir.Parent;
+        return dir?.FullName ?? throw new DirectoryNotFoundException("ExpoReturn.sln");
+    }
+
+    private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
+    private static string Ddl => Read("database", "oracle", "01_create_tables.sql");
+
+    private static string NoComments(string sql) =>
+        Regex.Replace(Regex.Replace(sql, @"/\*.*?\*/", "", RegexOptions.Singleline), @"--[^\n]*", "");
+
+    /// <summary>Table → (column → type) in creation order.</summary>
+    private static List<(string Table, Dictionary<string, string> Columns, string Body)> Tables()
+    {
+        var list = new List<(string, Dictionary<string, string>, string)>();
+        foreach (Match m in Regex.Matches(NoComments(Ddl), @"CREATE TABLE (IB_PROCESS_\w+) \((.*?)\n\);", RegexOptions.Singleline))
+        {
+            var cols = new Dictionary<string, string>();
+            foreach (Match c in Regex.Matches(m.Groups[2].Value, @"^ {4}([A-Z][A-Z0-9_]*)\s+([A-Z0-9]+(?:\(\d+(?:,\d+| CHAR)?\))?)", RegexOptions.Multiline))
+                if (c.Groups[1].Value != "CONSTRAINT") cols[c.Groups[1].Value] = c.Groups[2].Value;
+            list.Add((m.Groups[1].Value, cols, m.Groups[2].Value));
+        }
+        return list;
+    }
+
+    private static Dictionary<string, string> ColumnsOf(string table) => Tables().Single(t => t.Table == table).Columns;
+
+    [Fact]
+    public void There_are_19_tables_and_every_name_fits_30_characters()
+    {
+        Assert.Equal(19, Tables().Count);
+        var all = Read("database", "oracle", "IB_PROCESS_install.sql");
+        var names = Regex.Matches(all, @"(?:TABLE|CONSTRAINT|INDEX|TRIGGER)\s+(IB_\w+)").Select(m => m.Groups[1].Value)
+            .Concat(Tables().SelectMany(t => t.Columns.Keys));
+        Assert.All(names, n => Assert.True(n.Length <= 30, $"{n} has {n.Length} characters"));
+        var constraints = Regex.Matches(NoComments(Ddl), @"CONSTRAINT (\w+)").Select(m => m.Groups[1].Value).ToList();
+        Assert.Equal(constraints.Count, constraints.Distinct().Count());
+    }
+
+    [Fact]
+    public void Text_columns_count_characters_not_bytes() =>
+        Assert.DoesNotMatch(@"\bVARCHAR2\(\d+\)", NoComments(Ddl));
+
+    [Fact]
+    public void No_column_uses_an_oracle_reserved_word()
+    {
+        var reserved = new HashSet<string>("ACCESS ADD ALL ALTER AND ANY AS ASC AUDIT BETWEEN BY CHAR CHECK CLUSTER COLUMN COMMENT COMPRESS CONNECT CREATE CURRENT DATE DECIMAL DEFAULT DELETE DESC DISTINCT DROP ELSE EXCLUSIVE EXISTS FILE FLOAT FOR FROM GRANT GROUP HAVING IDENTIFIED IMMEDIATE IN INCREMENT INDEX INITIAL INSERT INTEGER INTERSECT INTO IS LEVEL LIKE LOCK LONG MAXEXTENTS MINUS MLSLABEL MODE MODIFY NOAUDIT NOCOMPRESS NOT NOWAIT NULL NUMBER OF OFFLINE ON ONLINE OPTION OR ORDER PCTFREE PRIOR PRIVILEGES PUBLIC RAW RENAME RESOURCE REVOKE ROW ROWID ROWNUM ROWS SELECT SESSION SET SHARE SIZE SMALLINT START SUCCESSFUL SYNONYM SYSDATE TABLE THEN TO TRIGGER UID UNION UNIQUE UPDATE USER VALIDATE VALUES VARCHAR VARCHAR2 VIEW WHENEVER WHERE WITH".Split(' '));
+        Assert.All(Tables().SelectMany(t => t.Columns.Keys.Select(c => $"{t.Table}.{c}")), c => Assert.DoesNotContain(c.Split('.')[1], reserved));
+    }
+
+    [Fact]
+    public void Foreign_keys_point_to_tables_created_before_and_to_existing_columns()
+    {
+        var tables = Tables();
+        for (var i = 0; i < tables.Count; i++)
+            foreach (Match fk in Regex.Matches(tables[i].Body, @"FOREIGN KEY \((\w+)\) REFERENCES (\w+) \((\w+)\)"))
+            {
+                Assert.True(tables[i].Columns.ContainsKey(fk.Groups[1].Value), $"{tables[i].Table}.{fk.Groups[1].Value}");
+                var target = tables.FindIndex(t => t.Table == fk.Groups[2].Value);
+                Assert.True(target >= 0 && target < i, $"{tables[i].Table} references {fk.Groups[2].Value} before it exists");
+                Assert.True(tables[target].Columns.ContainsKey(fk.Groups[3].Value));
+                Assert.Equal(tables[target].Columns[fk.Groups[3].Value], tables[i].Columns[fk.Groups[1].Value]);   // same type
+            }
+    }
+
+    [Fact]
+    public void Seed_rows_use_existing_columns_and_respect_the_foreign_key_order()
+    {
+        var seed = Read("database", "oracle", "02_seed_data.sql");
+        var seen = new List<string>();
+        foreach (Match m in Regex.Matches(seed, @"INSERT INTO (\w+) \(([^)]*)\) VALUES \((.*)\);"))
+        {
+            var table = m.Groups[1].Value;
+            var cols = m.Groups[2].Value.Split(',').Select(c => c.Trim()).ToList();
+            Assert.All(cols, c => Assert.True(ColumnsOf(table).ContainsKey(c), $"{table}.{c}"));
+            var body = Tables().Single(t => t.Table == table).Body;
+            foreach (Match fk in Regex.Matches(body, @"FOREIGN KEY \((\w+)\) REFERENCES (\w+)"))
+                if (cols.Contains(fk.Groups[1].Value) && fk.Groups[2].Value != table && !m.Groups[3].Value.Contains("NULL"))
+                    Assert.True(seen.Contains(fk.Groups[2].Value), $"{table} is seeded before {fk.Groups[2].Value}");
+            if (!seen.Contains(table)) seen.Add(table);
+        }
+        Assert.Contains("'US\\RLN8JU', NULL, NULL, 'OWNER'", seed);
+        Assert.EndsWith("COMMIT;", seed.Trim());
+    }
+
+    [Fact]
+    public void Field_permission_seed_is_the_same_matrix_the_application_uses()
+    {
+        var seed = Read("database", "oracle", "02_seed_data.sql");
+        var rows = Regex.Matches(seed, @"INSERT INTO IB_PROCESS_FIELD_PERMISSIONS \(AREA_CODE, FIELD_NAME, STAGE_NO\) VALUES \('(\w+)', '(\w+)'")
+            .Select(m => (m.Groups[1].Value, m.Groups[2].Value)).ToHashSet();
+        var areas = new Dictionary<RoleCode, string>
+        {
+            [RoleCode.Qmm] = "QMM", [RoleCode.Requestor] = "REQUESTOR", [RoleCode.Gs] = "GS", [RoleCode.Lop] = "LOP",
+            [RoleCode.Mfo] = "MFO", [RoleCode.Low] = "LOW", [RoleCode.Hse] = "HSE",
+        };
+        var app = areas.SelectMany(a => FieldPermissions.EditableFields(a.Key)
+            .Select(f => (a.Value, OraclePalletRepository.ColumnOfProperty[f]))).ToHashSet();
+        Assert.Equal(app.OrderBy(x => x).ToList(), rows.OrderBy(x => x).ToList());
+        Assert.All(rows, r => Assert.True(ColumnsOf("IB_PROCESS_PALLET_RETURNS").ContainsKey(r.Item2)));
+    }
+
+    [Fact]
+    public void Columns_written_by_the_application_exist_with_the_same_text_length()
+    {
+        var pallets = ColumnsOf("IB_PROCESS_PALLET_RETURNS");
+        Assert.All(OraclePalletRepository.WrittenColumns, c => Assert.True(pallets.ContainsKey(c), c));
+        foreach (var (col, max) in OraclePalletRepository.MaxLengths)
+            Assert.Equal(max.ToString(), Regex.Match(pallets[col], @"^N?VARCHAR2\((\d+)(?: CHAR)?\)$").Groups[1].Value);
+        // Virtual / identity columns are never written
+        Assert.DoesNotContain("FOLIO_CODE", OraclePalletRepository.WrittenColumns);
+        Assert.DoesNotContain("SAP_TOTAL_USD", OraclePalletRepository.WrittenColumns);
+    }
+
+    [Fact]
+    public void Every_sql_statement_in_the_oracle_code_uses_existing_tables_and_columns()
+    {
+        var dir = Path.Combine(Root(), "src", "ExpoReturn.Infrastructure.Oracle");
+        var code = string.Join("\n", Directory.GetFiles(dir, "*.cs").Select(File.ReadAllText));
+        var tables = Tables().ToDictionary(t => t.Table, t => t.Columns);
+        var checkedCount = 0;
+        void Check(string table, IEnumerable<string> cols)
+        {
+            Assert.True(tables.ContainsKey(table), table);
+            foreach (var c in cols.Select(c => c.Trim()).Where(c => c.Length > 0 && c != "*"))
+            {
+                Assert.True(tables[table].ContainsKey(c), $"{table}.{c}");
+                checkedCount++;
+            }
+        }
+        foreach (Match m in Regex.Matches(code, @"INSERT INTO \{_?db\.T\(""(\w+)""\)\}\s*\(([A-Z_,\s]+)\)"))
+            Check(m.Groups[1].Value, m.Groups[2].Value.Split(','));
+        foreach (Match m in Regex.Matches(code, @"SELECT ([A-Z_,\s]+?)\s+FROM \{_?db\.T\(""(\w+)""\)\}"))
+            Check(m.Groups[2].Value, m.Groups[1].Value.Split(','));
+        foreach (Match m in Regex.Matches(code, @"UPDATE \{_?db\.T\(""(\w+)""\)\}(.*?)(?:"", tx\)|"";)", RegexOptions.Singleline))
+        {
+            // sub-queries inside SET belong to their own table: left out here
+            var set = Regex.Replace(m.Groups[2].Value, @"\(SELECT.*?\)\)", "", RegexOptions.Singleline);
+            Check(m.Groups[1].Value, Regex.Matches(set, @"\b([A-Z][A-Z0-9_]+)\s*=").Select(x => x.Groups[1].Value)
+                .Where(c => c is not "SYSDATE"));
+        }
+        foreach (Match m in Regex.Matches(code, @"WHERE ([^""]+?)(?:ORDER BY|RETURNING|"")"))
+            foreach (Match c in Regex.Matches(m.Groups[1].Value, @"\b([A-Z][A-Z0-9_]{2,})\s*(?:=|IS |<=|>=)"))
+                Assert.True(c.Groups[1].Value is "ROWNUM" or "SYSDATE" || tables.Values.Any(t => t.ContainsKey(c.Groups[1].Value)),
+                    $"WHERE column {c.Groups[1].Value} is in no table");
+        Assert.True(checkedCount > 60, $"only {checkedCount} columns checked");
+    }
+
+    [Fact]
+    public void Install_file_is_the_four_scripts_in_order_and_plain_ascii()
+    {
+        var install = Read("database", "oracle", "IB_PROCESS_install.sql");
+        var pos = -1;
+        foreach (var part in new[] { "01_create_tables.sql", "02_seed_data.sql", "03_comments_and_triggers.sql", "04_integrity_rules.sql" })
+        {
+            var text = Read("database", "oracle", part).Trim();
+            var at = install.IndexOf(text, StringComparison.Ordinal);
+            Assert.True(at > pos, $"{part} missing or out of order: run python3 tools/database/build_all.py");
+            pos = at;
+            Assert.DoesNotContain(text, c => c > 127);
+        }
+        Assert.False(File.Exists(Path.Combine(Root(), "database", "oracle", "05_upgrade_from_v0_2.sql")));
+    }
+
+    [Fact]
+    public void Comments_and_integrity_triggers_name_existing_columns()
+    {
+        var comments = Read("database", "oracle", "03_comments_and_triggers.sql");
+        foreach (Match m in Regex.Matches(comments, @"COMMENT ON COLUMN (\w+)\.(\w+)"))
+            Assert.True(ColumnsOf(m.Groups[1].Value).ContainsKey(m.Groups[2].Value), m.Value);
+        var rules = Read("database", "oracle", "04_integrity_rules.sql");
+        foreach (Match t in Regex.Matches(rules, @"BEFORE UPDATE ON (\w+)\s+FOR EACH ROW\s+BEGIN(.*?)END;", RegexOptions.Singleline))
+            foreach (Match c in Regex.Matches(t.Groups[2].Value, @":OLD\.(\w+)"))
+            {
+                Assert.True(ColumnsOf(t.Groups[1].Value).ContainsKey(c.Groups[1].Value), $"{t.Groups[1].Value}.{c.Groups[1].Value}");
+                var body = Tables().Single(x => x.Table == t.Groups[1].Value).Body;
+                Assert.DoesNotMatch(@"NOT NULL|GENERATED", Regex.Match(body, $@"\n\s+{c.Groups[1].Value}\s[^\n]*").Value);
+            }
+    }
+}

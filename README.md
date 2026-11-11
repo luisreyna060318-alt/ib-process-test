@@ -30,7 +30,7 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.3.0
+## 3. Aplicación (.NET 8 / WPF) · v0.3.1
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
@@ -54,16 +54,23 @@ dotnet test
 
 ## 4. Base de datos Oracle (prefijo `IB_PROCESS_`)
 
-Scripts en [`database/oracle/`](database/oracle/), en este orden:
+**Instalación (una sola vez, conectado con la cuenta dueña del esquema, la misma que entrega SharedServersAccess):** ejecutar [`IB_PROCESS_install.sql`](database/oracle/IB_PROCESS_install.sql). En SQL Developer, *Run Script* (F5); en SQL*Plus o SQLcl, `@IB_PROCESS_install.sql`. Se detiene en el primer error. Es la unión, en este orden, de:
 
-1. [`01_create_tables.sql`](database/oracle/01_create_tables.sql): `CREATE TABLE` de las 19 tablas (catálogos, usuarios y acceso, solicitudes de perfil, permisos por campo, parámetros, pallets, historial de estatus, alertas, bitácora y comentarios).
-2. [`02_seed_data.sql`](database/oracle/02_seed_data.sql): VS, departamentos, motivos, estatus, categorías de estatus y su lista por VS, permisos por campo, parámetros, contadores de folio y la plantilla para dar de alta al primer Owner (generado con `tools/database/build_oracle_seed.py`).
-3. [`03_comments_and_triggers.sql`](database/oracle/03_comments_and_triggers.sql): comentarios de tablas y columnas (nombre en la app y columna del Excel) y el trigger que impide modificar la bitácora (generado con `tools/database/build_oracle_comments.py`).
-4. [`04_integrity_rules.sql`](database/oracle/04_integrity_rules.sql): un trigger por tabla que **rechaza DELETE** y otro que rechaza **vaciar un campo con valor**; además impide `DROP` / `TRUNCATE` de los objetos `IB_`. Para mantenimiento planeado: `ALTER TRIGGER … DISABLE` / `ENABLE`. Al final viene, comentado, el `GRANT SELECT, INSERT, UPDATE` (sin `DELETE`) para la cuenta de la app, si no es la dueña del esquema. Se genera con `tools/database/build_oracle_integrity.py`.
+1. [`01_create_tables.sql`](database/oracle/01_create_tables.sql): `CREATE TABLE` de las 19 tablas (catálogos, usuarios y acceso, solicitudes de perfil, permisos por campo, parámetros, pallets, historial de estatus, alertas, bitácora y comentarios), con sus llaves, índices y reglas `CHECK`.
+2. [`02_seed_data.sql`](database/oracle/02_seed_data.sql): VS, departamentos, motivos, estatus, categorías de estatus y su lista por VS, permisos por campo, parámetros, contadores de folio y el primer Owner (`US\RLN8JU`).
+3. [`03_comments_and_triggers.sql`](database/oracle/03_comments_and_triggers.sql): comentarios de tablas y columnas (nombre en la app y columna del Excel) y el trigger que impide modificar la bitácora.
+4. [`04_integrity_rules.sql`](database/oracle/04_integrity_rules.sql): en cada tabla, un trigger que **rechaza DELETE** y otro que rechaza **vaciar un campo con valor**; además impide `DROP` / `TRUNCATE` de los objetos `IB_`. Para mantenimiento planeado: `ALTER TRIGGER … DISABLE` / `ENABLE`.
 
-**Si ya se crearon las tablas con la v0.2.x:** correr [`05_upgrade_from_v0_2.sql`](database/oracle/05_upgrade_from_v0_2.sql). Agrega `DEPARTMENT_GROUP` y la lista nueva de departamentos (los anteriores quedan inactivos, sin borrarse), y permite que el histórico del Excel no traiga número de parte o cantidad (queda marcado). Después correr `03` y `04`.
+Cómo encajan con la app:
 
-Nombres de máximo 30 caracteres (compatibles con cualquier versión de Oracle); requiere Oracle 12c R2 o superior por las columnas `IDENTITY`.
+* Las reglas `CHECK` de `IB_PROCESS_PALLET_RETURNS` son **las mismas validaciones que bloquean el guardado en la app** (cada una indica su código VAL-xxx). Los avisos de la app (datos pendientes de un borrador, formato de HU, PO, lote o factura) no son reglas de la base. Así Oracle nunca rechaza algo que la app dejó guardar. El histórico del Excel (`IS_LEGACY = 'Y'`) conserva lo que traía.
+* Los textos se miden en **caracteres** (`VARCHAR2(n CHAR)`), igual que la app: un acento o una "Ø" de SAP no hacen que un valor "no quepa".
+* Los scripts son ASCII puro y no tienen `&` ni líneas en blanco dentro de las instrucciones (SQL*Plus las interpreta).
+* Las pruebas automáticas revisan que los nombres midan como máximo 30 caracteres y que ninguno sea palabra reservada. También revisan que cada llave foránea apunte a una tabla ya creada y del mismo tipo, que la semilla use columnas existentes en el orden correcto, que los permisos sembrados sean los de la app y que cada columna de cada SQL de la app exista con el mismo largo.
+
+Los scripts 02, 03, 04 y el archivo único se regeneran con `python3 tools/database/build_all.py`; el 01 se edita a mano.
+
+Nombres de máximo 30 caracteres (compatibles con cualquier versión de Oracle); requiere Oracle 12c o superior por las columnas `IDENTITY`.
 
 El **diccionario** [`entregables/Diccionario_Campos_ExpoReturn.xlsx`](entregables/Diccionario_Campos_ExpoReturn.xlsx) relaciona cada campo de la app con su columna en Oracle y su columna en cada hoja del Excel. Se genera desde [`tools/dictionary/fields.py`](tools/dictionary/fields.py) con `python3 tools/dictionary/build_field_dictionary.py` (la misma lista alimenta los comentarios de las columnas).
 

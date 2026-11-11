@@ -1,4 +1,4 @@
-# Aplicación (v0.3.0): Expo & Return FG Follow Up
+# Aplicación (v0.3.1): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -45,7 +45,7 @@ dotnet test
 
 ## Conexión a Oracle (SharedServersAccess.dll)
 
-1. Crear las tablas con los scripts de `database/oracle/` (ver el README principal). Si se crearon con la v0.2.x, correr `05_upgrade_from_v0_2.sql` y después `03` y `04`.
+1. Crear las tablas ejecutando una vez `database/oracle/IB_PROCESS_install.sql` con la cuenta dueña del esquema (ver el README principal).
 2. Copiar **`SharedServersAccess.dll`** junto a `ExpoReturn.Desktop.exe`. No se incluye en el repositorio ni en el zip.
 3. `tnsnames.ora`: la app resuelve el alias `IFACTJUP` como el worker de Python, agregando `NAMES.DEFAULT_DOMAIN` de `sqlnet.ora`. Busca la carpeta en `"TnsAdmin"`, luego en la variable `TNS_ADMIN` y luego en `%ORACLE_HOME%\network\admin`. No hace falta instalar el cliente de Oracle (usa ODP.NET administrado).
 4. **Clave maestra:** se toma de la variable de entorno `SHARED_SERVERS_CLAVE`; si no existe, la app la pide al abrir (3 intentos). Sólo vive en memoria durante la sesión: no se guarda en el archivo ni en el código.

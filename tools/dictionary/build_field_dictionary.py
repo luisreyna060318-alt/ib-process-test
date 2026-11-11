@@ -214,7 +214,7 @@ def main():
 
     # ---- Sheet 3 · Oracle tables ----
     ws3 = wb.create_sheet("Oracle Tables")
-    title(ws3, "Oracle tables (prefix IB_PROCESS_)", "Scripts: database/oracle/01 to 04 (new install) · 05 upgrades tables of v0.2.x · "
+    title(ws3, "Oracle tables (prefix IB_PROCESS_)", "Install: database/oracle/IB_PROCESS_install.sql (= scripts 01 to 04) · "
                                                      "Nothing is deleted and a filled field is never emptied (04_integrity_rules.sql)")
     h3 = ["Table", "What it stores", "Equivalent in the Excel 2.0"]
     for i, h in enumerate(h3, 1):

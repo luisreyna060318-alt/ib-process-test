@@ -82,11 +82,14 @@ public static class PalletValidator
         if (p.ScrapDate < p.ImportDateElpJup1) E("VAL-035", nameof(p.ScrapDate), "Scrap date cannot be earlier than the crossing.");
         if (!string.IsNullOrWhiteSpace(p.NewHU) && !Identifiers.IsHandlingUnit(p.NewHU))
             W("VAL-036", nameof(p.NewHU), "New HU is not 10 digits. [VALIDATE rule]");
+        if (p.PhysicalDeliveredQty < 0 || p.ReinsertionQty < 0 || p.OldMaterialDeliveredQty < 0 || p.ScrapQty < 0)
+            E("VAL-038", nameof(p.PhysicalDeliveredQty), "Quantities cannot be negative.");
         if (p.DateSentBack < p.ImportDateElpJup1) E("VAL-037", nameof(p.DateSentBack), "Sent-back date cannot be earlier than the crossing.");
 
         // ---- Etapa 4 ----
         if ((p.LowExportNumber is not null || p.LowExportDate is not null) && (p.OldMaterialDeliveredQty ?? 0) == 0)
             E("VAL-040", nameof(p.LowExportNumber), "LOW export requires old material delivered to LOW.");
+        if (p.LowExportNumber is <= 0 or > 9999) E("VAL-040", nameof(p.LowExportNumber), "LOW export number must be between 1 and 9999.");
         if (p.LowExportDate < p.DateSentBack) W("VAL-040", nameof(p.LowExportDate), "LOW export date is earlier than the sent-back date.");
         var hseAny = p.HseConfirmationDate is not null || p.HseScrapKg is not null || !string.IsNullOrWhiteSpace(p.ScrapGrNumber);
         if (hseAny)

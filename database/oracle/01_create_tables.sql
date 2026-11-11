@@ -1,12 +1,13 @@
 /* =====================================================================
-   Expo & Return FG Follow Up (IB Process) · JuP1 (8640) · ME/QMM
-   Oracle 12c R2+ · Script 01: CREATE TABLE for every application table
+   Expo and Return FG Follow Up (IB Process) - JuP1 (8640) - ME/QMM
+   Oracle 12c R2+ - Script 01: CREATE TABLE for every application table
    ---------------------------------------------------------------------
    Every table uses the IB_PROCESS_ prefix. Names are kept to 30 characters
    (works on any Oracle version). Flags are CHAR(1) 'Y' / 'N'.
-   Field dictionary (app ↔ column ↔ Excel 2.0): entregables/Diccionario_Campos_ExpoReturn.xlsx
-   Run order (new install): 01_create_tables.sql, 02_seed_data.sql, 03_comments_and_triggers.sql,
-   04_integrity_rules.sql. Tables created with v0.2.x: run 05_upgrade_from_v0_2.sql, then 03 and 04.
+   Text lengths are in characters (VARCHAR2(n CHAR)), the same way the application counts them.
+   Field dictionary (app <-> column <-> Excel 2.0): entregables/Diccionario_Campos_ExpoReturn.xlsx
+   Run order: 01_create_tables.sql, 02_seed_data.sql, 03_comments_and_triggers.sql, 04_integrity_rules.sql
+   (or the single file IB_PROCESS_install.sql, which is the four of them in that order).
    Data rules: nothing is ever deleted (no DELETE, not even the Owner) and a value already captured can be
    changed but never emptied (04_integrity_rules.sql enforces both in the database).
    ===================================================================== */
@@ -18,9 +19,9 @@
 -- Value Streams (one per Excel sheet). The id IS the VS number (1, 4, 5, 7, 9).
 CREATE TABLE IB_PROCESS_VALUE_STREAMS (
     VALUE_STREAM_ID   NUMBER(2)       NOT NULL,
-    CODE              VARCHAR2(5)     NOT NULL,
-    NAME              VARCHAR2(100)   NOT NULL,
-    SHEET_NAME        VARCHAR2(31),
+    CODE              VARCHAR2(5 CHAR)     NOT NULL,
+    NAME              VARCHAR2(100 CHAR)   NOT NULL,
+    SHEET_NAME        VARCHAR2(31 CHAR),
     IS_ACTIVE         CHAR(1)         DEFAULT 'Y' NOT NULL,
     CONSTRAINT IB_VS_PK PRIMARY KEY (VALUE_STREAM_ID),
     CONSTRAINT IB_VS_UQ_CODE UNIQUE (CODE),
@@ -31,11 +32,11 @@ CREATE TABLE IB_PROCESS_VALUE_STREAMS (
 -- DEPARTMENT_GROUP: PROCESS (return flow) or CROSS_FUNCTIONAL (digitalization and cross-functional projects).
 -- IS_ACTIVE = 'N': code of the old list, kept only because historical records use it.
 CREATE TABLE IB_PROCESS_DEPARTMENTS (
-    DEPARTMENT_CODE   VARCHAR2(20)    NOT NULL,
-    AREA              VARCHAR2(10)    NOT NULL,
+    DEPARTMENT_CODE   VARCHAR2(20 CHAR)    NOT NULL,
+    AREA              VARCHAR2(10 CHAR)    NOT NULL,
     CAN_REQUEST       CHAR(1)         DEFAULT 'N' NOT NULL,
     IS_ACTIVE         CHAR(1)         DEFAULT 'Y' NOT NULL,
-    DEPARTMENT_GROUP  VARCHAR2(20)    DEFAULT 'PROCESS' NOT NULL,
+    DEPARTMENT_GROUP  VARCHAR2(20 CHAR)    DEFAULT 'PROCESS' NOT NULL,
     CONSTRAINT IB_DEPT_PK PRIMARY KEY (DEPARTMENT_CODE),
     CONSTRAINT IB_DEPT_CK_AREA CHECK (AREA IN ('QMM','MFQ','MFO','MFE','TEF','LOP','LOW','CTG','DBE','QMM-L','GS','HSE','PUQ')),
     CONSTRAINT IB_DEPT_CK_GROUP CHECK (DEPARTMENT_GROUP IN ('PROCESS','CROSS_FUNCTIONAL')),
@@ -46,9 +47,9 @@ CREATE TABLE IB_PROCESS_DEPARTMENTS (
 -- Reasons (Excel "Reason" list, 10 options).
 CREATE TABLE IB_PROCESS_REASONS (
     REASON_ID             NUMBER(3)       NOT NULL,
-    CODE                  VARCHAR2(10)    NOT NULL,
-    DESCRIPTION           VARCHAR2(150)   NOT NULL,
-    REASON_GROUP          VARCHAR2(20)    NOT NULL,
+    CODE                  VARCHAR2(10 CHAR)    NOT NULL,
+    DESCRIPTION           VARCHAR2(150 CHAR)   NOT NULL,
+    REASON_GROUP          VARCHAR2(20 CHAR)    NOT NULL,
     REQUIRES_NEW_MATERIAL CHAR(1)         DEFAULT 'N' NOT NULL,
     IS_ACTIVE             CHAR(1)         DEFAULT 'Y' NOT NULL,
     SORT_ORDER            NUMBER(3)       NOT NULL,
@@ -63,8 +64,8 @@ CREATE TABLE IB_PROCESS_REASONS (
 -- Calculated workflow status (never captured).
 CREATE TABLE IB_PROCESS_WORKFLOW_STATUS (
     WORKFLOW_STATUS_ID  NUMBER(2)     NOT NULL,
-    CODE                VARCHAR2(20)  NOT NULL,
-    NAME                VARCHAR2(60)  NOT NULL,
+    CODE                VARCHAR2(20 CHAR)  NOT NULL,
+    NAME                VARCHAR2(60 CHAR)  NOT NULL,
     STAGE_NO            NUMBER(1)     NOT NULL,
     IS_CLOSED           CHAR(1)       NOT NULL,
     SORT_ORDER          NUMBER(2)     NOT NULL,
@@ -76,9 +77,9 @@ CREATE TABLE IB_PROCESS_WORKFLOW_STATUS (
 -- Status categories = options of the Excel COMMENTS column (exact text).
 CREATE TABLE IB_PROCESS_STATUS_CATEGORIES (
     STATUS_CATEGORY_ID  NUMBER(3)     NOT NULL,
-    CODE                VARCHAR2(60)  NOT NULL,
-    KIND                VARCHAR2(12)  NOT NULL,
-    RESPONSIBLE_AREA    VARCHAR2(10),
+    CODE                VARCHAR2(60 CHAR)  NOT NULL,
+    KIND                VARCHAR2(12 CHAR)  NOT NULL,
+    RESPONSIBLE_AREA    VARCHAR2(10 CHAR),
     AFFECTS_DUTY        CHAR(1)       DEFAULT 'N' NOT NULL,
     IS_AUTOMATIC        CHAR(1)       DEFAULT 'N' NOT NULL,
     IS_ACTIVE           CHAR(1)       DEFAULT 'Y' NOT NULL,
@@ -102,17 +103,17 @@ CREATE TABLE IB_PROCESS_STATUS_CAT_VS (
 
 -- MM60 cost master (hidden Excel sheet "MM60 COST SAP"). UNIT_COST_USD = PRICE / PRICE_UNIT.
 CREATE TABLE IB_PROCESS_MM60_COSTS (
-    MATERIAL          VARCHAR2(18)    NOT NULL,
+    MATERIAL          VARCHAR2(40 CHAR)    NOT NULL,
     VALID_FROM        DATE            NOT NULL,
     VALID_TO          DATE,
-    DESCRIPTION       VARCHAR2(80),
+    DESCRIPTION       VARCHAR2(80 CHAR),
     PRICE             NUMBER(18,4)    NOT NULL,
     PRICE_UNIT        NUMBER(9)       DEFAULT 1 NOT NULL,
     UNIT_COST_USD     NUMBER(18,6)    GENERATED ALWAYS AS (ROUND(PRICE / PRICE_UNIT, 6)) VIRTUAL,
     CURRENCY          CHAR(3)         DEFAULT 'USD' NOT NULL,
-    BASE_UOM          VARCHAR2(3),
+    BASE_UOM          VARCHAR2(3 CHAR),
     ABC_INDICATOR     CHAR(1),
-    SOURCE            VARCHAR2(10)    NOT NULL,
+    SOURCE            VARCHAR2(10 CHAR)    NOT NULL,
     CONSTRAINT IB_MM60_PK PRIMARY KEY (MATERIAL, VALID_FROM),
     CONSTRAINT IB_MM60_CK_UNIT CHECK (PRICE_UNIT > 0),
     CONSTRAINT IB_MM60_CK_SRC CHECK (SOURCE IN ('EXCEL','MM60_FILE')),
@@ -127,10 +128,10 @@ CREATE TABLE IB_PROCESS_MM60_COSTS (
    ===================================================================== */
 
 CREATE TABLE IB_PROCESS_USERS (
-    NT_USER           VARCHAR2(64)    NOT NULL,     -- DOMAIN\USER, upper case
+    NT_USER           VARCHAR2(64 CHAR)    NOT NULL,     -- DOMAIN\USER, upper case
     DISPLAY_NAME      NVARCHAR2(150)  NOT NULL,
-    DEPARTMENT_CODE   VARCHAR2(20),                 -- profile department (first run / approved request)
-    EMAIL             VARCHAR2(200),
+    DEPARTMENT_CODE   VARCHAR2(20 CHAR),                 -- profile department (first run / approved request)
+    EMAIL             VARCHAR2(200 CHAR),
     IS_ACTIVE         CHAR(1)         DEFAULT 'Y' NOT NULL,
     CREATED_AT        TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
     CONSTRAINT IB_USR_PK PRIMARY KEY (NT_USER),
@@ -139,17 +140,17 @@ CREATE TABLE IB_PROCESS_USERS (
     CONSTRAINT IB_USR_CK_UPPER CHECK (NT_USER = UPPER(NT_USER))
 );
 
--- One row per user × department × VS with its function. A removal closes VALID_TO (history is kept).
+-- One row per user x department x VS with its function. A removal closes VALID_TO (history is kept).
 CREATE TABLE IB_PROCESS_USER_ACCESS (
     ACCESS_ID         NUMBER          GENERATED BY DEFAULT AS IDENTITY,
-    NT_USER           VARCHAR2(64)    NOT NULL,
-    DEPARTMENT_CODE   VARCHAR2(20),
+    NT_USER           VARCHAR2(64 CHAR)    NOT NULL,
+    DEPARTMENT_CODE   VARCHAR2(20 CHAR),
     VALUE_STREAM_ID   NUMBER(2),
-    FUNCTION_CODE     VARCHAR2(10)    NOT NULL,
-    ASSIGNED_BY       VARCHAR2(64)    NOT NULL,
+    FUNCTION_CODE     VARCHAR2(10 CHAR)    NOT NULL,
+    ASSIGNED_BY       VARCHAR2(64 CHAR)    NOT NULL,
     VALID_FROM        TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
     VALID_TO          TIMESTAMP,
-    REMOVED_BY        VARCHAR2(64),
+    REMOVED_BY        VARCHAR2(64 CHAR),
     CONSTRAINT IB_UACC_PK PRIMARY KEY (ACCESS_ID),
     CONSTRAINT IB_UACC_FK_USER FOREIGN KEY (NT_USER) REFERENCES IB_PROCESS_USERS (NT_USER),
     CONSTRAINT IB_UACC_FK_DEPT FOREIGN KEY (DEPARTMENT_CODE) REFERENCES IB_PROCESS_DEPARTMENTS (DEPARTMENT_CODE),
@@ -160,7 +161,7 @@ CREATE TABLE IB_PROCESS_USER_ACCESS (
      OR (FUNCTION_CODE <> 'OWNER' AND DEPARTMENT_CODE IS NOT NULL AND VALUE_STREAM_ID IS NOT NULL)),
     CONSTRAINT IB_UACC_CK_RANGE CHECK (VALID_TO IS NULL OR VALID_TO >= VALID_FROM)
 );
--- Only one active row per user × department × VS.
+-- Only one active row per user x department x VS.
 CREATE UNIQUE INDEX IB_UACC_UX_ACTIVE ON IB_PROCESS_USER_ACCESS (
     CASE WHEN VALID_TO IS NULL THEN NT_USER END,
     CASE WHEN VALID_TO IS NULL THEN NVL(DEPARTMENT_CODE, '-') END,
@@ -170,11 +171,11 @@ CREATE INDEX IB_UACC_IX_VS ON IB_PROCESS_USER_ACCESS (VALUE_STREAM_ID, DEPARTMEN
 -- Change of department / Value Streams asked from "My profile"; applied only if the Owner approves.
 CREATE TABLE IB_PROCESS_PROFILE_REQUESTS (
     REQUEST_ID        NUMBER          GENERATED BY DEFAULT AS IDENTITY,
-    NT_USER           VARCHAR2(64)    NOT NULL,
-    DEPARTMENT_CODE   VARCHAR2(20)    NOT NULL,
-    STATUS            VARCHAR2(10)    DEFAULT 'PENDING' NOT NULL,
+    NT_USER           VARCHAR2(64 CHAR)    NOT NULL,
+    DEPARTMENT_CODE   VARCHAR2(20 CHAR)    NOT NULL,
+    STATUS            VARCHAR2(10 CHAR)    DEFAULT 'PENDING' NOT NULL,
     REQUESTED_AT      TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
-    DECIDED_BY        VARCHAR2(64),
+    DECIDED_BY        VARCHAR2(64 CHAR),
     DECIDED_AT        TIMESTAMP,
     DECISION_COMMENT  NVARCHAR2(500),
     CONSTRAINT IB_PREQ_PK PRIMARY KEY (REQUEST_ID),
@@ -196,8 +197,8 @@ CREATE TABLE IB_PROCESS_REQUEST_VS (
 
 -- Fields each area edits (Excel area row). FIELD_NAME = column of IB_PROCESS_PALLET_RETURNS.
 CREATE TABLE IB_PROCESS_FIELD_PERMISSIONS (
-    AREA_CODE         VARCHAR2(10)   NOT NULL,
-    FIELD_NAME        VARCHAR2(30)   NOT NULL,
+    AREA_CODE         VARCHAR2(10 CHAR)   NOT NULL,
+    FIELD_NAME        VARCHAR2(30 CHAR)   NOT NULL,
     STAGE_NO          NUMBER(1)      NOT NULL,
     CONSTRAINT IB_FPERM_PK PRIMARY KEY (AREA_CODE, FIELD_NAME),
     CONSTRAINT IB_FPERM_CK_AREA CHECK (AREA_CODE IN ('QMM','REQUESTOR','GS','LOP','MFO','LOW','HSE')),
@@ -206,19 +207,19 @@ CREATE TABLE IB_PROCESS_FIELD_PERMISSIONS (
 
 -- Versioned parameters (duty rate, IMMEX term, alert thresholds).
 CREATE TABLE IB_PROCESS_PARAMETERS (
-    PARAM_KEY         VARCHAR2(50)    NOT NULL,
+    PARAM_KEY         VARCHAR2(50 CHAR)    NOT NULL,
     VALID_FROM        DATE            NOT NULL,
     VALID_TO          DATE,
     NUMERIC_VALUE     NUMBER(18,6),
     TEXT_VALUE        NVARCHAR2(200),
     DESCRIPTION       NVARCHAR2(300)  NOT NULL,
-    APPROVED_BY       VARCHAR2(64),
+    APPROVED_BY       VARCHAR2(64 CHAR),
     CONSTRAINT IB_PARAM_PK PRIMARY KEY (PARAM_KEY, VALID_FROM),
     CONSTRAINT IB_PARAM_CK_RANGE CHECK (VALID_TO IS NULL OR VALID_TO >= VALID_FROM)
 );
 
 /* =====================================================================
-   3. TRANSACTIONS · one row = one returned pallet (one row of a VS sheet)
+   3. TRANSACTIONS - one row = one returned pallet (one row of a VS sheet)
    ===================================================================== */
 
 CREATE TABLE IB_PROCESS_FOLIO_COUNTERS (
@@ -233,52 +234,47 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
     PALLET_RETURN_ID            NUMBER          GENERATED BY DEFAULT AS IDENTITY,
     VALUE_STREAM_ID             NUMBER(2)       NOT NULL,
     FOLIO_NUMBER                NUMBER(9)       NOT NULL,
-    FOLIO_CODE                  VARCHAR2(12)    GENERATED ALWAYS AS ('VS' || TO_CHAR(VALUE_STREAM_ID) || '-' || LPAD(TO_CHAR(FOLIO_NUMBER), 5, '0')) VIRTUAL,
-
-    /* ---------- Stage 1 · Request (QMM / requesting area) ---------- */
+    FOLIO_CODE                  VARCHAR2(14 CHAR)    GENERATED ALWAYS AS ('VS' || TO_CHAR(VALUE_STREAM_ID) || '-' ||
+                                    CASE WHEN FOLIO_NUMBER < 100000 THEN LPAD(TO_CHAR(FOLIO_NUMBER), 5, '0') ELSE TO_CHAR(FOLIO_NUMBER) END) VIRTUAL,
+    /* ---------- Stage 1 - Request (QMM / requesting area) ---------- */
     QMM_RESPONSIBLE             NVARCHAR2(150),
-    REQUESTING_DEPARTMENT       VARCHAR2(20),
+    REQUESTING_DEPARTMENT       VARCHAR2(20 CHAR),
     REQUESTOR_NAME              NVARCHAR2(150),
     REASON_ID                   NUMBER(3),
     REASON_DETAIL               NVARCHAR2(500),
-    RETURNED_PART_NUMBER        VARCHAR2(18),                            -- required for new records (IB_PR_CK_PN_REQ)
+    RETURNED_PART_NUMBER        VARCHAR2(18 CHAR),                            -- a draft may be saved without it (warning VAL-001)
     MM60_UNIT_COST_USD          NUMBER(18,6),
-    UNIT_COST_SOURCE            VARCHAR2(10)    DEFAULT 'PENDING' NOT NULL,
-    QTY_IMPORTED                NUMBER(9)       NOT NULL,
+    UNIT_COST_SOURCE            VARCHAR2(10 CHAR)    DEFAULT 'PENDING' NOT NULL,
+    QTY_IMPORTED                NUMBER(9)       DEFAULT 0 NOT NULL,      -- 0 while the request is a draft
     SAP_TOTAL_USD               NUMBER(18,2)    GENERATED ALWAYS AS (ROUND(QTY_IMPORTED * NVL(MM60_UNIT_COST_USD, 0), 2)) VIRTUAL,
-    ORIGINAL_HU                 VARCHAR2(20),
-    ORIGINAL_BATCH              VARCHAR2(10),
+    ORIGINAL_HU                 VARCHAR2(20 CHAR),
+    ORIGINAL_BATCH              VARCHAR2(10 CHAR),
     PO_DATE                     DATE,
-    PO_NUMBER                   VARCHAR2(20),
-
-    /* ---------- Stage 2 · Customs and inbound (GS/OSD43, LOP) ---------- */
+    PO_NUMBER                   VARCHAR2(20 CHAR),
+    /* ---------- Stage 2 - Customs and inbound (GS/OSD43, LOP) ---------- */
     IMPORT_DATE                 DATE,
-    IMPORT_INVOICE              VARCHAR2(20),
+    IMPORT_INVOICE              VARCHAR2(20 CHAR),
     ELP_JUP1_CROSSING_DATE      DATE,
-    DELIVERY_NUMBER             VARCHAR2(20),
-
-    /* ---------- Stage 3 · Plant execution (MFO) ---------- */
-    NEW_PART_NUMBER             VARCHAR2(18),
+    DELIVERY_NUMBER             VARCHAR2(20 CHAR),
+    /* ---------- Stage 3 - Plant execution (MFO) ---------- */
+    NEW_PART_NUMBER             VARCHAR2(18 CHAR),
     PHYSICAL_DELIVERED_QTY      NUMBER(9),
-    NEW_HU                      VARCHAR2(20),
-    REWORK_BATCH                VARCHAR2(10),
+    NEW_HU                      VARCHAR2(20 CHAR),
+    REWORK_BATCH                VARCHAR2(10 CHAR),
     REINSERTION_QTY             NUMBER(9),
     SENT_BACK_DATE              DATE,
     OLD_MATERIAL_DELIVERED_QTY  NUMBER(9),
     SCRAP_QTY                   NUMBER(9),
     SCRAP_DATE                  DATE,
-
-    /* ---------- Stage 4 · Exit (LOW, GS/OSD43, MFO, HSE) ---------- */
+    /* ---------- Stage 4 - Exit (LOW, GS/OSD43, MFO, HSE) ---------- */
     LOW_EXPORT_NUMBER           NUMBER(4),
     LOW_EXPORT_DATE             DATE,
-    CUSTOMS_EXPORT              VARCHAR2(30),
-    GR_NUMBER                   VARCHAR2(10),
+    CUSTOMS_EXPORT              VARCHAR2(30 CHAR),
+    GR_NUMBER                   VARCHAR2(10 CHAR),
     HSE_SCRAP_KG                NUMBER(10,3),
     HSE_CONFIRMATION_DATE       DATE,
-
-    /* ---------- Stage 5 · Classification (QMM) ---------- */
+    /* ---------- Stage 5 - Classification (QMM) ---------- */
     STATUS_CATEGORY_ID          NUMBER(3),
-
     /* ---------- Calculated by the application (never captured) ---------- */
     QTY_OPEN_FLOOR              NUMBER(9)       DEFAULT 0 NOT NULL,
     QTY_PENDING_EXPORT          NUMBER(9)       DEFAULT 0 NOT NULL,
@@ -295,18 +291,16 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
     LEGAL_DUE_DATE              DATE,
     CALC_VERSION                NUMBER(2)       DEFAULT 2 NOT NULL,
     CALCULATED_AT               TIMESTAMP,
-
     /* ---------- Control ---------- */
     IS_LEGACY                   CHAR(1)         DEFAULT 'N' NOT NULL,
-    LEGACY_SHEET                VARCHAR2(31),
+    LEGACY_SHEET                VARCHAR2(31 CHAR),
     LEGACY_ROW                  NUMBER(9),
-    DATA_QUALITY_FLAGS          VARCHAR2(400),
-    CREATED_BY                  VARCHAR2(64)    NOT NULL,
+    DATA_QUALITY_FLAGS          VARCHAR2(400 CHAR),
+    CREATED_BY                  VARCHAR2(64 CHAR)    NOT NULL,
     CREATED_AT                  TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
-    MODIFIED_BY                 VARCHAR2(64),
+    MODIFIED_BY                 VARCHAR2(64 CHAR),
     MODIFIED_AT                 TIMESTAMP,
     ROW_VERSION                 NUMBER(9)       DEFAULT 0 NOT NULL,      -- optimistic concurrency
-
     CONSTRAINT IB_PR_PK PRIMARY KEY (PALLET_RETURN_ID),
     CONSTRAINT IB_PR_UQ_FOLIO UNIQUE (VALUE_STREAM_ID, FOLIO_NUMBER),
     CONSTRAINT IB_PR_UQ_LEGACY UNIQUE (LEGACY_SHEET, LEGACY_ROW),          -- an Excel row is loaded only once
@@ -316,40 +310,46 @@ CREATE TABLE IB_PROCESS_PALLET_RETURNS (
     CONSTRAINT IB_PR_FK_SCAT FOREIGN KEY (STATUS_CATEGORY_ID) REFERENCES IB_PROCESS_STATUS_CATEGORIES (STATUS_CATEGORY_ID),
     CONSTRAINT IB_PR_FK_STATUS FOREIGN KEY (WORKFLOW_STATUS_ID) REFERENCES IB_PROCESS_WORKFLOW_STATUS (WORKFLOW_STATUS_ID),
     CONSTRAINT IB_PR_CK_FLAGS CHECK (IS_DUTY_RISK IN ('Y','N') AND IS_LEGACY IN ('Y','N')),
-    -- New records need part number and quantity; historical rows keep what the Excel had (flagged in DATA_QUALITY_FLAGS).
-    CONSTRAINT IB_PR_CK_PN_REQ CHECK (IS_LEGACY = 'Y' OR RETURNED_PART_NUMBER IS NOT NULL),
-    CONSTRAINT IB_PR_CK_QTY CHECK (IS_LEGACY = 'Y' OR QTY_IMPORTED > 0),
-    CONSTRAINT IB_PR_CK_QTY_NONNEG CHECK (NVL(PHYSICAL_DELIVERED_QTY, 0) >= 0 AND NVL(REINSERTION_QTY, 0) >= 0
-                                          AND NVL(OLD_MATERIAL_DELIVERED_QTY, 0) >= 0 AND NVL(SCRAP_QTY, 0) >= 0),
     CONSTRAINT IB_PR_CK_COST_SRC CHECK (UNIT_COST_SOURCE IN ('MM60','MANUAL','PENDING','LEGACY')),
-    -- New records only (IS_LEGACY = 'N'); history imported from the Excel keeps its original values.
-    CONSTRAINT IB_PR_CK_PN CHECK (IS_LEGACY = 'Y'
-        OR REGEXP_LIKE(RETURNED_PART_NUMBER, '^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$')),
+    /* Rules below = the BLOCKING validations of the application (PalletValidator errors). Warnings of the app
+       (missing data of a draft, HU / PO / batch / invoice format, dates against the PO date) are not database rules,
+       so the database never refuses a save the application allowed. Historical rows (IS_LEGACY = 'Y') keep what the
+       Excel had; their problems are listed in DATA_QUALITY_FLAGS. */
+    CONSTRAINT IB_PR_CK_QTY CHECK (IS_LEGACY = 'Y' OR (QTY_IMPORTED >= 0
+        AND NVL(PHYSICAL_DELIVERED_QTY, 0) >= 0 AND NVL(REINSERTION_QTY, 0) >= 0
+        AND NVL(OLD_MATERIAL_DELIVERED_QTY, 0) >= 0 AND NVL(SCRAP_QTY, 0) >= 0)),                                  -- VAL-012 / VAL-038
+    CONSTRAINT IB_PR_CK_PN CHECK (IS_LEGACY = 'Y' OR RETURNED_PART_NUMBER IS NULL
+        OR REGEXP_LIKE(RETURNED_PART_NUMBER, '^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$')),             -- VAL-010
     CONSTRAINT IB_PR_CK_NEW_PN CHECK (IS_LEGACY = 'Y' OR NEW_PART_NUMBER IS NULL
-        OR REGEXP_LIKE(NEW_PART_NUMBER, '^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$')),
-    CONSTRAINT IB_PR_CK_HU CHECK (IS_LEGACY = 'Y' OR ORIGINAL_HU IS NULL OR REGEXP_LIKE(ORIGINAL_HU, '^[0-9]{10}$')),
-    CONSTRAINT IB_PR_CK_NEW_HU CHECK (IS_LEGACY = 'Y' OR NEW_HU IS NULL OR REGEXP_LIKE(NEW_HU, '^[0-9]{10}$')),
-    CONSTRAINT IB_PR_CK_PO CHECK (IS_LEGACY = 'Y' OR PO_NUMBER IS NULL OR REGEXP_LIKE(PO_NUMBER, '^[0-9]{8}$')),
-    -- Quantity conservation: what was imported cannot leave twice.
+        OR REGEXP_LIKE(NEW_PART_NUMBER, '^[0-9A-Z]{4}\.[0-9A-Z]{3}\.[0-9A-Z]{3}-[0-9A-Z]{2,3}$')),                  -- VAL-010
+    -- The ELP -> JuP1 crossing needs import date and invoice.                                                      VAL-022
+    CONSTRAINT IB_PR_CK_CROSSING CHECK (IS_LEGACY = 'Y' OR ELP_JUP1_CROSSING_DATE IS NULL
+        OR (IMPORT_DATE IS NOT NULL AND IMPORT_INVOICE IS NOT NULL)),
+    -- Quantity conservation: what was imported cannot leave twice.                                                 VAL-033
     CONSTRAINT IB_PR_CK_BALANCE CHECK (IS_LEGACY = 'Y' OR NVL(OLD_MATERIAL_DELIVERED_QTY, 0) + NVL(SCRAP_QTY, 0) <= QTY_IMPORTED),
-    -- Physical delivered = old material + reinsertion.
+    -- Physical delivered = old material + reinsertion.                                                             VAL-032
     CONSTRAINT IB_PR_CK_PHYSICAL CHECK (IS_LEGACY = 'Y' OR PHYSICAL_DELIVERED_QTY IS NULL OR OLD_MATERIAL_DELIVERED_QTY IS NULL
         OR PHYSICAL_DELIVERED_QTY = OLD_MATERIAL_DELIVERED_QTY + NVL(REINSERTION_QTY, 0)),
-    -- Chronology of the flow.
+    -- Chronology after the crossing.                                                                               VAL-035 / 037 / 043
     CONSTRAINT IB_PR_CK_DATES CHECK (IS_LEGACY = 'Y' OR (
-            (ELP_JUP1_CROSSING_DATE IS NULL OR PO_DATE IS NULL OR ELP_JUP1_CROSSING_DATE >= PO_DATE)
-        AND (IMPORT_DATE IS NULL OR PO_DATE IS NULL OR IMPORT_DATE >= PO_DATE)
-        AND (SENT_BACK_DATE IS NULL OR ELP_JUP1_CROSSING_DATE IS NULL OR SENT_BACK_DATE >= ELP_JUP1_CROSSING_DATE)
+            (SENT_BACK_DATE IS NULL OR ELP_JUP1_CROSSING_DATE IS NULL OR SENT_BACK_DATE >= ELP_JUP1_CROSSING_DATE)
         AND (SCRAP_DATE IS NULL OR ELP_JUP1_CROSSING_DATE IS NULL OR SCRAP_DATE >= ELP_JUP1_CROSSING_DATE)
         AND (HSE_CONFIRMATION_DATE IS NULL OR SCRAP_DATE IS NULL OR HSE_CONFIRMATION_DATE >= SCRAP_DATE))),
-    -- Scrap quantity > 0 needs a date; HSE confirmation is all-or-nothing.
+    -- Scrap quantity > 0 needs its date.                                                                           VAL-035
     CONSTRAINT IB_PR_CK_SCRAP_DATE CHECK (IS_LEGACY = 'Y' OR NVL(SCRAP_QTY, 0) = 0 OR SCRAP_DATE IS NOT NULL),
+    -- GR number / HSE kg / HSE date need scrap > 0; the HSE confirmation needs GR and kg > 0; GR has 10 digits.
+    -- MFO may capture the GR number before HSE confirms.                                                           VAL-041 / 044 / 045
     CONSTRAINT IB_PR_CK_HSE CHECK (IS_LEGACY = 'Y'
-        OR (GR_NUMBER IS NULL AND HSE_SCRAP_KG IS NULL AND HSE_CONFIRMATION_DATE IS NULL)
-        OR (GR_NUMBER IS NOT NULL AND HSE_SCRAP_KG > 0 AND HSE_CONFIRMATION_DATE IS NOT NULL AND SCRAP_QTY > 0)),
-    -- Customs export and LOW export need material delivered to LOW.
+        OR ((GR_NUMBER IS NULL AND HSE_SCRAP_KG IS NULL AND HSE_CONFIRMATION_DATE IS NULL)
+            OR (SCRAP_QTY > 0
+                AND (GR_NUMBER IS NULL OR REGEXP_LIKE(GR_NUMBER, '^[0-9]{10}$'))
+                AND (HSE_CONFIRMATION_DATE IS NULL OR (GR_NUMBER IS NOT NULL AND HSE_SCRAP_KG > 0))))),
+    -- LOW export, and a customs export pedimento PRyy-#####, need old material delivered to LOW (F4 / V1 do not).  VAL-040 / 046
     CONSTRAINT IB_PR_CK_EXPORT CHECK (IS_LEGACY = 'Y'
-        OR ((CUSTOMS_EXPORT IS NULL AND LOW_EXPORT_NUMBER IS NULL AND LOW_EXPORT_DATE IS NULL) OR OLD_MATERIAL_DELIVERED_QTY > 0))
+        OR (((LOW_EXPORT_NUMBER IS NULL AND LOW_EXPORT_DATE IS NULL) OR OLD_MATERIAL_DELIVERED_QTY > 0)
+            AND (CUSTOMS_EXPORT IS NULL OR NOT REGEXP_LIKE(CUSTOMS_EXPORT, '^PR[0-9]{2}-[0-9]{4,5}$', 'i')
+                 OR OLD_MATERIAL_DELIVERED_QTY > 0))),
+    CONSTRAINT IB_PR_CK_LOW_NO CHECK (LOW_EXPORT_NUMBER IS NULL OR LOW_EXPORT_NUMBER > 0)
 );
 CREATE INDEX IB_PR_IX_VS_STATUS ON IB_PROCESS_PALLET_RETURNS (VALUE_STREAM_ID, WORKFLOW_STATUS_ID);
 CREATE INDEX IB_PR_IX_CROSSING ON IB_PROCESS_PALLET_RETURNS (ELP_JUP1_CROSSING_DATE);
@@ -363,7 +363,7 @@ CREATE TABLE IB_PROCESS_STATUS_HISTORY (
     PALLET_RETURN_ID    NUMBER          NOT NULL,
     FROM_STATUS_ID      NUMBER(2),
     TO_STATUS_ID        NUMBER(2)       NOT NULL,
-    CHANGED_BY          VARCHAR2(64)    NOT NULL,
+    CHANGED_BY          VARCHAR2(64 CHAR)    NOT NULL,
     CHANGED_AT          TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
     NOTE                NVARCHAR2(300),
     CONSTRAINT IB_SHIST_PK PRIMARY KEY (HISTORY_ID),
@@ -377,13 +377,13 @@ CREATE INDEX IB_SHIST_IX_PR ON IB_PROCESS_STATUS_HISTORY (PALLET_RETURN_ID, CHAN
 CREATE TABLE IB_PROCESS_ALERTS (
     ALERT_ID            NUMBER          GENERATED BY DEFAULT AS IDENTITY,
     PALLET_RETURN_ID    NUMBER          NOT NULL,
-    ALERT_TYPE          VARCHAR2(20)    NOT NULL,
-    SEVERITY            VARCHAR2(8)     NOT NULL,
+    ALERT_TYPE          VARCHAR2(20 CHAR)    NOT NULL,
+    SEVERITY            VARCHAR2(8 CHAR)     NOT NULL,
     MESSAGE             NVARCHAR2(400)  NOT NULL,
-    RESPONSIBLE_AREA    VARCHAR2(30),
+    RESPONSIBLE_AREA    VARCHAR2(30 CHAR),
     RAISED_AT           TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
     NOTIFIED_TO         NVARCHAR2(400),
-    HANDLED_BY          VARCHAR2(64),
+    HANDLED_BY          VARCHAR2(64 CHAR),
     HANDLED_AT          TIMESTAMP,
     HANDLED_COMMENT     NVARCHAR2(500),
     RESOLVED_AT         TIMESTAMP,
@@ -401,21 +401,21 @@ CREATE INDEX IB_ALERT_IX_OPEN ON IB_PROCESS_ALERTS (PALLET_RETURN_ID, ALERT_TYPE
 
 CREATE TABLE IB_PROCESS_AUDIT_LOG (
     AUDIT_ID            NUMBER          GENERATED BY DEFAULT AS IDENTITY,
-    TABLE_NAME          VARCHAR2(30)    NOT NULL,
-    RECORD_ID           VARCHAR2(64)    NOT NULL,
-    FOLIO_CODE          VARCHAR2(12),
+    TABLE_NAME          VARCHAR2(30 CHAR)    NOT NULL,
+    RECORD_ID           VARCHAR2(64 CHAR)    NOT NULL,
+    FOLIO_CODE          VARCHAR2(14 CHAR),
     ACTION              CHAR(1)         NOT NULL,
-    FIELD_NAME          VARCHAR2(30),
+    FIELD_NAME          VARCHAR2(30 CHAR),
     OLD_VALUE           NVARCHAR2(2000),
     NEW_VALUE           NVARCHAR2(2000),
-    NT_USER             VARCHAR2(64)    NOT NULL,
-    CLIENT_MACHINE      VARCHAR2(64),
-    APP_VERSION         VARCHAR2(20),
-    CORRELATION_ID      VARCHAR2(36),           -- groups the fields of one save
+    NT_USER             VARCHAR2(64 CHAR)    NOT NULL,
+    CLIENT_MACHINE      VARCHAR2(64 CHAR),
+    APP_VERSION         VARCHAR2(20 CHAR),
+    CORRELATION_ID      VARCHAR2(36 CHAR),           -- groups the fields of one save
     CHANGE_REASON       NVARCHAR2(500),         -- required when the Owner changes a closed record
     CHANGED_AT          TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
     CONSTRAINT IB_AUDIT_PK PRIMARY KEY (AUDIT_ID),
-    CONSTRAINT IB_AUDIT_CK_ACTION CHECK (ACTION IN ('I','U','D'))
+    CONSTRAINT IB_AUDIT_CK_ACTION CHECK (ACTION IN ('I','U'))          -- I = first value, U = change; nothing is deleted
 );
 CREATE INDEX IB_AUDIT_IX_RECORD ON IB_PROCESS_AUDIT_LOG (TABLE_NAME, RECORD_ID, CHANGED_AT);
 CREATE INDEX IB_AUDIT_IX_USER ON IB_PROCESS_AUDIT_LOG (NT_USER, CHANGED_AT);
@@ -423,10 +423,10 @@ CREATE INDEX IB_AUDIT_IX_USER ON IB_PROCESS_AUDIT_LOG (NT_USER, CHANGED_AT);
 -- Reviewer feedback ("Send feedback" button).
 CREATE TABLE IB_PROCESS_FEEDBACK (
     FEEDBACK_ID         NUMBER          GENERATED BY DEFAULT AS IDENTITY,
-    NT_USER             VARCHAR2(64)    NOT NULL,
-    USER_FUNCTION       VARCHAR2(10),
-    SCREEN              VARCHAR2(60),
-    FEEDBACK_TYPE       VARCHAR2(40),
+    NT_USER             VARCHAR2(64 CHAR)    NOT NULL,
+    USER_FUNCTION       VARCHAR2(10 CHAR),
+    SCREEN              VARCHAR2(60 CHAR),
+    FEEDBACK_TYPE       VARCHAR2(40 CHAR),
     FEEDBACK_TEXT       NVARCHAR2(2000) NOT NULL,
     CREATED_AT          TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
     CONSTRAINT IB_FDBK_PK PRIMARY KEY (FEEDBACK_ID)

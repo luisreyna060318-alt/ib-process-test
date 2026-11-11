@@ -141,6 +141,8 @@ public sealed partial class OracleDb
         2291 => new DataRuleException("A referenced value does not exist (foreign key): " + CleanMessage(ex.Message)),
         2292 => new DataRuleException("The record is referenced and cannot be removed."),
         12899 => new DataRuleException("A value is too long for its column: " + CleanMessage(ex.Message)),
+        1438 => new DataRuleException("A number is larger than its column allows: " + CleanMessage(ex.Message)),
+        1400 or 1407 => new DataRuleException("A required value is missing: " + CleanMessage(ex.Message)),
         _ => ex,
     };
 
