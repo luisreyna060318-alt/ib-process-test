@@ -20,7 +20,10 @@ public sealed class PalletRow
         DaysInJuP1 = p.ImportDateElpJup1 is null ? null : p.DaysInJuP1(today);
         DaysToLegalDue = p.LegalDueDate is null || p.Status.IsClosed() ? null : (int)(p.LegalDueDate.Value - today).TotalDays;
         Category = Catalogs.FindCategory(p.StatusCategoryCode)?.Description ?? p.StatusCategoryCode;
+        // Imported from the Excel: findings of the current rules (they go away as the record is homogenized).
+        OpenFindings = p.IsLegacy ? PalletValidator.Validate(p, today).Count : 0;
     }
+    public int OpenFindings { get; }
     public PalletReturn Pallet { get; }
     public int Id => Pallet.Id;
     public string FolioCode => Pallet.FolioCode;
@@ -81,6 +84,8 @@ public sealed partial class PalletListViewModel : PageViewModel
     [ObservableProperty] private LookupItem _selectedStatus;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _onlyDutyRisk;
+    /// <summary>Homogenization: only records imported from the Excel that still break a validation rule.</summary>
+    [ObservableProperty] private bool _onlyDataFindings;
     [ObservableProperty] private PalletRow? _selectedRow;
     [ObservableProperty] private string? _message;
 
@@ -93,6 +98,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     partial void OnSelectedStatusChanged(LookupItem value) => FiltersChanged();
     partial void OnSearchTextChanged(string value) => FiltersChanged();
     partial void OnOnlyDutyRiskChanged(bool value) => FiltersChanged();
+    partial void OnOnlyDataFindingsChanged(bool value) => ApplyFilter();
 
     protected override void UserChanged()
     {
@@ -173,6 +179,7 @@ public sealed partial class PalletListViewModel : PageViewModel
             case WorkflowStatus s when r.Status != s: return false;
         }
         if (OnlyDutyRisk && !r.IsDutyRisk) return false;
+        if (OnlyDataFindings && r.OpenFindings == 0) return false;
         if (!string.IsNullOrWhiteSpace(SearchText))
         {
             var t = SearchText.Trim();
@@ -202,6 +209,7 @@ public sealed partial class PalletListViewModel : PageViewModel
         SelectedStatus = StatusOptions[1];
         SearchText = "";
         OnlyDutyRisk = false;
+        OnlyDataFindings = false;
     }
 
     /// <summary>UX-B06: exporta la vista filtrada a un Excel de sólo lectura.</summary>

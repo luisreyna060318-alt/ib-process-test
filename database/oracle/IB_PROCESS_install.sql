@@ -711,6 +711,11 @@ COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.IS_DUTY_RISK IS 'Duty Risk / Reason 
 COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.DUTY_RISK_REASON IS 'Duty Risk / Reason - Excel: (not in the Excel) - Calculated by System';
 COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.LEGAL_DUE_DATE IS 'IMMEX Due Date - Excel: (not in the Excel) - Calculated by System';
 
+COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.IS_LEGACY IS 'Y = imported from the Excel 2.0 (editable working record, to homogenize); N = created in the app';
+COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.LEGACY_SHEET IS 'Excel 2.0 sheet the record was imported from (VS1, VS4, VS5, VS7, VS9)';
+COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.LEGACY_ROW IS 'Excel 2.0 row the record was imported from; sheet + row is loaded only once';
+COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.DATA_QUALITY_FLAGS IS 'Findings of the Excel import (kept as found); the app shows the current findings to homogenize';
+
 -- The audit log is append-only: no UPDATE or DELETE, not even from the application.
 CREATE OR REPLACE TRIGGER IB_PROCESS_AUDIT_LOG_RO
 BEFORE UPDATE OR DELETE ON IB_PROCESS_AUDIT_LOG

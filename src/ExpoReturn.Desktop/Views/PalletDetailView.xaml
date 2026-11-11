@@ -193,7 +193,8 @@
                         </Border>
                         <Border Background="#FEF3C7" CornerRadius="11" Padding="10,3" Margin="8,0,0,0" VerticalAlignment="Center"
                                 Visibility="{Binding IsLegacy, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Excel history (read-only)" Foreground="#92400E" FontWeight="SemiBold" />
+                            <TextBlock Text="Imported from Excel 2.0" Foreground="#92400E" FontWeight="SemiBold"
+                                       ToolTip="Editable record. Errors the Excel data already had show as warnings to homogenize and do not block saving" />
                         </Border>
                         <Border Background="#FEE2E2" CornerRadius="11" Padding="10,3" Margin="8,0,0,0" VerticalAlignment="Center"
                                 Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}">
@@ -534,7 +535,7 @@
                             </StackPanel>
                         </UniformGrid>
                         <StackPanel Style="{StaticResource Field}" Visibility="{Binding IsLegacy, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Data quality findings (Excel import)" Style="{StaticResource FieldLabel}" />
+                            <TextBlock Text="Data quality findings of the Excel import (to homogenize)" Style="{StaticResource FieldLabel}" />
                             <TextBox Text="{Binding Edit.DataQualityText, Mode=OneWay}" Style="{StaticResource ReadOnlyBox}" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Edit.LegacySource, StringFormat='Source: {0}'}" Style="{StaticResource Hint}" />
                         </StackPanel>

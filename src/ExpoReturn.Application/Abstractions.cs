@@ -24,8 +24,8 @@ public interface IPalletReturnRepository
     /// <summary>Reloads from the store (other users may have saved records).</summary>
     void Refresh();
     /// <summary>
-    /// Adds historical records from the Excel 2.0. Records already loaded (same sheet and row) are skipped; nothing is
-    /// replaced or deleted.
+    /// Adds the Excel 2.0 rows as working records (editable, IsLegacy marks the origin). Rows already loaded (same sheet
+    /// and row) are skipped, so edits made after a first import are never overwritten; nothing is replaced or deleted.
     /// </summary>
     LegacyAppendResult AppendLegacy(IEnumerable<PalletReturn> pallets);
     event EventHandler? Changed;

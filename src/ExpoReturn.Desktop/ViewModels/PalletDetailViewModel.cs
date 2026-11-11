@@ -95,7 +95,6 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     {
         get
         {
-            if (IsLegacy) return "Historical record imported from the Excel: read-only. Check the data quality findings.";
             if (Edit.Status.IsClosed() && !User.IsOwner) return "Closed record: only the Owner can reopen it (with a reason).";
             if (!User.IsOwner && !User.EditGrants.Any()) return "Your function is Viewer (read-only). The Owner assigns Champion or Proxy in Users & Access.";
             if (!User.CoversValueStream(Edit.ValueStreamId)) return $"You are not Champion or Proxy in VS{Edit.ValueStreamId}: read-only.";
@@ -140,7 +139,6 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     /// <summary>MM60 unit cost of the part number, from the cost master the Owner loads (Import MM60 file).</summary>
     private void FillCostFromCatalog()
     {
-        if (!IsNew && Edit.UnitCostSource == "LEGACY") return;
         var cost = Services.MaterialCosts.Find(Edit.ReturnedMaterial);
         if (cost is { UnitCostUsd: > 0 })
         {

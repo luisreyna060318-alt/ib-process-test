@@ -245,8 +245,10 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (!CanImportExcel) return;
         if (_services.IsDatabase && MessageBox.Show(
-                "The historical rows of the Excel 2.0 will be ADDED to the database as read-only records. Rows already loaded " +
-                "are skipped; nothing is replaced or deleted. The MM60 COST SAP sheet updates the cost master.\n\nContinue?",
+                "The rows of the Excel 2.0 will be saved in the database as records you can edit afterwards to homogenize the data " +
+                "(same permissions as any record; closed ones only by the Owner).\n\nRows already loaded are skipped, so changes made " +
+                "after a previous import are kept. Nothing is replaced or deleted. The hidden sheet MM60 COST SAP is saved as the " +
+                "cost master and completes the records without cost.\n\nContinue?",
                 "Excel 2.0 → Oracle", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         if (!ConfirmLeave()) return;
         var dlg = new OpenFileDialog
@@ -264,10 +266,11 @@ public sealed partial class ShellViewModel : ObservableObject
             OnPropertyChanged(nameof(Mm60Text));
             Back();
             var top = string.Join("\n", result.IssueCounts.OrderByDescending(k => k.Value).Take(8).Select(k => $"  • {k.Key}: {k.Value}"));
-            var stored = load.Stored is not { } st ? ""
-                : $"\n\nDatabase: {st.Added} added, {st.AlreadyLoaded} already loaded, {st.Failed.Count} refused." +
+            var stored = load.Stored is not { } st ? "\n\nLocal mode: the records are in memory only (not saved)."
+                : $"\n\nDatabase: {st.Added} records added, {st.AlreadyLoaded} already loaded, {st.Failed.Count} refused; " +
+                  $"{load.CostsCompleted} records got their MM60 cost." +
                   (st.Failed.Count == 0 ? "" : "\n" + string.Join("\n", st.Failed.Take(10).Select(f => $"  • {f}")) + (st.Failed.Count > 10 ? "\n  …" : ""));
-            MessageBox.Show($"{result.Summary}{stored}\n\nMain findings:\n{top}\n\nHistorical records are READ-ONLY and nothing is written to the Excel file.",
+            MessageBox.Show($"{result.Summary}{stored}\n\nData quality findings (to homogenize):\n{top}\n\nThe records can be edited; nothing is written to the Excel file.",
                 "Excel 2.0 import", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)

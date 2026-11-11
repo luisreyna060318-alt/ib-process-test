@@ -37,7 +37,7 @@
                         ToolTip="Reads again the records, users and alerts saved by other people" />
                 <Button Content="Import Excel 2.0…" Command="{Binding ImportExcelCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
                         Visibility="{Binding CanImportExcel, Converter={StaticResource BoolToVis}}"
-                        ToolTip="Local: loads the MATRIZ DE RASTREO 2.0 in memory (read-only). Oracle (Owner): adds its historical rows to the database once; nothing is replaced" />
+                        ToolTip="Owner: saves the rows of the MATRIZ DE RASTREO 2.0 as editable records (each row once; later imports never overwrite edits) and its MM60 COST SAP sheet as the cost master" />
                 <Button Content="Reset demo data" Command="{Binding ResetDemoCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
                         Visibility="{Binding IsLocalMode, Converter={StaticResource BoolToVis}}" />
                 <StackPanel Visibility="{Binding IsOwner, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">

@@ -1,4 +1,4 @@
-# Aplicación (v0.3.1): Expo & Return FG Follow Up
+# Aplicación (v0.3.2): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -63,7 +63,7 @@ Si algo falla (no está el DLL, la clave es incorrecta, no se encuentra el alias
 | *Send feedback* | `IB_PROCESS_FEEDBACK` |
 | Parámetros de cálculo (0.19, 540 días, umbrales) | `IB_PROCESS_PARAMETERS` (lectura) |
 | Catálogos (departamentos, categorías de estatus) | `IB_PROCESS_DEPARTMENTS`, `IB_PROCESS_STATUS_CATEGORIES` (lectura) |
-| *Import Excel 2.0* (Owner) | Agrega el histórico **una sola vez** por hoja y renglón (`LEGACY_SHEET`, `LEGACY_ROW`); no reemplaza nada |
+| *Import Excel 2.0* (Owner) | Guarda cada renglón del Excel como **registro de trabajo editable**, una sola vez por hoja y renglón (`LEGACY_SHEET`, `LEGACY_ROW`). Una segunda importación nunca sobrescribe lo que ya se corrigió. La hoja MM60 COST SAP va a `IB_PROCESS_MM60_COSTS` y completa el costo de los registros que no lo tenían |
 
 Cómo queda "sin borrar":
 
@@ -105,6 +105,15 @@ Se crea con valores por defecto la primera vez que se abre la app. Si es de una 
 * **UserStorePath:** (modo Local) archivo de usuarios. Vacío = `%LOCALAPPDATA%\ExpoReturn\users.json`. Si se apunta a una carpeta compartida, varios equipos ven los mismos usuarios (piloto).
 * **DemoData / DemoUsers:** pallets sintéticos (sólo en modo Local) y usuarios ficticios (uno por área y VS) para que el Owner pruebe funciones con "View as". Los usuarios demo sólo viven en memoria, también con Oracle: nunca se guardan.
 
+## Registros importados del Excel (homogeneización)
+
+* Cada renglón de las hojas VS1, VS4, VS5, VS7 y VS9 queda como un **registro normal** en `IB_PROCESS_PALLET_RETURNS`. `IS_LEGACY = 'Y'` sólo indica que vino del Excel, y `LEGACY_SHEET` / `LEGACY_ROW` dicen de qué hoja y renglón.
+* Se editan con los **mismos permisos** que cualquier registro: cada área sus campos en su VS. Los cerrados (Exported, Scrap confirmed) sólo los cambia el Owner, con motivo.
+* Los errores que el dato del Excel **ya traía** se muestran como aviso amarillo *"Excel data to homogenize"* y **no impiden guardar**. Un error **nuevo** que introduzca la edición sí lo impide. Así se puede corregir poco a poco, sin tener que arreglar todo el registro de una vez.
+* Igual que el resto: un campo con valor se puede cambiar pero no dejar vacío, y nada se borra. Todo cambio queda en la bitácora.
+* En la bandeja, **To homogenize** filtra los importados que todavía rompen alguna regla. La columna *Data quality* conserva lo que se encontró al importar.
+* Folios: el registro conserva el folio "#" del Excel. Si el "#" falta o está repetido, recibe 900000 + renglón. Los retornos nuevos siguen después del folio más alto del Excel en ese VS.
+
 ## Departamentos
 
 Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43 y HSE. En *Digitalización y proyectos transversales*: QMM-L2, DBE y TEF1. Los códigos de la lista anterior (MFQ4, QMM-C1, PUQ…) quedan **inactivos**: no se ofrecen, pero los registros históricos que los usan siguen siendo válidos. La hoja *Departments* del diccionario muestra el área de permisos de cada uno.
@@ -122,7 +131,7 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 | **Users & Access** | Tabla **User / Department / Value Stream / Function** (Viewer, Proxy, Champion, Owner); sólo el Owner la edita. Solicitudes pendientes con **Approve / Reject**. Matriz Champion/Proxy por VS y área, y campos que edita cada área |
 | **Audit log** | Quién cambió qué campo, cuándo, valor anterior y nuevo, incluidos accesos y solicitudes; filtros por folio, usuario, campo y fechas |
 | **Import MM60 file… (Owner)** | Carga el reporte MM60 exportado de SAP (columnas Material, Price, Price unit; el mismo de la hoja oculta "MM60 COST SAP"). Actualiza el maestro de costos sin borrar materiales, completa el costo de los registros abiertos que se guardaron sin él y los recalcula. Abajo del botón se ve cuántos materiales hay cargados |
-| **Import Excel 2.0…** | Local: carga la MATRIZ DE RASTREO en memoria y en sólo lectura. Oracle (sólo Owner): agrega el histórico a la base una sola vez y avisa qué renglones rechazó y por qué. Divide la expo LOW en número y fecha y carga la hoja "MM60 COST SAP" |
+| **Import Excel 2.0…** (Owner) | Guarda la MATRIZ DE RASTREO en la base como registros **editables** para homogeneizar los datos (en modo Local, sólo en memoria). Divide la expo LOW en número y fecha, guarda la hoja "MM60 COST SAP" como maestro de costos, completa los costos faltantes y avisa qué renglones rechazó y por qué |
 | **Reload** (Oracle) | Vuelve a leer lo que guardaron otras personas |
 | **Send feedback** | Oracle: `IB_PROCESS_FEEDBACK`. Local: `%LOCALAPPDATA%\ExpoReturn\feedback.csv` |
 
@@ -147,7 +156,7 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 4. **View as** *Patricia Lozano · GS/OSD43 · VS1 · Champion*: en un registro de VS1 sólo los campos de aduana quedan en verde; en otro VS todo queda en gris.
 5. **My profile** con un usuario no Owner: cambiar el VS. Aparece como solicitud; el Owner la aprueba en **Users & Access** y el VS nuevo entra como Viewer.
 6. Abrir un registro *Pending export* de VS1 (como Owner o un GS de VS1) y capturar *Customs Export* `PR26-00123`: pasa a *Exported*. Con `scrap marzo` aparece VAL-046.
-7. **Import Excel 2.0…** con el archivo real y revisar *LOW Export Number / Date*. Con Oracle (Owner), importarlo dos veces: la segunda debe decir "already loaded".
+7. **Import Excel 2.0…** con el archivo real y revisar *LOW Export Number / Date*. Con Oracle (Owner), importarlo dos veces: la segunda debe decir "already loaded". Abrir un registro importado, corregir un dato y guardar; con **To homogenize** en la bandeja se ven los que todavía rompen alguna regla.
 8. **Reglas:** borrar el texto de un campo con valor y guardar; la app lo rechaza, también como Owner. En *Users & Access*, **End access** cierra el acceso y lo deja en la historia.
 9. **Send feedback** en cada pantalla.
 

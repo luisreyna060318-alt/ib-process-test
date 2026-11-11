@@ -169,14 +169,15 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
     }
 
     /// <summary>
-    /// Next folio of the VS from IB_PROCESS_FOLIO_COUNTERS (never below the highest folio in the table). Committed on its
-    /// own: a save that fails afterwards leaves a gap, never a duplicate.
+    /// Next folio of the VS from IB_PROCESS_FOLIO_COUNTERS, never below the highest folio of the VS (imported Excel rows
+    /// included; 900000+ is reserved for Excel rows without a usable '#'). Committed on its own: a save that fails
+    /// afterwards leaves a gap, never a duplicate.
     /// </summary>
     public int NextFolio(int valueStreamId) => _db.InTransaction((c, tx) =>
     {
         using var cmd = _db.Command(c, $@"UPDATE {_db.T("IB_PROCESS_FOLIO_COUNTERS")}
                SET LAST_FOLIO = GREATEST(LAST_FOLIO, (SELECT NVL(MAX(FOLIO_NUMBER), 0) FROM {_db.T("IB_PROCESS_PALLET_RETURNS")}
-                                                      WHERE VALUE_STREAM_ID = :vs AND IS_LEGACY = 'N')) + 1
+                                                      WHERE VALUE_STREAM_ID = :vs AND FOLIO_NUMBER < 900000)) + 1
              WHERE VALUE_STREAM_ID = :vs
          RETURNING LAST_FOLIO INTO :folio", tx);
         cmd.Parameters.Add("vs", valueStreamId);
@@ -262,7 +263,8 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
     }
 
     /// <summary>
-    /// Excel 2.0 history: each sheet row is inserted once (LEGACY_SHEET + LEGACY_ROW). Values that do not fit the schema
+    /// Excel 2.0 rows become working records (IS_LEGACY = 'Y' only marks the origin; they can be edited to homogenize
+    /// the data). Each sheet row is inserted once (LEGACY_SHEET + LEGACY_ROW), so a second import never overwrites edits. Values that do not fit the schema
     /// are not invented: department / status category not in the catalogs go to NULL with a DQ flag that keeps the text;
     /// a repeated folio gets 900000 + row. Rows the database still refuses are reported, the rest are committed.
     /// </summary>

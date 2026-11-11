@@ -393,3 +393,93 @@ public class OracleScriptCoherenceTests
             }
     }
 }
+
+/// <summary>Excel 2.0 rows are imported as working records that can be edited to homogenize the data.</summary>
+public class ImportedRecordTests
+{
+    private static PalletReturn Imported(int folio, int row) => new()
+    {
+        ValueStreamId = 4, FolioNumber = folio, IsLegacy = true, LegacySource = $"VS4!row {row}", CreatedBy = "MIGRATION",
+        ReturnedMaterial = "0203.306.644-250", QtyImported = 10, UnitCostSource = "PENDING",
+        ImportDate = new DateTime(2026, 1, 10), ImportInvoice = "MPS26000001", ImportDateElpJup1 = new DateTime(2026, 1, 12),
+        OldMaterialDeliveredQty = 8, ScrapQty = 5, ScrapDate = new DateTime(2026, 2, 1),   // 8 + 5 > 10: the Excel had it wrong
+    };
+
+    private static (InMemoryPalletRepository, InMemoryAuditTrail, PalletReturnService, PalletReturn) Setup()
+    {
+        var repo = new InMemoryPalletRepository();
+        var audit = new InMemoryAuditTrail();
+        var svc = new PalletReturnService(repo, audit, new SystemClock());
+        var p = Imported(15, 20);
+        PalletEvaluator.Apply(p, svc.Parameters, DateTime.Today);
+        repo.AppendLegacy(new[] { p });
+        return (repo, audit, svc, repo.GetAll().Single());
+    }
+
+    private static readonly UserContext Mfo4 = new("BOSCH\\MFO4", "MFO champion", "MFO1", false,
+        new[] { new AccessGrant("MFO1", 4, UserFunction.Champion) });
+
+    [Fact]
+    public void Imported_records_are_editable_with_the_normal_permissions()
+    {
+        var (_, _, _, p) = Setup();
+        Assert.False(p.Status.IsClosed());
+        Assert.True(FieldPermissions.CanEdit(Mfo4, p, nameof(PalletReturn.ScrapQty)));
+        Assert.False(FieldPermissions.CanEdit(Mfo4, p, nameof(PalletReturn.ImportInvoice)));     // still only its own area
+    }
+
+    [Fact]
+    public void Errors_the_excel_already_had_do_not_block_but_new_errors_do()
+    {
+        var (repo, audit, svc, p) = Setup();
+        var fix = p.Clone();
+        fix.NewHU = "1234567890";                       // unrelated change, the balance error is still there
+        var shown = svc.Evaluate(fix);
+        Assert.Contains(shown.Issues, i => i.Code == "VAL-033" && i.Severity == Severity.Warning && i.FromExcel);
+        var ok = svc.Save(fix, Mfo4);
+        Assert.True(ok.Success, ok.Summary);
+        Assert.Contains(audit.For(p.Id), a => a.Field == nameof(PalletReturn.NewHU));
+
+        var worse = repo.Get(p.Id)!.Clone();
+        worse.ScrapDate = new DateTime(2026, 1, 1);    // before the crossing: a NEW error
+        var refused = svc.Save(worse, Mfo4);
+        Assert.False(refused.Success);
+        Assert.Contains(refused.Issues, i => i.Code == "VAL-035" && i.Severity == Severity.Error);
+
+        var homogenized = repo.Get(p.Id)!.Clone();
+        homogenized.ScrapQty = 2;                       // 8 + 2 = 10: the Excel error is corrected
+        Assert.True(svc.Save(homogenized, Mfo4).Success);
+        Assert.DoesNotContain(PalletValidator.Validate(repo.Get(p.Id)!, DateTime.Today), i => i.Code == "VAL-033");
+    }
+
+    [Fact]
+    public void A_second_import_never_overwrites_edited_records()
+    {
+        var (repo, _, svc, p) = Setup();
+        var e = p.Clone(); e.NewHU = "1234567890";
+        Assert.True(svc.Save(e, Mfo4).Success);
+        var again = repo.AppendLegacy(new[] { Imported(15, 20) });
+        Assert.Equal(0, again.Added);
+        Assert.Equal(1, again.AlreadyLoaded);
+        Assert.Equal("1234567890", repo.Get(p.Id)!.NewHU);
+    }
+
+    [Fact]
+    public void Mm60_completes_the_cost_of_imported_records()
+    {
+        var (repo, audit, svc, p) = Setup();
+        var costs = new InMemoryMaterialCostCatalog();
+        costs.Replace(new[] { new MaterialCost("0203.306.644-250", "PN", 25, 10, "USD") }, "MM60");
+        Assert.Equal(1, Mm60Import.CompletePendingCosts(costs, repo, audit, new SystemClock(), svc.Parameters, "test"));
+        Assert.Equal(2.5m, repo.Get(p.Id)!.UnitCostUsd);
+        Assert.Equal("MM60", repo.Get(p.Id)!.UnitCostSource);
+    }
+
+    [Fact]
+    public void New_folios_continue_after_the_imported_ones_and_skip_the_reserved_range()
+    {
+        var (repo, _, _, _) = Setup();
+        repo.AppendLegacy(new[] { Imported(900033, 33) });
+        Assert.Equal(16, repo.NextFolio(4));            // after folio 15 of the Excel, not after 900033
+    }
+}

@@ -150,7 +150,8 @@ public static class FieldPermissions
     public static bool CanEdit(UserContext user, PalletReturn pallet, string field)
     {
         if (user.IsOwner) return true;
-        if (pallet.Status.IsClosed() || pallet.IsLegacy) return false;
+        // Records imported from the Excel 2.0 are working records: same rules as the rest (closed → Owner only).
+        if (pallet.Status.IsClosed()) return false;
         return user.EditGrants.Any(g => g.ValueStreamId == pallet.ValueStreamId
                                         && Map.TryGetValue(g.Area, out var set) && set.Contains(field));
     }

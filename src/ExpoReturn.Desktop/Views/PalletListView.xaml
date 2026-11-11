@@ -42,6 +42,9 @@
                         <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="260" Margin="0,0,16,0"
                                  ToolTip="Folio, part number, HU/batch, invoice, QMM responsible or customs export (Ctrl+F)" />
                         <CheckBox Content="Duty risk only" IsChecked="{Binding OnlyDutyRisk}" Margin="0,0,16,0" />
+                        <CheckBox Content="To homogenize" IsChecked="{Binding OnlyDataFindings}" Margin="0,0,16,0"
+                                  Visibility="{Binding HasLegacy, Converter={StaticResource BoolToVis}}"
+                                  ToolTip="Records imported from the Excel 2.0 that still break a validation rule (open them to see which)" />
                         <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
                     </StackPanel>
                 </DockPanel>

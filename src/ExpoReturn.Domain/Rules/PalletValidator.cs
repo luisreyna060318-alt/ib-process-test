@@ -2,14 +2,15 @@ using ExpoReturn.Domain.Rules;
 
 namespace ExpoReturn.Domain;
 
-public sealed record ValidationIssue(string Code, Severity Severity, string Field, string Message)
+/// <param name="FromExcel">Problem the record already had when it was imported from the Excel 2.0 (to homogenize; never blocks).</param>
+public sealed record ValidationIssue(string Code, Severity Severity, string Field, string Message, bool FromExcel = false)
 {
     private static readonly HashSet<string> RequiredCodes = new() { "VAL-001", "VAL-012", "VAL-015", "VAL-016", "VAL-017" };
 
     public string SeverityText => Severity switch { Severity.Error => "Error", Severity.Warning => "Warning", _ => "Info" };
 
     /// <summary>Aviso de dato obligatorio pendiente para pasar a "Solicitado" (no bloquea el guardado).</summary>
-    public bool IsRequiredPending => Severity == Severity.Warning && RequiredCodes.Contains(Code);
+    public bool IsRequiredPending => !FromExcel && Severity == Severity.Warning && RequiredCodes.Contains(Code);
 }
 
 /// <summary>Catálogo de validaciones VAL-xxx (doc 03 §2), ajustado a lo observado en el Excel real.</summary>

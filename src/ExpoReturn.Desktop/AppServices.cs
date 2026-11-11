@@ -102,11 +102,12 @@ public sealed class AppServices
         DataSourceLabel = "Demo data (synthetic)";
     }
 
-    public sealed record LegacyLoad(LegacyImportResult Read, LegacyAppendResult? Stored);
+    public sealed record LegacyLoad(LegacyImportResult Read, LegacyAppendResult? Stored, int CostsCompleted);
 
     /// <summary>
-    /// Excel 2.0. Local: replaces the demo data in memory (read-only view). Oracle (Owner): adds the historical rows that are
-    /// not in the database yet; rows already loaded are skipped and nothing is replaced. The MM60 sheet updates the cost master.
+    /// Excel 2.0 → working records. Oracle (Owner): the rows not loaded yet are inserted in IB_PROCESS_PALLET_RETURNS and can
+    /// then be edited to homogenize the data; rows already loaded are skipped, so edits are never overwritten. The hidden
+    /// sheet MM60 COST SAP goes to IB_PROCESS_MM60_COSTS and completes the records without cost. Local: same, in memory.
     /// </summary>
     public LegacyLoad ImportLegacy(string path, string ntUser)
     {
@@ -118,15 +119,17 @@ public sealed class AppServices
             (AlertAcks as InMemoryAlertAcknowledgementStore)?.Clear();
             repo.ReplaceAll(result.Pallets);
             if (result.MaterialCosts.Count > 0) MaterialCosts.Replace(result.MaterialCosts, source, CostSource.Excel);
-            DataSourceLabel = $"Imported Excel (read-only, in memory): {Path.GetFileName(path)}";
-            return new LegacyLoad(result, null);
+            var localCosts = Mm60Import.CompletePendingCosts(MaterialCosts, Repository, Audit, Clock, Pallets.Parameters, "Excel 2.0 import");
+            DataSourceLabel = $"Imported Excel (in memory, Local mode does not save): {Path.GetFileName(path)}";
+            return new LegacyLoad(result, null, localCosts);
         }
         if (result.MaterialCosts.Count > 0) MaterialCosts.Replace(result.MaterialCosts, source, CostSource.Excel);
         var stored = Repository.AppendLegacy(result.Pallets);
-        Audit.Record(new[] { new AuditEntry(0, "MIGRATION", "Excel 2.0 history", null,
-            $"{stored.Added} added, {stored.AlreadyLoaded} already loaded, {stored.Failed.Count} refused · {Path.GetFileName(path)}",
+        var costs = Mm60Import.CompletePendingCosts(MaterialCosts, Repository, Audit, Clock, Pallets.Parameters, $"Excel 2.0 import by {ntUser}");
+        Audit.Record(new[] { new AuditEntry(0, "MIGRATION", "Excel 2.0 import", null,
+            $"{stored.Added} added, {stored.AlreadyLoaded} already loaded, {stored.Failed.Count} refused, {costs} costs completed · {Path.GetFileName(path)}",
             ntUser, Clock.UtcNow, null) });
-        return new LegacyLoad(result, stored);
+        return new LegacyLoad(result, stored, costs);
     }
 
     /// <summary>Owner: loads the MM60 export and completes the cost of open records still without it.</summary>

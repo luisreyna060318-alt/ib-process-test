@@ -103,9 +103,22 @@ public static class Mm60Import
     {
         var read = Mm60Reader.Read(path);
         catalog.Replace(read.Costs, Path.GetFileName(path));
+        var updated = CompletePendingCosts(catalog, repo, audit, clock, parameters, $"MM60 import by {ownerNtUser}");
+        audit.Record(new[] { new AuditEntry(0, "MM60", "MM60 cost master", null,
+            $"{read.Costs.Count} materials loaded from {Path.GetFileName(path)}", ownerNtUser, clock.UtcNow, null) });
+        return new Mm60ImportSummary(read.Costs.Count, read.RowsSkipped, read.SheetName, updated);
+    }
+
+    /// <summary>
+    /// Gives the MM60 unit cost to the records still without it (new or imported from the Excel, "COSTEAR"), recalculates
+    /// and audits them as SYSTEM. Returns how many were updated.
+    /// </summary>
+    public static int CompletePendingCosts(IMaterialCostCatalog catalog, IPalletReturnRepository repo, IAuditTrail audit, IClock clock,
+                                           Domain.CalcParameters parameters, string reason)
+    {
         var now = clock.UtcNow;
         var updated = 0;
-        foreach (var p in repo.GetAll().Where(p => !p.IsLegacy && p.UnitCostSource == "PENDING"))
+        foreach (var p in repo.GetAll().Where(p => p.UnitCostSource == "PENDING"))
         {
             if (catalog.Find(p.ReturnedMaterial) is not { UnitCostUsd: > 0 } cost) continue;
             var edit = p.Clone();
@@ -117,11 +130,9 @@ public static class Mm60Import
             try { repo.Save(edit); }
             catch (ConcurrencyException) { continue; }      // someone saved it meanwhile: it keeps PENDING until the next import
             audit.Record(new[] { new AuditEntry(edit.Id, edit.FolioCode, nameof(Domain.PalletReturn.UnitCostUsd), null,
-                cost.UnitCostUsd.ToString(System.Globalization.CultureInfo.InvariantCulture), "SYSTEM", now, $"MM60 import by {ownerNtUser}") });
+                cost.UnitCostUsd.ToString(System.Globalization.CultureInfo.InvariantCulture), "SYSTEM", now, reason) });
             updated++;
         }
-        audit.Record(new[] { new AuditEntry(0, "MM60", "MM60 cost master", null,
-            $"{read.Costs.Count} materials loaded from {Path.GetFileName(path)}", ownerNtUser, now, null) });
-        return new Mm60ImportSummary(read.Costs.Count, read.RowsSkipped, read.SheetName, updated);
+        return updated;
     }
 }

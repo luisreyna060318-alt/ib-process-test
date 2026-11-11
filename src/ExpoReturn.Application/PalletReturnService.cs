@@ -37,7 +37,25 @@ public sealed class PalletReturnService
         Parameters = parameters ?? CalcParameters.Default;
     }
 
-    public PalletEvaluation Evaluate(PalletReturn p) => PalletEvaluator.Evaluate(p, Parameters, _clock.Today);
+    public PalletEvaluation Evaluate(PalletReturn p) => Evaluate(p, p.Id == 0 ? null : _repo.Get(p.Id));
+
+    /// <summary>
+    /// Records imported from the Excel 2.0 are validated like any other, but an error the saved record already had
+    /// (Excel data) is shown as a warning "to homogenize" and does not block; only errors the edit introduces block.
+    /// </summary>
+    public PalletEvaluation Evaluate(PalletReturn p, PalletReturn? saved)
+    {
+        var e = PalletEvaluator.Evaluate(p, Parameters, _clock.Today);
+        if (!p.IsLegacy) return e;
+        var before = saved is null ? new HashSet<(string, string)>()
+            : PalletValidator.Validate(saved, _clock.Today).Where(i => i.Severity == Severity.Error).Select(i => (i.Code, i.Field)).ToHashSet();
+        var issues = PalletValidator.Validate(p, _clock.Today)
+            .Select(i => i.Severity == Severity.Error && before.Contains((i.Code, i.Field))
+                ? i with { Severity = Severity.Warning, Message = "Excel data to homogenize: " + i.Message, FromExcel = true }
+                : i with { FromExcel = i.Severity != Severity.Error })
+            .ToList();
+        return e with { Issues = issues };
+    }
 
     public PalletReturn NewDraft(int valueStreamId, UserContext user) => new()
     {
@@ -63,7 +81,7 @@ public sealed class PalletReturnService
         if (!string.IsNullOrWhiteSpace(edited.NewMaterial))
             edited.NewMaterial = Domain.Rules.Identifiers.NormalizeMaterial(edited.NewMaterial);
 
-        var evaluation = PalletEvaluator.Evaluate(edited, Parameters, _clock.Today);
+        var evaluation = Evaluate(edited, original);
         if (evaluation.HasErrors) return new SaveResult(false, evaluation.Issues, Array.Empty<string>(), null);
 
         var isNew = edited.Id == 0;

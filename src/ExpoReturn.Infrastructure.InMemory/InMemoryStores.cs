@@ -54,7 +54,8 @@ public sealed class InMemoryPalletRepository : IPalletReturnRepository
 
     public int NextFolio(int valueStreamId)
     {
-        lock (_gate) return _items.Where(p => p.ValueStreamId == valueStreamId).Select(p => p.FolioNumber).DefaultIfEmpty(0).Max() + 1;
+        // 900000+ is reserved for Excel rows without a usable '#'
+        lock (_gate) return _items.Where(p => p.ValueStreamId == valueStreamId && p.FolioNumber < 900000).Select(p => p.FolioNumber).DefaultIfEmpty(0).Max() + 1;
     }
 
     /// <summary>Demo only (synthetic data / in-memory Excel view). Not available with the database.</summary>
