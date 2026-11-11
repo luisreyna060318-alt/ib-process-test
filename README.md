@@ -68,7 +68,9 @@ Cómo encajan con la app:
 * Los scripts son ASCII puro y no tienen `&` ni líneas en blanco dentro de las instrucciones (SQL*Plus las interpreta).
 * Las pruebas automáticas revisan que los nombres midan como máximo 30 caracteres y que ninguno sea palabra reservada. También revisan que cada llave foránea apunte a una tabla ya creada y del mismo tipo, que la semilla use columnas existentes en el orden correcto, que los permisos sembrados sean los de la app y que cada columna de cada SQL de la app exista con el mismo largo.
 
-Los scripts 02, 03, 04 y el archivo único se regeneran con `python3 tools/database/build_all.py`; el 01 se edita a mano.
+**Verificar la instalación (en cualquier momento):** [`90_verify_install.sql`](database/oracle/90_verify_install.sql) compara lo que de verdad hay en el esquema (diccionario de Oracle) con lo que definen los scripts: columnas con tipo, largo y nulos; constraints; índices y triggers. Sólo muestra **diferencias**: si las secciones 1 a 4 dicen *no rows selected*, el esquema es idéntico. También muestra las filas por tabla y los totales. Sólo hace `SELECT`.
+
+Los scripts 02, 03, 04, el archivo único y el 90 se regeneran con `python3 tools/database/build_all.py`; el 01 se edita a mano.
 
 Nombres de máximo 30 caracteres (compatibles con cualquier versión de Oracle); requiere Oracle 12c o superior por las columnas `IDENTITY`.
 

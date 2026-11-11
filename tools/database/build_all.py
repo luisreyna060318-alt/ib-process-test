@@ -6,6 +6,7 @@
   03_comments_and_triggers.sql <- build_oracle_comments.py
   04_integrity_rules.sql      <- build_oracle_integrity.py (reads 01_create_tables.sql)
   IB_PROCESS_install.sql      =  01 + 02 + 03 + 04, in that order (run it as the schema owner)
+  90_verify_install.sql       <- build_oracle_verify.py (compares the schema with 01-04; read only)
 
 All scripts are kept in plain ASCII so they run the same in SQL Developer, SQL*Plus or SQLcl whatever the client
 encoding is.
@@ -47,3 +48,4 @@ header = ["/* ==================================================================
 out = os.path.join(ORA, "IB_PROCESS_install.sql")
 open(out, "w", encoding="ascii", newline="\n").write("\n".join(header) + "\n".join(texts))
 print("OK ->", os.path.relpath(out, ROOT))
+subprocess.run([sys.executable, os.path.join(HERE, "build_oracle_verify.py")], check=True)

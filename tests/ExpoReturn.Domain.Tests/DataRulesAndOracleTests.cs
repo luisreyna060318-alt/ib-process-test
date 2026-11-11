@@ -366,6 +366,18 @@ public class OracleScriptCoherenceTests
     }
 
     [Fact]
+    public void Verify_script_expects_every_table_column_and_trigger_and_only_reads()
+    {
+        var verify = Read("database", "oracle", "90_verify_install.sql");
+        foreach (var (table, cols, _) in Tables())
+            foreach (var c in cols.Keys) Assert.Contains($"'{table}', '{c}', ", verify);
+        foreach (Match t in Regex.Matches(Read("database", "oracle", "IB_PROCESS_install.sql"), @"CREATE OR REPLACE TRIGGER (\w+)"))
+            Assert.Contains($"SELECT '{t.Groups[1].Value}', ", verify);
+        Assert.DoesNotMatch(@"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE)\b", NoComments(verify));
+        Assert.DoesNotContain(verify, c => c > 127 || c == '&');
+    }
+
+    [Fact]
     public void Comments_and_integrity_triggers_name_existing_columns()
     {
         var comments = Read("database", "oracle", "03_comments_and_triggers.sql");
