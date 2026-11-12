@@ -15,8 +15,19 @@ public sealed class OracleSettings
     public string? TnsAdmin { get; set; }
     /// <summary>Schema that owns the IB_PROCESS_ tables when the account is not the owner (empty = own schema).</summary>
     public string? Schema { get; set; }
-    /// <summary>Environment variable with the master key; if it is empty the application asks for it.</summary>
+    /// <summary>Environment variable with the master key; it wins over everything else when it is set.</summary>
     public string MasterKeyEnvVar { get; set; } = "SHARED_SERVERS_CLAVE";
+    /// <summary>Master key in appsettings.json, only to override the built-in one; empty = built-in.</summary>
+    public string? MasterKey { get; set; }
+
+    /// <summary>Built-in master key of SharedServersAccess (the connection is automatic, nobody types it).</summary>
+    public const string BuiltInMasterKey = "1234";
+
+    /// <summary>Environment variable → appsettings "MasterKey" → built-in key.</summary>
+    public string ResolveMasterKey() =>
+        Environment.GetEnvironmentVariable(MasterKeyEnvVar) is { Length: > 0 } env ? env
+        : !string.IsNullOrEmpty(MasterKey) ? MasterKey
+        : BuiltInMasterKey;
     /// <summary>Rows shown in the Audit log screen (most recent first).</summary>
     public int AuditRowsShown { get; set; } = 5000;
 }

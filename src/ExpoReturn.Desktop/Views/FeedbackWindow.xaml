@@ -22,7 +22,7 @@
             <TextBox x:Name="Comment" Style="{StaticResource MultiLine}" Height="150" Margin="0,0,0,12" />
             <TextBlock x:Name="PathText" Style="{StaticResource Hint}" Margin="0,0,0,12" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Open folder" Click="OnOpenFolder" Style="{StaticResource SecondaryButton}" />
+
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" />
                 <Button Content="Save comment" Click="OnSave" Style="{StaticResource PrimaryButton}" Margin="0" />
             </StackPanel>

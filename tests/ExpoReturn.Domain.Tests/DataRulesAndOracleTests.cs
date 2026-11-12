@@ -587,7 +587,107 @@ public class DepartmentsFromDatabaseTests
             Catalogs.UseDepartments(Array.Empty<Department>());                   // an empty answer never empties the list
             Assert.Equal(3, Catalogs.Departments.Count);
         }
-        finally { Catalogs.UseBuiltInDepartments(); }
+        finally { Catalogs.UseBuiltIn(); }
         Assert.Equal(26, Catalogs.Departments.Count);
+    }
+}
+
+/// <summary>v0.4.0: the database connection is mandatory and automatic.</summary>
+public class MandatoryConnectionTests
+{
+    [Fact]
+    public async Task After_a_failed_start_it_retries_now_then_after_5_and_10_seconds()
+    {
+        var waits = new List<TimeSpan>();
+        var announced = new List<ConnectionRetry.RetryInfo>();
+        var calls = 0;
+        var outcome = await ConnectionRetry.RetryAsync<string>(() => ++calls < 3 ? throw new InvalidOperationException($"down {calls}") : "connected",
+            "first failure", announced.Add, (d, _) => { waits.Add(d); return Task.CompletedTask; }, CancellationToken.None);
+        Assert.True(outcome.Connected);
+        Assert.Equal(4, outcome.Attempts);                          // first attempt + 3 retries
+        Assert.Equal(new[] { TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) }, waits);   // retry 1 does not wait
+        Assert.Equal(new[] { "first failure", "down 1", "down 2" }, announced.Select(a => a.LastError));
+        Assert.Equal(new[] { 0, 5, 10 }, ConnectionRetry.RetryDelays.Select(d => (int)d.TotalSeconds));
+    }
+
+    [Fact]
+    public async Task When_every_retry_fails_there_is_no_connection_and_the_last_error_is_shown()
+    {
+        var outcome = await ConnectionRetry.RetryAsync<string>(() => throw new System.Reflection.TargetInvocationException(new Exception("ORA-12154: no alias")),
+            "first", null, (_, _) => Task.CompletedTask, CancellationToken.None);
+        Assert.False(outcome.Connected);
+        Assert.Equal("ORA-12154: no alias", outcome.LastError);
+        Assert.Equal(4, outcome.Attempts);
+    }
+
+    [Fact]
+    public async Task Closing_the_window_stops_the_retries()
+    {
+        using var cts = new CancellationTokenSource();
+        var calls = 0;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ConnectionRetry.RetryAsync<string>(
+            () => { calls++; throw new Exception("down"); }, "first", _ => { }, (_, _) => { cts.Cancel(); return Task.CompletedTask; }, cts.Token));
+        Assert.Equal(1, calls);                                     // retry 1 ran, the wait before retry 2 was cancelled
+    }
+
+    [Fact]
+    public void The_master_key_is_built_in_and_can_only_be_overridden_on_purpose()
+    {
+        var envVar = "IBP_TEST_KEY_" + Guid.NewGuid().ToString("N");
+        var settings = new OracleSettings { MasterKeyEnvVar = envVar };
+        Assert.Equal("1234", settings.ResolveMasterKey());
+        settings.MasterKey = "fromConfig";
+        Assert.Equal("fromConfig", settings.ResolveMasterKey());
+        try
+        {
+            Environment.SetEnvironmentVariable(envVar, "fromEnv");
+            Assert.Equal("fromEnv", settings.ResolveMasterKey());
+        }
+        finally { Environment.SetEnvironmentVariable(envVar, null); }
+    }
+}
+
+/// <summary>All the catalogs come from the database (managed there, no new executable).</summary>
+[Collection("Global catalogs")]
+public class CatalogsFromDatabaseTests
+{
+    [Fact]
+    public void Value_streams_reasons_categories_status_names_and_permissions_come_from_the_database()
+    {
+        try
+        {
+            Catalogs.Use(new CatalogData(
+                new[] { new ValueStream(1, "VS1", "Value Stream 1"), new ValueStream(4, "VS4", "Value Stream 4", IsActive: false), new ValueStream(12, "VS12", "Value Stream 12") },
+                new[] { new Reason(1, "R01", "Packaging change due to customer request", "PACKAGING", false),
+                        new Reason(3, "R03", "To change FG P/N with reflash", "REFLASH", true, IsActive: false) },
+                new[] { new StatusCategory("EXPORT", "EXPORT", "OUTCOME", null, false, true),
+                        new StatusCategory("SCRAP", "SCRAP", "OUTCOME", null, false, true),
+                        new StatusCategory("ENVIO NACIONAL", "ENVIO NACIONAL", "OUTCOME", "GS", false, false, IsActive: false) },
+                new Dictionary<int, IReadOnlyList<string>> { [1] = new[] { "SCRAP", "EXPORT", "ENVIO NACIONAL" } },
+                Array.Empty<Department>(),
+                new Dictionary<WorkflowStatus, string> { [WorkflowStatus.Exported] = "Exported (closed)" }));
+            FieldPermissions.UseMatrix(new Dictionary<RoleCode, IReadOnlyCollection<string>>
+            {
+                [RoleCode.Lop] = new[] { nameof(PalletReturn.DeliveryNumber), nameof(PalletReturn.ImportInvoice) },   // changed in the database
+            });
+
+            Assert.Equal(new[] { "VS1", "VS12" }, Catalogs.ValueStreams.Select(v => v.Code));          // VS4 deactivated, VS12 added
+            Assert.Equal(new[] { "R01" }, Catalogs.Reasons.Select(r => r.Code));
+            Assert.True(Catalogs.FindReason(3)!.RequiresNewMaterial);                                 // inactive, still valid for its records
+            Assert.Equal(new[] { "SCRAP", "EXPORT" }, Catalogs.CommentsOptions(1));                   // VS order, inactive left out
+            Assert.Contains("ENVIO NACIONAL", Catalogs.CommentsOptions(1, "ENVIO NACIONAL"));        // a record keeps its value
+            Assert.Equal("Exported (closed)", WorkflowStatus.Exported.DisplayName());
+            Assert.Equal("Draft", WorkflowStatus.Draft.DisplayName());                                // not in the database: built-in name
+            var lop = new UserContext("T\\LOP", "LOP", "LOP1", false, new[] { new AccessGrant("LOP1", 1, UserFunction.Champion) });
+            var p = new PalletReturn { ValueStreamId = 1, Status = WorkflowStatus.Imported };
+            Assert.True(FieldPermissions.CanEdit(lop, p, nameof(PalletReturn.ImportInvoice)));
+        }
+        finally
+        {
+            Catalogs.UseBuiltIn();
+            FieldPermissions.UseBuiltInMatrix();
+        }
+        Assert.Equal(5, Catalogs.ValueStreams.Count);
+        Assert.Equal("Exported", WorkflowStatus.Exported.DisplayName());
     }
 }

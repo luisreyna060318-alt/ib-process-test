@@ -6,46 +6,33 @@ namespace ExpoReturn.Desktop;
 
 /// <summary>
 /// appsettings.json next to the executable. Created with defaults on first run if it does not exist.
+/// The application always works on the Oracle database (there is no local mode): if it cannot connect, it does not open.
 /// <code>
 /// {
-///   "DataSource": "Oracle",                       // "Oracle" = IB_PROCESS_ tables · "Local" = demo in memory + users file
 ///   "Oracle": {
 ///     "Server": "IFACTJUP",                       // server title in SharedServersAccess (= TNS alias)
 ///     "SharedServersDll": "SharedServersAccess.dll",
 ///     "SharedServersIni": "",                     // optional servers.ini path; empty = the DLL default
 ///     "TnsAdmin": "",                             // folder of tnsnames.ora; empty = TNS_ADMIN / ORACLE_HOME
 ///     "Schema": "",                               // owner of the tables if it is not the connected account
-///     "MasterKeyEnvVar": "SHARED_SERVERS_CLAVE"   // master key; if empty the app asks for it (never stored)
+///     "MasterKeyEnvVar": "SHARED_SERVERS_CLAVE",  // optional override of the master key
+///     "MasterKey": null                           // optional override; empty = built-in key (automatic connection)
 ///   },
-///   "Owners": [ "US\\RLN8JU" ],                  // Windows users with the Owner function
-///   "UserStorePath": "",                          // Local mode: users file; empty = %LOCALAPPDATA%\ExpoReturn\users.json
-///   "DemoData": true,                             // Local mode: load synthetic pallets
-///   "DemoUsers": true                             // fictitious users (memory only) so the Owner can preview other functions
+///   "Owners": [ "US\\RLN8JU" ]                   // Windows users with the Owner function
 /// }
 /// </code>
 /// </summary>
 public sealed class AppConfig
 {
-    /// <summary>Default Owner: US\RLN8JU (process owner of the application). More can be added here or in IB_PROCESS_USER_ACCESS.</summary>
-    public const string Version = "0.3.6";
+    public const string Version = "0.4.0";
 
-    /// <summary>"Oracle" (production: IB_PROCESS_ tables through SharedServersAccess) or "Local" (demo).</summary>
-    public string DataSource { get; set; } = "Oracle";
     public OracleSettings Oracle { get; set; } = new();
+    /// <summary>Default Owner: US\RLN8JU (process owner of the application). More can be added here or in IB_PROCESS_USER_ACCESS.</summary>
     public List<string> Owners { get; set; } = new() { "US\\RLN8JU" };
-    public string? UserStorePath { get; set; }
-    public bool DemoData { get; set; } = true;
-    public bool DemoUsers { get; set; } = true;
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
     public static string FilePath => Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-
-    public bool UsesOracle => string.Equals(DataSource, "Oracle", StringComparison.OrdinalIgnoreCase);
-
-    public string ResolvedUserStorePath => string.IsNullOrWhiteSpace(UserStorePath)
-        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExpoReturn", "users.json")
-        : Environment.ExpandEnvironmentVariables(UserStorePath);
 
     /// <summary>Windows user running the application (DOMAIN\user).</summary>
     public static string CurrentWindowsUser => $"{Environment.UserDomainName}\\{Environment.UserName}".ToUpperInvariant();
@@ -58,8 +45,8 @@ public sealed class AppConfig
             {
                 var text = File.ReadAllText(FilePath);
                 var loaded = JsonSerializer.Deserialize<AppConfig>(text, Options) ?? new AppConfig();
-                // File of an older version: add the new keys (Oracle connection) keeping the values it had.
-                if (!text.Contains("\"DataSource\"", StringComparison.Ordinal))
+                // File of an older version (local mode keys): rewrite it with the current keys, keeping Oracle and Owners.
+                if (text.Contains("\"DataSource\"", StringComparison.Ordinal) || text.Contains("\"DemoData\"", StringComparison.Ordinal))
                     try { File.WriteAllText(FilePath, JsonSerializer.Serialize(loaded, Options)); } catch { /* read-only folder */ }
                 return loaded;
             }

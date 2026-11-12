@@ -1,11 +1,10 @@
-# Aplicación (v0.3.6): Expo & Return FG Follow Up
+# Aplicación (v0.4.0): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
-Tiene dos modos (`"DataSource"` en `appsettings.json`):
+**Siempre trabaja sobre la base Oracle** (tablas `IB_PROCESS_` de `IFACTJUP`): no existe modo local ni datos de demostración, así que no hay confusión sobre si un cambio se guardó. Al abrir, la app se conecta sola, con la cuenta que entrega **SharedServersAccess.dll** (igual que el worker de good-receipt). Si no logra conectarse, no abre.
 
-* **Oracle** (por defecto): pallets, usuarios, accesos, solicitudes, bitácora, alertas atendidas, maestro MM60, parámetros y comentarios se guardan en las tablas `IB_PROCESS_` de `IFACTJUP`. La cuenta de Oracle se obtiene con **SharedServersAccess.dll**, igual que el worker de good-receipt.
-* **Local**: demo en memoria (los pallets se pierden al cerrar) con usuarios en un archivo JSON. La app lo ofrece si no puede abrir Oracle.
+Los catálogos también se leen de la base: Value Streams, motivos, categorías de estatus y su lista por VS, departamentos, nombres de estatus, permisos por campo y parámetros. Se administran ahí, sin publicar un exe nuevo.
 
 **Reglas de datos (también para el Owner):** nunca se borra nada. Un campo que ya tiene valor se puede modificar, pero no dejar vacío. Lo cumplen la app y la base de datos (triggers de `04_integrity_rules.sql`).
 
@@ -48,10 +47,10 @@ dotnet test
 1. Crear las tablas ejecutando una vez `database/oracle/IB_PROCESS_install.sql` con la cuenta dueña del esquema (ver el README principal).
 2. Copiar **`SharedServersAccess.dll`** junto a `ExpoReturn.Desktop.exe`. No se incluye en el repositorio ni en el zip.
 3. `tnsnames.ora`: la app resuelve el alias `IFACTJUP` como el worker de Python, agregando `NAMES.DEFAULT_DOMAIN` de `sqlnet.ora`. Busca la carpeta en `"TnsAdmin"`, luego en la variable `TNS_ADMIN` y luego en `%ORACLE_HOME%\network\admin`. No hace falta instalar el cliente de Oracle (usa ODP.NET administrado).
-4. **Clave maestra:** se toma de la variable de entorno `SHARED_SERVERS_CLAVE`; si no existe, la app la pide al abrir (3 intentos). Sólo vive en memoria durante la sesión: no se guarda en el archivo ni en el código.
+4. **Clave maestra:** la conexión es automática; nadie la escribe. La app usa, en este orden: la variable de entorno `SHARED_SERVERS_CLAVE` si existe, `"MasterKey"` de `appsettings.json` si tiene valor, o la clave integrada.
 5. Al abrir, la app llama `AccessControl.InicializarClaveMaestra(clave)` y `DiccionarioService.ObtenerCredencialesDeServidor("IFACTJUP")`. Comprueba que el *Data Source* sea `IFACTJUP` (si no, la clave es incorrecta), sustituye `{userX}` / `{passwordX}` y abre la conexión. Si la contraseña vence, vuelve a pedir la cuenta al DLL.
 
-Si algo falla (no está el DLL, la clave es incorrecta, no se encuentra el alias o no existen las tablas), la app muestra el motivo y pregunta si continuar en modo **Local**.
+**Si no se puede conectar** (red, falta el DLL, alias de tnsnames, tablas), aparece una ventana *"Could not connect to the database"* con el motivo, y la app reintenta tres veces: **de inmediato, a los 5 segundos y a los 10 segundos**, con cuenta regresiva. Si se conecta, la ventana se cierra y la app abre normalmente. Si los tres reintentos fallan, muestra qué revisar y **la app no abre**. Cerrar la ventana detiene los reintentos.
 
 | Operación | Tablas |
 |---|---|
@@ -70,50 +69,34 @@ Cómo queda "sin borrar":
 * Quitar un acceso (**End access**) cierra la fila con `VALID_TO` y `REMOVED_BY`. Cambiar la función cierra la fila anterior y crea una nueva.
 * Una solicitud reemplazada queda como `REJECTED` ("Replaced by a newer request").
 * Un precio MM60 nuevo cierra el anterior. Los materiales que no vienen en el archivo conservan su último precio.
-* *Reset demo data* sólo existe en modo Local.
 * Si dos personas editan el mismo retorno, el segundo guardado se rechaza (`ROW_VERSION`) y se pide recargar; nadie sobrescribe a nadie.
 * El botón **Reload** vuelve a leer lo que guardaron otras personas.
 
 ## Configuración (`appsettings.json`, junto al ejecutable)
 
-Se crea con valores por defecto la primera vez que se abre la app. Si es de una versión anterior, se le agregan las claves nuevas y se conservan sus valores.
+Se crea con valores por defecto la primera vez que se abre la app. Un archivo de una versión anterior se reescribe con las claves actuales y conserva `Oracle` y `Owners`.
 
 ```json
 {
-  "DataSource": "Oracle",
   "Oracle": {
     "Server": "IFACTJUP",
     "SharedServersDll": "SharedServersAccess.dll",
-    "SharedServersIni": "",
-    "TnsAdmin": "",
-    "Schema": "",
+    "SharedServersIni": null,
+    "TnsAdmin": null,
+    "Schema": null,
     "MasterKeyEnvVar": "SHARED_SERVERS_CLAVE",
+    "MasterKey": null,
     "AuditRowsShown": 5000
   },
-  "Owners": [ "US\\RLN8JU" ],
-  "UserStorePath": "",
-  "DemoData": true,
-  "DemoUsers": true
+  "Owners": [ "US\\RLN8JU" ]
 }
 ```
 
-* **DataSource:** `Oracle` o `Local`.
 * **Oracle.SharedServersIni:** ruta opcional de `servers.ini`; vacío = la que trae el DLL.
-* **Oracle.Schema:** dueño de las tablas si la cuenta del DLL no es la dueña (se antepone `ESQUEMA.` a cada tabla).
-
-* **Owners:** usuarios de Windows con la función Owner (con o sin dominio). Por defecto `US\RLN8JU`. También puede haber filas OWNER en la tabla de accesos.
-* **UserStorePath:** (modo Local) archivo de usuarios. Vacío = `%LOCALAPPDATA%\ExpoReturn\users.json`. Si se apunta a una carpeta compartida, varios equipos ven los mismos usuarios (piloto).
-* **DemoData / DemoUsers:** pallets sintéticos (sólo en modo Local) y usuarios ficticios (uno por área y VS) para que el Owner pruebe funciones con "View as". Los usuarios demo sólo viven en memoria, también con Oracle: nunca se guardan.
-
-## Registros importados del Excel (homogeneización)
-
-* Cada renglón de las hojas VS1, VS4, VS5, VS7 y VS9 queda como un **registro normal** en `IB_PROCESS_PALLET_RETURNS`. `IS_LEGACY = 'Y'` sólo indica que vino del Excel, y `LEGACY_SHEET` / `LEGACY_ROW` dicen de qué hoja y renglón.
-* Se editan con los **mismos permisos** que cualquier registro: cada área sus campos en su VS. Los cerrados (Exported, Scrap confirmed) sólo los cambia el Owner, con motivo.
-* Los errores que el dato del Excel **ya traía** se muestran como aviso amarillo *"Excel data to homogenize"* y **no impiden guardar**. Un error **nuevo** que introduzca la edición sí lo impide. Así se puede corregir poco a poco, sin tener que arreglar todo el registro de una vez.
-* Igual que el resto: un campo con valor se puede cambiar pero no dejar vacío, y nada se borra. Todo cambio queda en la bitácora.
-* En la bandeja, **To homogenize** filtra los importados que todavía rompen alguna regla. La columna *Data quality* conserva lo que se encontró al importar.
-* Si una celda trae una nota en lugar del dato y no cabe en su columna (por ejemplo, *"En espera de disp, doc RT regular aduana"* en *Delivery Number*), el campo queda vacío y el texto completo se guarda en los hallazgos (`DQ-TOO-LONG:DELIVERY_NUMBER=…`). El renglón no se rechaza.
-* Folios: el registro conserva el folio "#" del Excel. Si el "#" falta o está repetido, recibe 900000 + renglón. Los retornos nuevos siguen después del folio más alto del Excel en ese VS.
+* **Oracle.TnsAdmin:** carpeta de `tnsnames.ora`, si no está en `TNS_ADMIN` ni en `%ORACLE_HOME%\network\admin`.
+* **Oracle.Schema:** dueño de las tablas si la cuenta del DLL no es la dueña (no es el caso de JUP1QMM).
+* **Oracle.MasterKey:** sólo para cambiar la clave integrada sin publicar otro exe; vacío = clave integrada.
+* **Owners:** usuarios de Windows con la función Owner (con o sin dominio). También puede haber filas OWNER en la tabla de accesos.
 
 ## Departamentos
 
@@ -134,7 +117,7 @@ UPDATE IB_PROCESS_DEPARTMENTS SET IS_ACTIVE = 'N' WHERE DEPARTMENT_CODE = 'MFQ3'
 COMMIT;
 ```
 
-En modo Local se usa la lista interna, que es la misma que siembra `02_seed_data.sql`.
+La lista interna de la app (igual a la que siembra `02_seed_data.sql`) sólo se usa en las pruebas automáticas.
 
 
 Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43 y HSE; los departamentos solicitantes de la lista del Excel 2.0 (hoja *Sheet1*): MFQ1, MFQ4, MFQ5, MFQ7, MFQ9, QMM-C1, QMM-C2 y PUQ; y LOW2, que aparece en renglones del Excel. En *Digitalización y proyectos transversales*: QMM-L2, DBE y TEF1. Los demás códigos antiguos (QMM, MFQ, MFQ2, MFQ3, MFQ6, MFO, MFO4, MFO5, MFO7, MFO9, LOP) quedan **inactivos**: no se ofrecen, pero los registros que los usan siguen siendo válidos. Los cambios a una base ya instalada están en `database/oracle/changes/` (por fecha).
@@ -152,9 +135,9 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 | **Users & Access** | Tabla **User / Department / Value Stream / Function** (Viewer, Proxy, Champion, Owner); sólo el Owner la edita. Solicitudes pendientes con **Approve / Reject**. Matriz Champion/Proxy por VS y área, y campos que edita cada área |
 | **Audit log** | Quién cambió qué campo, cuándo, valor anterior y nuevo, incluidos accesos y solicitudes; filtros por folio, usuario, campo y fechas |
 | **Import MM60 file… (Owner)** | Carga el reporte MM60 exportado de SAP (columnas Material, Price, Price unit; el mismo de la hoja oculta "MM60 COST SAP"). Actualiza el maestro de costos sin borrar materiales, completa el costo de los registros abiertos que se guardaron sin él y los recalcula. Abajo del botón se ve cuántos materiales hay cargados |
-| **Import Excel 2.0…** (Owner) | Guarda la MATRIZ DE RASTREO en la base como registros **editables** para homogeneizar los datos (en modo Local, sólo en memoria). Divide la expo LOW en número y fecha, guarda la hoja "MM60 COST SAP" como maestro de costos, completa los costos faltantes y avisa qué renglones rechazó y por qué |
+| **Import Excel 2.0…** (Owner) | Guarda la MATRIZ DE RASTREO en la base como registros **editables** para homogeneizar los datos. Divide la expo LOW en número y fecha, guarda la hoja "MM60 COST SAP" como maestro de costos, completa los costos faltantes y avisa qué renglones rechazó y por qué |
 | **Reload** (Oracle) | Vuelve a leer lo que guardaron otras personas |
-| **Send feedback** | Oracle: `IB_PROCESS_FEEDBACK`. Local: `%LOCALAPPDATA%\ExpoReturn\feedback.csv` |
+| **Send feedback** | Se guarda en `IB_PROCESS_FEEDBACK` |
 
 ## Atajos de teclado
 
@@ -170,7 +153,7 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 
 ## Guion de revisión sugerido (10 minutos)
 
-0. **Oracle:** con el DLL junto al exe, abrir la app, escribir la clave maestra (o definir `SHARED_SERVERS_CLAVE`) y comprobar arriba la leyenda *Oracle IFACTJUP · usuario · 5 value streams*.
+0. **Conexión:** con el DLL junto al exe, abrir la app: se conecta sola y arriba aparece *Oracle IFACTJUP · usuario · 5 value streams*.
 1. **Primera ejecución:** abrir la app; aparece *Welcome*. El usuario de Windows ya viene escrito; elegir Department y VS y guardar. Arriba a la derecha aparece como **Viewer**: todo en gris.
 2. Abrir con el usuario `US\RLN8JU` (Owner por defecto): aparece como **Owner** y ve *Import MM60 file* y la edición de *Users & Access*. Para otro Owner, agregar su usuario en `"Owners"` de `appsettings.json`.
 3. **Users & Access:** agregar una fila con otro usuario (o el suyo con otra configuración) como *Champion* de un VS y guardar; la bitácora registra el cambio.
@@ -184,8 +167,6 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 ## Limitaciones actuales
 
 * La conexión a Oracle **no se pudo probar** contra `IFACTJUP` desde el entorno de desarrollo: las pruebas automáticas cubren las reglas, el manejo de credenciales del DLL y que el código coincida con los scripts SQL. La primera prueba real es abrir la app en la red de planta con el DLL y la clave.
-* En modo Local los pallets se pierden al cerrar y cada equipo tiene sus propios usuarios, salvo que `UserStorePath` apunte a una carpeta de red.
-* Los usuarios demo (`DEMO\...`) son **ficticios** y sólo existen en memoria.
 * La lista de retornos se lee al abrir y con **Reload**; no se actualiza sola mientras otra persona guarda.
 * Las alertas se ven en pantalla; el envío por correo o Teams es de la fase de producción.
 * **Sin integración con SAP** (fuera de alcance).

@@ -1,12 +1,10 @@
-using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using ExpoReturn.Application;
 
 namespace ExpoReturn.Desktop.Views;
 
-/// <summary>Reviewer feedback: Oracle IB_PROCESS_FEEDBACK, or a local CSV in demo mode.</summary>
+/// <summary>Reviewer feedback, saved in IB_PROCESS_FEEDBACK.</summary>
 public partial class FeedbackWindow : Window
 {
     private readonly string _screen;
@@ -43,17 +41,5 @@ public partial class FeedbackWindow : Window
         }
         MessageBox.Show(this, "Thank you! Feedback saved.", "Feedback", MessageBoxButton.OK, MessageBoxImage.Information);
         DialogResult = true;
-    }
-
-    private void OnOpenFolder(object sender, RoutedEventArgs e)
-    {
-        var dir = Path.GetDirectoryName(_store.Location);
-        if (dir is null || !Path.IsPathRooted(_store.Location))
-        {
-            MessageBox.Show(this, _store.Location, "Feedback", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        Directory.CreateDirectory(dir);
-        Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
     }
 }

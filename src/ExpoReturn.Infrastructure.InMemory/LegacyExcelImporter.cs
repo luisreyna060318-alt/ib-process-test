@@ -115,7 +115,7 @@ public static partial class LegacyExcelImporter
                 p.RequestingDepartment = dept;
                 if (dept is null) Flag(p, "DQ-DEPT-MISSING");
                 var reasonText = Text(C("Reason"));
-                p.ReasonId = Catalogs.Reasons.FirstOrDefault(x => x.Description.Equals(reasonText, StringComparison.OrdinalIgnoreCase))?.Id;
+                p.ReasonId = Catalogs.FindReasonByText(reasonText)?.Id;
                 if (p.ReasonId is null) Flag(p, "DQ-REASON-MISSING");
                 p.ReturnReasonDetail = Text(C("ReasonDetail"));
 

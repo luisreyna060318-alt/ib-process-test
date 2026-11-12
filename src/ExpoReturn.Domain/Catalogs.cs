@@ -1,8 +1,8 @@
 namespace ExpoReturn.Domain;
 
-public sealed record ValueStream(int Id, string Code, string Name);
-/// <summary>Description = official text of the Excel list (also used to import).</summary>
-public sealed record Reason(int Id, string Code, string Description, string Group, bool RequiresNewMaterial)
+public sealed record ValueStream(int Id, string Code, string Name, bool IsActive = true);
+/// <summary>Description = official text of the Excel list (also used to import). IsActive = false: kept for existing records.</summary>
+public sealed record Reason(int Id, string Code, string Description, string Group, bool RequiresNewMaterial, bool IsActive = true)
 {
     public string Label => Description;
 }
@@ -17,13 +17,60 @@ public sealed record Department(string Code, string Area, bool CanRequest, strin
     public const string CrossFunctional = "CROSS_FUNCTIONAL";
     public string Label => Group == CrossFunctional ? $"{Code}  (digitalization / cross-functional)" : Code;
 }
-public sealed record StatusCategory(string Code, string Description, string Kind, string? ResponsibleArea, bool AffectsDuty, bool IsAutoDerived);
+public sealed record StatusCategory(string Code, string Description, string Kind, string? ResponsibleArea, bool AffectsDuty, bool IsAutoDerived,
+                                    bool IsActive = true);
+
+/// <summary>
+/// Catalogs read from the database (IB_PROCESS_VALUE_STREAMS, _REASONS, _STATUS_CATEGORIES, _STATUS_CAT_VS,
+/// _DEPARTMENTS, _WORKFLOW_STATUS). An empty part keeps what was there.
+/// </summary>
+public sealed record CatalogData(
+    IReadOnlyList<ValueStream> ValueStreams,
+    IReadOnlyList<Reason> Reasons,
+    IReadOnlyList<StatusCategory> StatusCategories,
+    IReadOnlyDictionary<int, IReadOnlyList<string>> StatusCategoriesByVs,
+    IReadOnlyList<Department> Departments,
+    IReadOnlyDictionary<WorkflowStatus, string> WorkflowStatusNames);
 public sealed record IbOrderType(string Code, string Description);
 
-/// <summary>Catálogos oficiales (semilla de 02_seed_catalogs.sql). Fuente: listas del Excel 2.0 real.</summary>
+/// <summary>
+/// Catalogs. The application reads them from the database at start-up and on Reload (<see cref="Use"/>), so they are
+/// managed there. The built-in lists (= 02_seed_data.sql) are only the starting point and what the tests use.
+/// </summary>
 public static class Catalogs
 {
-    public static IReadOnlyList<ValueStream> ValueStreams { get; } = new[]
+    private static volatile IReadOnlyList<ValueStream>? _valueStreams;
+    private static volatile IReadOnlyList<Reason>? _reasons;
+    private static volatile IReadOnlyList<StatusCategory>? _statusCategories;
+    private static volatile IReadOnlyDictionary<int, IReadOnlyList<string>>? _statusCategoriesByVs;
+    private static volatile IReadOnlyDictionary<WorkflowStatus, string>? _workflowNames;
+
+    /// <summary>Takes the catalogs read from the database. Parts that came back empty keep the current list.</summary>
+    public static void Use(CatalogData data)
+    {
+        if (data.ValueStreams.Count > 0) _valueStreams = data.ValueStreams;
+        if (data.Reasons.Count > 0) _reasons = data.Reasons;
+        if (data.StatusCategories.Count > 0) _statusCategories = data.StatusCategories;
+        if (data.StatusCategoriesByVs.Count > 0) _statusCategoriesByVs = data.StatusCategoriesByVs;
+        if (data.WorkflowStatusNames.Count > 0) _workflowNames = data.WorkflowStatusNames;
+        UseDepartments(data.Departments);
+    }
+
+    /// <summary>Back to the built-in lists (tests).</summary>
+    public static void UseBuiltIn()
+    {
+        _valueStreams = null; _reasons = null; _statusCategories = null; _statusCategoriesByVs = null; _workflowNames = null;
+        UseBuiltInDepartments();
+    }
+
+    /// <summary>Name of a status as the database calls it (IB_PROCESS_WORKFLOW_STATUS.NAME); null = built-in name.</summary>
+    public static string? WorkflowStatusName(WorkflowStatus s) => _workflowNames?.GetValueOrDefault(s);
+
+    /// <summary>Active Value Streams (offered in the screens).</summary>
+    public static IReadOnlyList<ValueStream> ValueStreams => AllValueStreams.Where(v => v.IsActive).ToList();
+    public static IReadOnlyList<ValueStream> AllValueStreams => _valueStreams ?? BuiltInValueStreams;
+
+    public static IReadOnlyList<ValueStream> BuiltInValueStreams { get; } = new[]
     {
         new ValueStream(1, "VS1", "Value Stream 1"),
         new ValueStream(4, "VS4", "Value Stream 4"),
@@ -32,8 +79,12 @@ public static class Catalogs
         new ValueStream(9, "VS9", "Value Stream 9"),
     };
 
-    /// <summary>El Excel real trae 10 motivos (la especificación decía 9). [VALIDAR QMM]</summary>
-    public static IReadOnlyList<Reason> Reasons { get; } = new[]
+    /// <summary>Active reasons (offered). Inactive ones are still found by <see cref="FindReason"/> for existing records.</summary>
+    public static IReadOnlyList<Reason> Reasons => AllReasons.Where(r => r.IsActive).ToList();
+    public static IReadOnlyList<Reason> AllReasons => _reasons ?? BuiltInReasons;
+
+    /// <summary>The 10 reasons of the real Excel (the specification said 9). [VALIDATE QMM]</summary>
+    public static IReadOnlyList<Reason> BuiltInReasons { get; } = new[]
     {
         new Reason(1, "R01", "Packaging change due to customer request", "PACKAGING", false),
         new Reason(2, "R02", "Packaging change due to planning error", "PACKAGING", false),
@@ -114,7 +165,9 @@ public static class Catalogs
     /// Opciones de la columna COMMENTS, con el texto exacto del Excel. Code = texto que se guarda.
     /// Kind/área responsable/efecto en aranceles alimentan las reglas (riesgo arancelario, categoría automática).
     /// </summary>
-    public static IReadOnlyList<StatusCategory> StatusCategories { get; } = new[]
+    public static IReadOnlyList<StatusCategory> StatusCategories => _statusCategories ?? BuiltInStatusCategories;
+
+    public static IReadOnlyList<StatusCategory> BuiltInStatusCategories { get; } = new[]
     {
         Cat("EXPORT", "OUTCOME", null, false, true),
         Cat("SCRAP", "OUTCOME", null, false, true),
@@ -137,7 +190,7 @@ public static class Catalogs
     /// Lista desplegable de COMMENTS de cada hoja VS, tal como está en la validación de datos del Excel 2.0
     /// (cada hoja tiene su propia lista).
     /// </summary>
-    private static readonly Dictionary<int, string[]> CommentsListByVs = new()
+    private static readonly Dictionary<int, string[]> BuiltInCommentsListByVs = new()
     {
         [1] = new[] { "EXPORT", "SCRAP", "INVENTORY", "LOW-NO REPORTADO (PLATAFORMA,CONO,RMA)", "MFO-NO REPORTADO (PLATAFORMA,CONO,RMA)",
                       "ENVIO NACIONAL", "SCRAP SIN SALIDA FISICA" },
@@ -154,12 +207,18 @@ public static class Catalogs
     /// <summary>Opciones de COMMENTS para un VS; si el registro ya trae otro valor (p. ej. histórico), se agrega para no perderlo.</summary>
     public static IReadOnlyList<string> CommentsOptions(int valueStreamId, string? current = null)
     {
-        var list = (CommentsListByVs.TryGetValue(valueStreamId, out var l) ? l : StatusCategories.Select(c => c.Code).ToArray()).ToList();
+        var active = StatusCategories.Where(c => c.IsActive).Select(c => c.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        IEnumerable<string>? perVs = _statusCategoriesByVs is { } db ? db.GetValueOrDefault(valueStreamId)
+            : BuiltInCommentsListByVs.TryGetValue(valueStreamId, out var l) ? l : null;
+        var list = (perVs ?? StatusCategories.Select(c => c.Code)).Where(active.Contains).ToList();
         if (!string.IsNullOrWhiteSpace(current) && !list.Contains(current)) list.Add(current);
         return list;
     }
 
-    public static Reason? FindReason(int? id) => id is null ? null : Reasons.FirstOrDefault(r => r.Id == id);
+    public static Reason? FindReason(int? id) => id is null ? null : AllReasons.FirstOrDefault(r => r.Id == id);
+    public static Reason? FindReasonByText(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? null
+        : AllReasons.FirstOrDefault(r => r.Description.Equals(text.Trim(), StringComparison.OrdinalIgnoreCase));
     public static StatusCategory? FindCategory(string? code) =>
         string.IsNullOrWhiteSpace(code) ? null
         : StatusCategories.FirstOrDefault(c => string.Equals(c.Code, code.Trim(), StringComparison.OrdinalIgnoreCase));

@@ -293,9 +293,59 @@ public sealed class OracleMaterialCostCatalog : IMaterialCostCatalog
     }
 }
 
-/// <summary>Catalogs read from the database so they are managed there, without a new executable.</summary>
+/// <summary>
+/// Catalogs read from the database so they are managed there, without a new executable: Value Streams, reasons,
+/// status categories and the list of each VS, departments, workflow status names and the field permission matrix.
+/// Inactive rows are read too (existing records still use them); the screens offer only the active ones.
+/// </summary>
 public static class OracleCatalogs
 {
+    /// <summary>Reads every catalog and puts it in use (Catalogs + FieldPermissions).</summary>
+    public static CatalogData LoadAndUse(OracleDb db)
+    {
+        var data = Load(db);
+        Catalogs.Use(data);
+        FieldPermissions.UseMatrix(LoadFieldPermissions(db));
+        return data;
+    }
+
+    public static CatalogData Load(OracleDb db)
+    {
+        var vs = db.Query($"SELECT VALUE_STREAM_ID, CODE, NAME, IS_ACTIVE FROM {db.T("IB_PROCESS_VALUE_STREAMS")} ORDER BY VALUE_STREAM_ID",
+            r => new ValueStream(Int(r, "VALUE_STREAM_ID")!.Value, Str(r, "CODE")!.Trim(), Str(r, "NAME")!.Trim(), Str(r, "IS_ACTIVE") != "N"));
+        var reasons = db.Query($@"SELECT REASON_ID, CODE, DESCRIPTION, REASON_GROUP, REQUIRES_NEW_MATERIAL, IS_ACTIVE
+                                    FROM {db.T("IB_PROCESS_REASONS")} ORDER BY SORT_ORDER, REASON_ID",
+            r => new Reason(Int(r, "REASON_ID")!.Value, Str(r, "CODE")!.Trim(), Str(r, "DESCRIPTION")!.Trim(), Str(r, "REASON_GROUP")!.Trim(),
+                            Str(r, "REQUIRES_NEW_MATERIAL") == "Y", Str(r, "IS_ACTIVE") != "N"));
+        var cats = db.Query($@"SELECT STATUS_CATEGORY_ID, CODE, KIND, RESPONSIBLE_AREA, AFFECTS_DUTY, IS_AUTOMATIC, IS_ACTIVE
+                                 FROM {db.T("IB_PROCESS_STATUS_CATEGORIES")} ORDER BY STATUS_CATEGORY_ID",
+            r => (Id: Int(r, "STATUS_CATEGORY_ID")!.Value,
+                  Cat: new StatusCategory(Str(r, "CODE")!.Trim(), Str(r, "CODE")!.Trim(), Str(r, "KIND")!.Trim(), Str(r, "RESPONSIBLE_AREA")?.Trim(),
+                                          Str(r, "AFFECTS_DUTY") == "Y", Str(r, "IS_AUTOMATIC") == "Y", Str(r, "IS_ACTIVE") != "N")));
+        var codeOf = cats.ToDictionary(c => c.Id, c => c.Cat.Code);
+        var perVs = db.Query($"SELECT VALUE_STREAM_ID, STATUS_CATEGORY_ID FROM {db.T("IB_PROCESS_STATUS_CAT_VS")} ORDER BY VALUE_STREAM_ID, SORT_ORDER",
+                r => (Vs: Int(r, "VALUE_STREAM_ID")!.Value, Cat: Int(r, "STATUS_CATEGORY_ID")!.Value))
+            .Where(x => codeOf.ContainsKey(x.Cat))
+            .GroupBy(x => x.Vs)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(x => codeOf[x.Cat]).ToList());
+        var names = db.Query($"SELECT WORKFLOW_STATUS_ID, NAME FROM {db.T("IB_PROCESS_WORKFLOW_STATUS")}",
+                r => (Id: Int(r, "WORKFLOW_STATUS_ID")!.Value, Name: Str(r, "NAME")!.Trim()))
+            .Where(x => Enum.IsDefined(typeof(WorkflowStatus), x.Id))
+            .ToDictionary(x => (WorkflowStatus)x.Id, x => x.Name);
+        return new CatalogData(vs, reasons, cats.Select(c => c.Cat).ToList(), perVs, LoadDepartments(db), names);
+    }
+
+    /// <summary>IB_PROCESS_FIELD_PERMISSIONS → area × PalletReturn property. Unknown areas or columns are ignored.</summary>
+    public static IReadOnlyDictionary<RoleCode, IReadOnlyCollection<string>> LoadFieldPermissions(OracleDb db)
+    {
+        var propertyOf = OraclePalletRepository.ColumnOfProperty.ToDictionary(kv => kv.Value, kv => kv.Key);
+        return db.Query($"SELECT AREA_CODE, FIELD_NAME FROM {db.T("IB_PROCESS_FIELD_PERMISSIONS")}",
+                r => (Area: FieldPermissions.AreaOfCode(Str(r, "AREA_CODE")), Field: Str(r, "FIELD_NAME")!.Trim()))
+            .Where(x => x.Area is not null && propertyOf.ContainsKey(x.Field))
+            .GroupBy(x => x.Area!.Value)
+            .ToDictionary(g => g.Key, g => (IReadOnlyCollection<string>)g.Select(x => propertyOf[x.Field]).Distinct().ToList());
+    }
+
     /// <summary>
     /// IB_PROCESS_DEPARTMENTS, every row (inactive ones too: historical records still use them). Order: process
     /// departments first, then cross-functional, each alphabetical.

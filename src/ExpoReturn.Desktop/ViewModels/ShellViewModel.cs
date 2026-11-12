@@ -39,14 +39,10 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public IReadOnlyList<NavItem> NavItems { get; }
     public string AppTitle => "Expo & Return FG Follow Up";
-    public bool IsDatabase => _services.IsDatabase;
-    public bool IsLocalMode => !_services.IsDatabase;
-    public string VersionText => $"v{AppConfig.Version}" + (_services.IsDatabase ? " · Oracle" : " · local demo");
-    public string DraftNotice => _services.IsDatabase
-        ? "Connected to Oracle · records are never deleted; a filled field can be changed but not emptied"
-        : "LOCAL DEMO · not connected to the database: pallet changes are lost when the app closes";
-    /// <summary>Import Excel: anyone in local mode (demo view); only the Owner with the database (it writes history).</summary>
-    public bool CanImportExcel => IsLocalMode || IsOwner;
+    public string VersionText => $"v{AppConfig.Version} · Oracle";
+    public string DraftNotice => "Connected to Oracle · records are never deleted; a filled field can be changed but not emptied";
+    /// <summary>Import Excel writes records to the database: Owner only.</summary>
+    public bool CanImportExcel => IsOwner;
 
     /// <summary>The Windows user running the app.</summary>
     [ObservableProperty] private UserContext _realUser;
@@ -244,7 +240,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private void ImportExcel()
     {
         if (!CanImportExcel) return;
-        if (_services.IsDatabase && MessageBox.Show(
+        if (MessageBox.Show(
                 "The rows of the Excel 2.0 will be saved in the database as records you can edit afterwards to homogenize the data " +
                 "(same permissions as any record; closed ones only by the Owner).\n\nRows already loaded are skipped, so changes made " +
                 "after a previous import are kept. Nothing is replaced or deleted. The hidden sheet MM60 COST SAP is saved as the " +
@@ -266,8 +262,8 @@ public sealed partial class ShellViewModel : ObservableObject
             OnPropertyChanged(nameof(Mm60Text));
             Back();
             var top = string.Join("\n", result.IssueCounts.OrderByDescending(k => k.Value).Take(8).Select(k => $"  • {k.Key}: {k.Value}"));
-            var stored = load.Stored is not { } st ? "\n\nLocal mode: the records are in memory only (not saved)."
-                : $"\n\nDatabase: {st.Added} records added, {st.AlreadyLoaded} already loaded, {st.Failed.Count} refused; " +
+            var st = load.Stored;
+            var stored = $"\n\nDatabase: {st.Added} records added, {st.AlreadyLoaded} already loaded, {st.Failed.Count} refused; " +
                   $"{load.CostsCompleted} records got their MM60 cost." +
                   (st.Failed.Count == 0 ? "" : "\n" + string.Join("\n", st.Failed.Take(10).Select(f => $"  • {f}")) + (st.Failed.Count > 10 ? "\n  …" : ""));
             MessageBox.Show($"{result.Summary}{stored}\n\nData quality findings (to homogenize):\n{top}\n\nThe records can be edited; nothing is written to the Excel file.",
@@ -279,16 +275,6 @@ public sealed partial class ShellViewModel : ObservableObject
                 "Import", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { Mouse.Clear(); }
-    }
-
-    [RelayCommand]
-    private void ResetDemo()
-    {
-        if (_services.IsDatabase || !ConfirmLeave()) return;
-        _services.ResetDemo();
-        DataSourceLabel = _services.DataSourceLabel;
-        OnPropertyChanged(nameof(Mm60Text));
-        Back();
     }
 
     [RelayCommand]

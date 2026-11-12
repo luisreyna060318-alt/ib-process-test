@@ -20,7 +20,10 @@ public static class WorkflowStatusInfo
     public static bool IsClosed(this WorkflowStatus s) =>
         s is WorkflowStatus.Exported or WorkflowStatus.Scrapped or WorkflowStatus.ClosedDutyPaid;
 
-    public static string DisplayName(this WorkflowStatus s) => s switch
+    /// <summary>Name from IB_PROCESS_WORKFLOW_STATUS when the database is loaded, else the built-in one.</summary>
+    public static string DisplayName(this WorkflowStatus s) => Catalogs.WorkflowStatusName(s) ?? BuiltInName(s);
+
+    public static string BuiltInName(WorkflowStatus s) => s switch
     {
         WorkflowStatus.Draft => "Draft",
         WorkflowStatus.Requested => "Requested",

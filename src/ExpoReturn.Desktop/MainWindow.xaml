@@ -33,13 +33,10 @@
             </StackPanel>
             <StackPanel DockPanel.Dock="Bottom" Margin="16,12,16,18">
                 <Button Content="⟳  Reload" Command="{Binding ReloadCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
-                        Visibility="{Binding IsDatabase, Converter={StaticResource BoolToVis}}"
                         ToolTip="Reads again the records, users and alerts saved by other people" />
                 <Button Content="Import Excel 2.0…" Command="{Binding ImportExcelCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
                         Visibility="{Binding CanImportExcel, Converter={StaticResource BoolToVis}}"
                         ToolTip="Owner: saves the rows of the MATRIZ DE RASTREO 2.0 as editable records (each row once; later imports never overwrite edits) and its MM60 COST SAP sheet as the cost master" />
-                <Button Content="Reset demo data" Command="{Binding ResetDemoCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
-                        Visibility="{Binding IsLocalMode, Converter={StaticResource BoolToVis}}" />
                 <StackPanel Visibility="{Binding IsOwner, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
                     <Button Content="Import MM60 file…" Command="{Binding ImportMm60Command}" Style="{StaticResource SecondaryButton}" Margin="0"
                             ToolTip="Owner: loads the MM60 report exported from SAP (Material, Price, Price unit). Unit costs of new returns come from it" />

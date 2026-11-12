@@ -127,7 +127,32 @@ public static class FieldPermissions
 {
     /// <summary>QMM (request, PO date, PO number, status category), GS/OSD43 (import and customs export),
     /// LOP (delivery number), MFO (rework and GR number), LOW (LOW export), HSE (kg and confirmation).</summary>
-    private static readonly Dictionary<RoleCode, HashSet<string>> Map = new()
+    private static volatile Dictionary<RoleCode, HashSet<string>>? _fromDatabase;
+    private static Dictionary<RoleCode, HashSet<string>> Map => _fromDatabase ?? BuiltIn;
+
+    /// <summary>
+    /// Takes the matrix read from IB_PROCESS_FIELD_PERMISSIONS (area → PalletReturn properties), so which area edits which
+    /// field is managed in the database. An empty matrix is ignored.
+    /// </summary>
+    public static void UseMatrix(IReadOnlyDictionary<RoleCode, IReadOnlyCollection<string>> matrix)
+    {
+        if (matrix.Count == 0 || matrix.Values.All(v => v.Count == 0)) return;
+        var map = matrix.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+        map.TryAdd(RoleCode.Viewer, new HashSet<string>());
+        _fromDatabase = map;
+    }
+
+    /// <summary>Back to the built-in matrix (= 02_seed_data.sql; tests).</summary>
+    public static void UseBuiltInMatrix() => _fromDatabase = null;
+
+    /// <summary>Area code of IB_PROCESS_FIELD_PERMISSIONS.AREA_CODE.</summary>
+    public static RoleCode? AreaOfCode(string? code) => code?.Trim().ToUpperInvariant() switch
+    {
+        "QMM" => RoleCode.Qmm, "REQUESTOR" => RoleCode.Requestor, "GS" => RoleCode.Gs, "LOP" => RoleCode.Lop,
+        "MFO" => RoleCode.Mfo, "LOW" => RoleCode.Low, "HSE" => RoleCode.Hse, _ => null,
+    };
+
+    private static readonly Dictionary<RoleCode, HashSet<string>> BuiltIn = new()
     {
         [RoleCode.Qmm] = new(Fields.Stage1.Append(nameof(PalletReturn.StatusCategoryCode))),
         [RoleCode.Requestor] = new(Fields.Stage1.Except(new[]

@@ -30,18 +30,17 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.3.6
+## 3. Aplicación (.NET 8 / WPF) · v0.4.0
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
-* **Oracle:** todas las operaciones escriben en las tablas `IB_PROCESS_` de `IFACTJUP`. La cuenta se obtiene con **SharedServersAccess.dll** (igual que el worker de good-receipt) y la clave maestra se toma de `SHARED_SERVERS_CLAVE` o se pide al abrir; no se guarda. El DLL se copia junto al exe y no se versiona.
+* **Oracle obligatorio:** todo se guarda en las tablas `IB_PROCESS_` de `IFACTJUP`; no hay modo local ni datos de demostración. La app se conecta sola al abrir, con la cuenta de **SharedServersAccess.dll** y la clave integrada. Si no puede, reintenta de inmediato, a los 5 s y a los 10 s, y no abre si todo falla. Catálogos, permisos por campo y parámetros se leen de la base.
 * **Reglas de datos, también para el Owner:** nunca se borra nada (los accesos que terminan se cierran con fecha, las solicitudes quedan aprobadas o rechazadas). Un campo con valor se puede cambiar pero no dejar vacío. Lo valida la app y lo impide la base de datos con triggers.
 * **Usuario real:** al abrir, la app lee el usuario de Windows. La primera vez pide nombre, Department y Value Stream(s); la función inicial es **Viewer** (sólo lectura).
 * **Departamentos:** lista nueva (MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43, HSE y, en digitalización y proyectos transversales, QMM-L2, DBE y TEF1). Los códigos anteriores quedan inactivos sólo para el histórico.
 * **Users & Access:** tabla User / Department / Value Stream / Function (Viewer, Proxy, Champion, Owner). Sólo el **Owner** (`US\RLN8JU`) la modifica; *My profile* genera solicitudes que el Owner aprueba.
 * **Import Excel 2.0 (Owner):** cada renglón del Excel queda como registro **editable** en la base para homogeneizar los datos. Los errores que el Excel ya traía no impiden guardar; los nuevos sí. Una segunda importación no sobrescribe lo corregido.
 * **Import MM60 file (Owner)** y la hoja MM60 del Excel se guardan en `IB_PROCESS_MM60_COSTS` y completan los costos faltantes; sin integración con SAP.
-* Modo **Local** (demo en memoria) si no hay conexión.
 
 Instrucciones, guion de revisión y limitaciones en [`src/README.md`](src/README.md).
 

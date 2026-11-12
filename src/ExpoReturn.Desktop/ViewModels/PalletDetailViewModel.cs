@@ -34,13 +34,16 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     public override string Title => IsNew ? "New return" : $"Return {Edit.FolioCode}";
 
     // ---------- Catálogos para los ComboBox ----------
-    public IReadOnlyList<LookupItem> ValueStreamOptions { get; } = Catalogs.ValueStreams.Select(v => new LookupItem(v.Id, v.Code)).ToList();
+    /// <summary>Active Value Streams (from the database); a record keeps its own VS even if it was deactivated.</summary>
+    public IReadOnlyList<LookupItem> ValueStreamOptions => Catalogs.AllValueStreams
+        .Where(v => v.IsActive || v.Id == Edit.ValueStreamId).Select(v => new LookupItem(v.Id, v.Code)).ToList();
     /// <summary>Requesting departments; a historical record keeps its old (inactive) code in the list.</summary>
     public IReadOnlyList<LookupItem> DepartmentOptions => Catalogs.Departments.Where(d => d.CanRequest)
         .Select(d => d.Code)
         .Concat(string.IsNullOrWhiteSpace(Edit.RequestingDepartment) ? Array.Empty<string>() : new[] { Edit.RequestingDepartment })
         .Distinct(StringComparer.OrdinalIgnoreCase).Select(c => new LookupItem(c, c)).ToList();
-    public IReadOnlyList<Reason> ReasonOptions { get; } = Catalogs.Reasons;
+    /// <summary>Active reasons (from the database); a record keeps its own reason even if it was deactivated.</summary>
+    public IReadOnlyList<Reason> ReasonOptions => Catalogs.AllReasons.Where(r => r.IsActive || r.Id == Edit.ReasonId).ToList();
     /// <summary>Status category options of the record VS sheet (exact Excel text).</summary>
     public IReadOnlyList<string> CommentsOptions => Catalogs.CommentsOptions(Edit.ValueStreamId, Edit.StatusCategoryCode);
     public IReadOnlyList<string> QmmOptions => Services.Users.QmmFor(Edit.ValueStreamId);
