@@ -30,7 +30,7 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.3.4
+## 3. Aplicación (.NET 8 / WPF) · v0.3.5
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
@@ -68,6 +68,8 @@ Cómo encajan con la app:
 * Los textos se miden en **caracteres** (`VARCHAR2(n CHAR)`), igual que la app: un acento o una "Ø" de SAP no hacen que un valor "no quepa".
 * Los scripts son ASCII puro y no tienen `&` ni líneas en blanco dentro de las instrucciones (SQL*Plus las interpreta).
 * Las pruebas automáticas revisan que los nombres midan como máximo 30 caracteres y que ninguno sea palabra reservada. También revisan que cada llave foránea apunte a una tabla ya creada y del mismo tipo, que la semilla use columnas existentes en el orden correcto, que los permisos sembrados sean los de la app y que cada columna de cada SQL de la app exista con el mismo largo.
+
+**Cambios a una base ya instalada:** en [`database/oracle/changes/`](database/oracle/changes/), uno por fecha, en orden. Cada uno se ejecuta una vez y no borra nada. Una instalación nueva con `IB_PROCESS_install.sql` ya los incluye. El primero: [`2026-11-12_departments_excel_list.sql`](database/oracle/changes/2026-11-12_departments_excel_list.sql) (departamentos de la lista del Excel y LOW2).
 
 **Verificar la instalación (en cualquier momento):** [`90_verify_install.sql`](database/oracle/90_verify_install.sql) compara lo que de verdad hay en el esquema (diccionario de Oracle) con lo que definen los scripts: columnas con tipo, largo y nulos; constraints; índices y triggers. Sólo muestra **diferencias**: si las secciones 1 a 4 dicen *no rows selected*, el esquema es idéntico. También muestra las filas por tabla y los totales. Sólo hace `SELECT`.
 

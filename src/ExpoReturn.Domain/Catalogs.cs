@@ -71,23 +71,21 @@ public static class Catalogs
         new("TEF6", "TEF", true),
         new("GS/OSD43", "GS", false),
         new("HSE", "HSE", false),
+        // Requesting departments of the Excel 2.0 list (sheet "Sheet1") and LOW2, found in the Excel rows
+        new("MFQ1", "MFQ", true), new("MFQ4", "MFQ", true), new("MFQ5", "MFQ", true), new("MFQ7", "MFQ", true), new("MFQ9", "MFQ", true),
+        new("QMM-C1", "QMM", true), new("QMM-C2", "QMM", true), new("PUQ", "PUQ", true), new("LOW2", "LOW", true),
         // Digitalization and cross-functional projects
         new("QMM-L2", "QMM-L", false, Department.CrossFunctional),
         new("DBE", "DBE", false, Department.CrossFunctional),
         new("TEF1", "TEF", false, Department.CrossFunctional),
         // Old list: history only
         new("QMM", "QMM", true, IsActive: false),
-        new("QMM-C1", "QMM", true, IsActive: false),
-        new("QMM-C2", "QMM", true, IsActive: false),
         new("MFQ", "MFQ", true, IsActive: false),
-        new("MFQ1", "MFQ", true, IsActive: false), new("MFQ2", "MFQ", true, IsActive: false), new("MFQ3", "MFQ", true, IsActive: false),
-        new("MFQ4", "MFQ", true, IsActive: false), new("MFQ5", "MFQ", true, IsActive: false), new("MFQ6", "MFQ", true, IsActive: false),
-        new("MFQ7", "MFQ", true, IsActive: false), new("MFQ9", "MFQ", true, IsActive: false),
+        new("MFQ2", "MFQ", true, IsActive: false), new("MFQ3", "MFQ", true, IsActive: false), new("MFQ6", "MFQ", true, IsActive: false),
         new("MFO", "MFO", true, IsActive: false),
         new("MFO4", "MFO", true, IsActive: false), new("MFO5", "MFO", true, IsActive: false),
         new("MFO7", "MFO", true, IsActive: false), new("MFO9", "MFO", true, IsActive: false),
         new("LOP", "LOP", true, IsActive: false),
-        new("PUQ", "PUQ", true, IsActive: false),
     };
 
     public static Department? FindDepartment(string? code) =>

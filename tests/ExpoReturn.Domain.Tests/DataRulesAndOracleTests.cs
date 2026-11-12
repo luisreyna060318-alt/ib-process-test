@@ -100,7 +100,9 @@ public class DataRulesAndOracleTests
     [InlineData("CTG3", RoleCode.Viewer)]
     [InlineData("QMM-L2", RoleCode.Viewer)]
     [InlineData("DBE", RoleCode.Viewer)]
-    [InlineData("MFQ4", RoleCode.Requestor)]          // old code: inactive, still valid for history
+    [InlineData("MFQ4", RoleCode.Requestor)]          // Excel 2.0 list, active again
+    [InlineData("LOW2", RoleCode.Low)]
+    [InlineData("MFQ", RoleCode.Requestor)]           // old code: inactive, still valid for history
     public void Department_list_maps_to_the_permission_area(string code, RoleCode area) =>
         Assert.Equal(area, RoleInfo.AreaOfDepartment(code));
 
@@ -109,9 +111,11 @@ public class DataRulesAndOracleTests
     {
         var offered = Catalogs.Departments.Select(d => d.Code).ToList();
         Assert.Equal(new[] { "MFQ8", "MFO1", "MFO12", "MFO1-US", "MFE5", "QMM1", "QMM2", "LOP1", "LOP2", "LOW", "CTG3", "TEF6",
-                             "GS/OSD43", "HSE", "QMM-L2", "DBE", "TEF1" }, offered);
-        Assert.DoesNotContain("MFQ4", offered);
-        Assert.Contains(Catalogs.AllDepartments, d => d.Code == "MFQ4" && !d.IsActive);
+                             "GS/OSD43", "HSE", "MFQ1", "MFQ4", "MFQ5", "MFQ7", "MFQ9", "QMM-C1", "QMM-C2", "PUQ", "LOW2",
+                             "QMM-L2", "DBE", "TEF1" }, offered);
+        Assert.DoesNotContain("MFQ", offered);
+        Assert.Contains(Catalogs.AllDepartments, d => d.Code == "MFQ" && !d.IsActive);
+        Assert.Equal(37, Catalogs.AllDepartments.Count);
     }
 
     // ------------------------------------------------------------------ SharedServersAccess
@@ -369,6 +373,23 @@ public class OracleScriptCoherenceTests
                 Assert.True(c.Groups[1].Value is "ROWNUM" or "SYSDATE" || tables.Values.Any(t => t.ContainsKey(c.Groups[1].Value)),
                     $"WHERE column {c.Groups[1].Value} is in no table");
         Assert.True(checkedCount > 60, $"only {checkedCount} columns checked");
+    }
+
+    [Fact]
+    public void Department_change_of_2026_11_12_matches_the_catalog()
+    {
+        var change = Read("database", "oracle", "changes", "2026-11-12_departments_excel_list.sql");
+        foreach (var code in new[] { "MFQ1", "MFQ4", "MFQ5", "MFQ7", "MFQ9", "QMM-C1", "QMM-C2", "PUQ" })
+        {
+            Assert.Contains($"'{code}'", change);
+            Assert.True(Catalogs.FindDepartment(code) is { IsActive: true, CanRequest: true }, code);
+        }
+        var low2 = Catalogs.FindDepartment("LOW2")!;
+        Assert.Contains($"SELECT 'LOW2', '{low2.Area}', 'Y', '{low2.Group}', 'Y' FROM DUAL", change);
+        Assert.Equal(26, Catalogs.Departments.Count);
+        Assert.Contains("ACTIVE_26", change);
+        Assert.DoesNotContain(change, c => c > 127 || c == '&');
+        Assert.DoesNotMatch(@"\bDELETE\b", NoComments(change));
     }
 
     [Fact]

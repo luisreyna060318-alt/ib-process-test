@@ -24,12 +24,16 @@ DEPARTMENTS = [
     ("QMM2", "QMM", "Y", "PROCESS", "Y"), ("LOP1", "LOP", "Y", "PROCESS", "Y"), ("LOP2", "LOP", "Y", "PROCESS", "Y"),
     ("LOW", "LOW", "N", "PROCESS", "Y"), ("CTG3", "CTG", "N", "PROCESS", "Y"), ("TEF6", "TEF", "Y", "PROCESS", "Y"),
     ("GS/OSD43", "GS", "N", "PROCESS", "Y"), ("HSE", "HSE", "N", "PROCESS", "Y"),
+    # requesting departments of the Excel 2.0 list (sheet "Sheet1") and LOW2, found in the Excel rows
+    ("MFQ1", "MFQ", "Y", "PROCESS", "Y"), ("MFQ4", "MFQ", "Y", "PROCESS", "Y"), ("MFQ5", "MFQ", "Y", "PROCESS", "Y"),
+    ("MFQ7", "MFQ", "Y", "PROCESS", "Y"), ("MFQ9", "MFQ", "Y", "PROCESS", "Y"), ("QMM-C1", "QMM", "Y", "PROCESS", "Y"),
+    ("QMM-C2", "QMM", "Y", "PROCESS", "Y"), ("PUQ", "PUQ", "Y", "PROCESS", "Y"), ("LOW2", "LOW", "Y", "PROCESS", "Y"),
     ("QMM-L2", "QMM-L", "N", "CROSS_FUNCTIONAL", "Y"), ("DBE", "DBE", "N", "CROSS_FUNCTIONAL", "Y"),
     ("TEF1", "TEF", "N", "CROSS_FUNCTIONAL", "Y"),
-    ("QMM", "QMM", "Y", "PROCESS", "N"), ("QMM-C1", "QMM", "Y", "PROCESS", "N"), ("QMM-C2", "QMM", "Y", "PROCESS", "N"),
-    ("MFQ", "MFQ", "Y", "PROCESS", "N")] + [(f"MFQ{i}", "MFQ", "Y", "PROCESS", "N") for i in (1, 2, 3, 4, 5, 6, 7, 9)] + [
+    # old codes: inactive, kept for historical records
+    ("QMM", "QMM", "Y", "PROCESS", "N"), ("MFQ", "MFQ", "Y", "PROCESS", "N")] + [(f"MFQ{i}", "MFQ", "Y", "PROCESS", "N") for i in (2, 3, 6)] + [
     ("MFO", "MFO", "Y", "PROCESS", "N")] + [(f"MFO{i}", "MFO", "Y", "PROCESS", "N") for i in (4, 5, 7, 9)] + [
-    ("LOP", "LOP", "Y", "PROCESS", "N"), ("PUQ", "PUQ", "Y", "PROCESS", "N")]
+    ("LOP", "LOP", "Y", "PROCESS", "N")]
 OUT = os.path.join(ROOT, "entregables", "Diccionario_Campos_ExpoReturn.xlsx")
 
 FONT = "Arial"

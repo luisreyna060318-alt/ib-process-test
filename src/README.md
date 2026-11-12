@@ -1,4 +1,4 @@
-# Aplicación (v0.3.4): Expo & Return FG Follow Up
+# Aplicación (v0.3.5): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -117,7 +117,7 @@ Se crea con valores por defecto la primera vez que se abre la app. Si es de una 
 
 ## Departamentos
 
-Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43 y HSE. En *Digitalización y proyectos transversales*: QMM-L2, DBE y TEF1. Los códigos de la lista anterior (MFQ4, QMM-C1, PUQ…) quedan **inactivos**: no se ofrecen, pero los registros históricos que los usan siguen siendo válidos. La hoja *Departments* del diccionario muestra el área de permisos de cada uno.
+Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43 y HSE; los departamentos solicitantes de la lista del Excel 2.0 (hoja *Sheet1*): MFQ1, MFQ4, MFQ5, MFQ7, MFQ9, QMM-C1, QMM-C2 y PUQ; y LOW2, que aparece en renglones del Excel. En *Digitalización y proyectos transversales*: QMM-L2, DBE y TEF1. Los demás códigos antiguos (QMM, MFQ, MFQ2, MFQ3, MFQ6, MFO, MFO4, MFO5, MFO7, MFO9, LOP) quedan **inactivos**: no se ofrecen, pero los registros que los usan siguen siendo válidos. Los cambios a una base ya instalada están en `database/oracle/changes/` (por fecha).
 
 ## Qué incluye
 
