@@ -264,7 +264,8 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
 
     /// <summary>
     /// Excel 2.0 rows become working records (IS_LEGACY = 'Y' only marks the origin; they can be edited to homogenize
-    /// the data). Each sheet row is inserted once (LEGACY_SHEET + LEGACY_ROW), so a second import never overwrites edits. Values that do not fit the schema
+    /// the data). Each sheet row is inserted once (LEGACY_SHEET + LEGACY_ROW), so a second import never overwrites edits.
+    /// A text longer than its column (a note typed in a value cell) is kept whole in DATA_QUALITY_FLAGS. Values that do not fit the schema
     /// are not invented: department / status category not in the catalogs go to NULL with a DQ flag that keeps the text;
     /// a repeated folio gets 900000 + row. Rows the database still refuses are reported, the rest are committed.
     /// </summary>
@@ -285,7 +286,6 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
             if (p.LegacySource is null || loaded.Contains(Key(p.LegacySource))) { existing++; continue; }
             FitLegacy(p, folios);
             CheckLengths(p, out var tooLong);
-            foreach (var col in tooLong) p.DataQualityFlags.Add($"DQ-TOO-LONG:{col}");
             if (tooLong.Count > 0) { failed.Add($"{p.LegacySource}: too long for {string.Join(", ", tooLong)}"); continue; }
             using var tx = c.BeginTransaction();
             try
@@ -310,6 +310,7 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
 
     private void FitLegacy(PalletReturn p, HashSet<(int, int)> folios)
     {
+        KeepTooLongInFindings(p);
         if (p.RequestingDepartment is { } d && !_departments.Contains(d))
         {
             p.DataQualityFlags.Add($"DQ-DEPT-NOT-IN-CATALOG:{d}");
@@ -329,6 +330,27 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
         }
         if (string.IsNullOrWhiteSpace(p.CreatedBy)) p.CreatedBy = "MIGRATION";
     }
+
+    /// <summary>
+    /// A cell longer than its column held a note, not the value (e.g. "En espera de disp, doc RT regular aduana" in
+    /// Delivery Number): the field stays empty and the whole text is kept in the findings, to homogenize later.
+    /// Returns the columns moved.
+    /// </summary>
+    public static IReadOnlyList<string> KeepTooLongInFindings(PalletReturn p)
+    {
+        var moved = new List<string>();
+        foreach (var (col, max) in MaxLengths)
+        {
+            if (PropertyOfColumn(col) is not { } prop || prop.GetValue(p) is not string text || text.Trim().Length <= max) continue;
+            p.DataQualityFlags.Add($"DQ-TOO-LONG:{col}={text.Trim().Replace("; ", ", ").Replace("\r", " ").Replace("\n", " ")}");
+            prop.SetValue(p, null);
+            moved.Add(col);
+        }
+        return moved;
+    }
+
+    private static System.Reflection.PropertyInfo? PropertyOfColumn(string column) =>
+        ColumnOfProperty.FirstOrDefault(kv => kv.Value == column).Key is { } name ? typeof(PalletReturn).GetProperty(name) : null;
 
     private void CheckLengths(PalletReturn p, out List<string> tooLong)
     {

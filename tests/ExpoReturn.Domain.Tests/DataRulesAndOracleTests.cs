@@ -487,6 +487,38 @@ public class ImportedRecordTests
     }
 
     [Fact]
+    public void A_note_typed_in_a_value_cell_is_kept_in_the_findings_instead_of_refusing_the_row()
+    {
+        var p = Imported(45, 51);
+        p.DeliveryNumber = "Scrap entregado para validaciones de MFE, CAMBIO DE REGIMEN CONFIRMADO POR RAMON";
+        Assert.Equal(new[] { "DELIVERY_NUMBER" }, OraclePalletRepository.KeepTooLongInFindings(p));
+        Assert.Null(p.DeliveryNumber);
+        Assert.Contains("DQ-TOO-LONG:DELIVERY_NUMBER=Scrap entregado para validaciones de MFE, CAMBIO DE REGIMEN CONFIRMADO POR RAMON", p.DataQualityFlags);
+        Assert.Empty(OraclePalletRepository.KeepTooLongInFindings(p));       // nothing left too long
+    }
+
+    /// <summary>Runs only when EXPORETURN_LEGACY_XLSX points to the real Excel (not versioned).</summary>
+    [Fact]
+    public void Every_row_of_the_real_excel_fits_the_oracle_columns()
+    {
+        var path = Environment.GetEnvironmentVariable("EXPORETURN_LEGACY_XLSX");
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+        var rows = LegacyExcelImporter.Import(path, DateTime.Today).Pallets;
+        foreach (var p in rows)
+        {
+            OraclePalletRepository.KeepTooLongInFindings(p);
+            foreach (var (col, max) in OraclePalletRepository.MaxLengths)
+            {
+                var prop = OraclePalletRepository.ColumnOfProperty.FirstOrDefault(kv => kv.Value == col).Key;
+                if (prop is not null && typeof(PalletReturn).GetProperty(prop)!.GetValue(p) is string v)
+                    Assert.True(v.Trim().Length <= max, $"{p.LegacySource} {col}");
+            }
+            Assert.True(p.DataQualityText.Length <= 400, $"{p.LegacySource} findings {p.DataQualityText.Length}");
+            Assert.True(p.LowExportNumber is null or (> 0 and <= 9999), $"{p.LegacySource} LOW export {p.LowExportNumber}");
+        }
+    }
+
+    [Fact]
     public void Mm60_completes_the_cost_of_imported_records()
     {
         var (repo, audit, svc, p) = Setup();

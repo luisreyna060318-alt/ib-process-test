@@ -1,4 +1,4 @@
-# Aplicación (v0.3.3): Expo & Return FG Follow Up
+# Aplicación (v0.3.4): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -112,6 +112,7 @@ Se crea con valores por defecto la primera vez que se abre la app. Si es de una 
 * Los errores que el dato del Excel **ya traía** se muestran como aviso amarillo *"Excel data to homogenize"* y **no impiden guardar**. Un error **nuevo** que introduzca la edición sí lo impide. Así se puede corregir poco a poco, sin tener que arreglar todo el registro de una vez.
 * Igual que el resto: un campo con valor se puede cambiar pero no dejar vacío, y nada se borra. Todo cambio queda en la bitácora.
 * En la bandeja, **To homogenize** filtra los importados que todavía rompen alguna regla. La columna *Data quality* conserva lo que se encontró al importar.
+* Si una celda trae una nota en lugar del dato y no cabe en su columna (por ejemplo, *"En espera de disp, doc RT regular aduana"* en *Delivery Number*), el campo queda vacío y el texto completo se guarda en los hallazgos (`DQ-TOO-LONG:DELIVERY_NUMBER=…`). El renglón no se rechaza.
 * Folios: el registro conserva el folio "#" del Excel. Si el "#" falta o está repetido, recibe 900000 + renglón. Los retornos nuevos siguen después del folio más alto del Excel en ese VS.
 
 ## Departamentos
