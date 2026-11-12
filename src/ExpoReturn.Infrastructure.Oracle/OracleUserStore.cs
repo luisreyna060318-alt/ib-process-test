@@ -73,10 +73,10 @@ public sealed class OracleUserStore : IUserStoreBackend
         foreach (var a in changes.EndedAccess)
         {
             using var cmd = _db.Command(c, $@"UPDATE {_db.T("IB_PROCESS_USER_ACCESS")}
-                   SET VALID_TO = SYSTIMESTAMP, REMOVED_BY = :by
+                   SET VALID_TO = SYSTIMESTAMP, REMOVED_BY = :changedBy
                  WHERE NT_USER = :nt AND NVL(DEPARTMENT_CODE, '-') = :dept AND NVL(VALUE_STREAM_ID, 0) = :vs
                    AND FUNCTION_CODE = :fn AND VALID_TO IS NULL", tx);
-            cmd.Parameters.Add("by", by);
+            cmd.Parameters.Add("changedBy", by);
             cmd.Parameters.Add("nt", a.NtUser);
             cmd.Parameters.Add("dept", string.IsNullOrEmpty(a.DepartmentCode) ? "-" : a.DepartmentCode);
             cmd.Parameters.Add("vs", a.ValueStreamId);
@@ -88,21 +88,21 @@ public sealed class OracleUserStore : IUserStoreBackend
             EnsureUser(c, tx, a.NtUser);
             var owner = a.Function == UserFunction.Owner;
             using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_USER_ACCESS")} (NT_USER, DEPARTMENT_CODE, VALUE_STREAM_ID, FUNCTION_CODE, ASSIGNED_BY)
-                                              VALUES (:nt, :dept, :vs, :fn, :by)", tx);
+                                              VALUES (:nt, :dept, :vs, :fn, :changedBy)", tx);
             cmd.Parameters.Add("nt", a.NtUser);
             cmd.Parameters.Add("dept", owner ? DBNull.Value : Db(a.DepartmentCode));
             cmd.Parameters.Add("vs", owner || a.ValueStreamId == 0 ? DBNull.Value : a.ValueStreamId);
             cmd.Parameters.Add("fn", FunctionCode(a.Function));
-            cmd.Parameters.Add("by", by);
+            cmd.Parameters.Add("changedBy", by);
             cmd.ExecuteNonQuery();
         }
         foreach (var r in changes.DecidedRequests)
         {
             using var cmd = _db.Command(c, $@"UPDATE {_db.T("IB_PROCESS_PROFILE_REQUESTS")}
-                   SET STATUS = :status, DECIDED_BY = :by, DECIDED_AT = SYSTIMESTAMP, DECISION_COMMENT = NVL(:cmt, DECISION_COMMENT)
+                   SET STATUS = :status, DECIDED_BY = :changedBy, DECIDED_AT = SYSTIMESTAMP, DECISION_COMMENT = NVL(:cmt, DECISION_COMMENT)
                  WHERE REQUEST_ID = :id AND STATUS = 'PENDING'", tx);
             cmd.Parameters.Add("status", r.Status.ToString().ToUpperInvariant());
-            cmd.Parameters.Add("by", Cut(r.DecidedBy ?? changes.ChangedBy, 64));
+            cmd.Parameters.Add("changedBy", Cut(r.DecidedBy ?? changes.ChangedBy, 64));
             cmd.Parameters.Add("cmt", Db(Cut(r.Comment, 500)));
             cmd.Parameters.Add("id", r.Id);
             cmd.ExecuteNonQuery();

@@ -244,6 +244,28 @@ public class OracleScriptCoherenceTests
     public void Text_columns_count_characters_not_bytes() =>
         Assert.DoesNotMatch(@"\bVARCHAR2\(\d+\)", NoComments(Ddl));
 
+    /// <summary>
+    /// Bind variables (":name") cannot be reserved words: Oracle answers ORA-01745 "invalid host/bind variable name".
+    /// That is what refused the whole Excel import with ":row" (and ":by", ":comment" in other statements).
+    /// </summary>
+    [Fact]
+    public void No_bind_variable_uses_an_oracle_reserved_word()
+    {
+        var dir = Path.Combine(Root(), "src", "ExpoReturn.Infrastructure.Oracle");
+        var code = string.Join("\n", Directory.GetFiles(dir, "*.cs").Select(File.ReadAllText));
+        var added = Regex.Matches(code, @"Parameters\.Add\(""([A-Za-z]\w*)""").Select(m => m.Groups[1].Value)
+            .Concat(Regex.Matches(code, @",\s*\(""([a-z]\w*)"",").Select(m => m.Groups[1].Value))   // Query(sql, map, ("name", value))
+            .Distinct().ToList();
+        var used = Regex.Matches(code, @"[\s(,=]:([A-Za-z]\w*)").Select(m => m.Groups[1].Value)
+            .Where(b => b != "p").Distinct().ToList();                // :p0..:pN = the pallet columns, added in a loop
+        Assert.True(added.Count > 40 && used.Count > 40);
+        Assert.All(added.Concat(used), b => Assert.False(Reserved.Contains(b.ToUpperInvariant()), $":{b} is an Oracle reserved word (ORA-01745)"));
+        Assert.All(added, b => Assert.Contains(b, used));            // every parameter given is used in a statement
+        Assert.All(used, b => Assert.Contains(b, added));            // every :bind has its parameter
+    }
+
+    private static readonly HashSet<string> Reserved = new("ACCESS ADD ALL ALTER AND ANY AS ASC AUDIT BETWEEN BY CHAR CHECK CLUSTER COLUMN COMMENT COMPRESS CONNECT CREATE CURRENT DATE DECIMAL DEFAULT DELETE DESC DISTINCT DROP ELSE EXCLUSIVE EXISTS FILE FLOAT FOR FROM GRANT GROUP HAVING IDENTIFIED IMMEDIATE IN INCREMENT INDEX INITIAL INSERT INTEGER INTERSECT INTO IS LEVEL LIKE LOCK LONG MAXEXTENTS MINUS MLSLABEL MODE MODIFY NOAUDIT NOCOMPRESS NOT NOWAIT NULL NUMBER OF OFFLINE ON ONLINE OPTION OR ORDER PCTFREE PRIOR PRIVILEGES PUBLIC RAW RENAME RESOURCE REVOKE ROW ROWID ROWNUM ROWS SELECT SESSION SET SHARE SIZE SMALLINT START SUCCESSFUL SYNONYM SYSDATE TABLE THEN TO TRIGGER UID UNION UNIQUE UPDATE USER VALIDATE VALUES VARCHAR VARCHAR2 VIEW WHENEVER WHERE WITH".Split(' '));
+
     [Fact]
     public void No_column_uses_an_oracle_reserved_word()
     {

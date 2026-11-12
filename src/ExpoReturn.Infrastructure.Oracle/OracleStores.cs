@@ -115,14 +115,14 @@ public sealed partial class OracleAlertStore : IAlertAcknowledgementStore
         {
             using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_ALERTS")}
                 (PALLET_RETURN_ID, ALERT_TYPE, SEVERITY, MESSAGE, RESPONSIBLE_AREA, HANDLED_BY, HANDLED_AT, HANDLED_COMMENT)
-                VALUES (:id, :type, :sev, :msg, :area, :by, SYSTIMESTAMP, :comment)", tx);
+                VALUES (:id, :type, :sev, :msg, :area, :changedBy, SYSTIMESTAMP, :handledComment)", tx);
             cmd.Parameters.Add("id", ack.PalletId);
             cmd.Parameters.Add("type", Code(ack.Type));
             cmd.Parameters.Add("sev", ack.Severity switch { Severity.Error => "CRITICAL", Severity.Warning => "WARNING", _ => "INFO" });
             cmd.Parameters.Add("msg", OracleAuditTrail.Cut(string.IsNullOrWhiteSpace(ack.Message) ? ack.Type.ToString() : ack.Message, 400));
             cmd.Parameters.Add("area", Db(OracleAuditTrail.Cut(ack.ResponsibleArea, 30)));
-            cmd.Parameters.Add("by", ack.NtUser);
-            cmd.Parameters.Add("comment", OracleAuditTrail.Cut(ack.Comment.Trim(), 500));
+            cmd.Parameters.Add("changedBy", ack.NtUser);
+            cmd.Parameters.Add("handledComment", OracleAuditTrail.Cut(ack.Comment.Trim(), 500));
             cmd.ExecuteNonQuery();
         });
         lock (_gate) _items[(ack.PalletId, ack.Type)] = ack;

@@ -218,13 +218,13 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
         var (sheet, row) = SplitLegacy(p.LegacySource);
         var names = cols.Select(x => x.Name).Concat(new[] { "CALC_VERSION", "CALCULATED_AT", "IS_LEGACY", "LEGACY_SHEET", "LEGACY_ROW", "CREATED_BY" }).ToList();
         var sql = $@"INSERT INTO {_db.T("IB_PROCESS_PALLET_RETURNS")} ({string.Join(", ", names)})
-                     VALUES ({string.Join(", ", cols.Select((_, i) => $":p{i}"))}, 2, SYSTIMESTAMP, :legacy, :sheet, :row, :createdBy)
+                     VALUES ({string.Join(", ", cols.Select((_, i) => $":p{i}"))}, 2, SYSTIMESTAMP, :legacy, :sheet, :legacyRow, :createdBy)
                      RETURNING PALLET_RETURN_ID INTO :newId";
         using var cmd = _db.Command(c, sql, tx);
         for (var i = 0; i < cols.Count; i++) cmd.Parameters.Add($"p{i}", Db(cols[i].Get(p)));
         cmd.Parameters.Add("legacy", p.IsLegacy ? "Y" : "N");
         cmd.Parameters.Add("sheet", Db(sheet));
-        cmd.Parameters.Add("row", Db(row));
+        cmd.Parameters.Add("legacyRow", Db(row));
         cmd.Parameters.Add("createdBy", string.IsNullOrWhiteSpace(p.CreatedBy) ? "SYSTEM" : p.CreatedBy);
         var id = cmd.Parameters.Add("newId", OracleDbType.Int32, System.Data.ParameterDirection.Output);
         cmd.ExecuteNonQuery();
@@ -253,11 +253,11 @@ public sealed partial class OraclePalletRepository : IPalletReturnRepository
     private void InsertStatusHistory(OracleConnection c, OracleTransaction tx, int palletId, WorkflowStatus? from, WorkflowStatus to, string by, string note)
     {
         using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_STATUS_HISTORY")} (PALLET_RETURN_ID, FROM_STATUS_ID, TO_STATUS_ID, CHANGED_BY, NOTE)
-                                          VALUES (:id, :fromId, :toId, :by, :note)", tx);
+                                          VALUES (:id, :fromId, :toId, :changedBy, :note)", tx);
         cmd.Parameters.Add("id", palletId);
         cmd.Parameters.Add("fromId", from is null ? DBNull.Value : (int)from.Value);
         cmd.Parameters.Add("toId", (int)to);
-        cmd.Parameters.Add("by", string.IsNullOrWhiteSpace(by) ? "SYSTEM" : by);
+        cmd.Parameters.Add("changedBy", string.IsNullOrWhiteSpace(by) ? "SYSTEM" : by);
         cmd.Parameters.Add("note", note);
         cmd.ExecuteNonQuery();
     }
