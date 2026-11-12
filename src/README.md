@@ -1,4 +1,4 @@
-# Aplicación (v0.3.5): Expo & Return FG Follow Up
+# Aplicación (v0.3.6): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -116,6 +116,26 @@ Se crea con valores por defecto la primera vez que se abre la app. Si es de una 
 * Folios: el registro conserva el folio "#" del Excel. Si el "#" falta o está repetido, recibe 900000 + renglón. Los retornos nuevos siguen después del folio más alto del Excel en ese VS.
 
 ## Departamentos
+
+**Con Oracle, los departamentos se administran en la base** (`IB_PROCESS_DEPARTMENTS`); no hace falta un exe nuevo. La app los lee al abrir y con **Reload**:
+
+* `IS_ACTIVE = 'Y'`: se ofrece en *My profile* y en *Users & Access*.
+* Además `CAN_REQUEST = 'Y'`: se ofrece en *Requesting Department* de un retorno.
+* `AREA` decide qué campos editan sus Champions / Proxies (QMM, MFQ/MFE/TEF/PUQ = solicitante, GS, LOP, MFO, LOW, HSE; CTG, DBE y QMM-L sólo consultan).
+* `DEPARTMENT_GROUP = 'CROSS_FUNCTIONAL'`: aparece marcado como *digitalization / cross-functional*.
+* Nunca se borra un departamento (los registros que lo usan siguen siendo válidos): se desactiva con `IS_ACTIVE = 'N'`.
+
+```sql
+-- agregar uno
+INSERT INTO IB_PROCESS_DEPARTMENTS (DEPARTMENT_CODE, AREA, CAN_REQUEST, DEPARTMENT_GROUP, IS_ACTIVE)
+VALUES ('MFQ3', 'MFQ', 'Y', 'PROCESS', 'Y');
+-- dejar de ofrecerlo
+UPDATE IB_PROCESS_DEPARTMENTS SET IS_ACTIVE = 'N' WHERE DEPARTMENT_CODE = 'MFQ3';
+COMMIT;
+```
+
+En modo Local se usa la lista interna, que es la misma que siembra `02_seed_data.sql`.
+
 
 Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43 y HSE; los departamentos solicitantes de la lista del Excel 2.0 (hoja *Sheet1*): MFQ1, MFQ4, MFQ5, MFQ7, MFQ9, QMM-C1, QMM-C2 y PUQ; y LOW2, que aparece en renglones del Excel. En *Digitalización y proyectos transversales*: QMM-L2, DBE y TEF1. Los demás códigos antiguos (QMM, MFQ, MFQ2, MFQ3, MFQ6, MFO, MFO4, MFO5, MFO7, MFO9, LOP) quedan **inactivos**: no se ofrecen, pero los registros que los usan siguen siendo válidos. Los cambios a una base ya instalada están en `database/oracle/changes/` (por fecha).
 

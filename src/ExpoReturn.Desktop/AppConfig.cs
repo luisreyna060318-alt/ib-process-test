@@ -27,7 +27,7 @@ namespace ExpoReturn.Desktop;
 public sealed class AppConfig
 {
     /// <summary>Default Owner: US\RLN8JU (process owner of the application). More can be added here or in IB_PROCESS_USER_ACCESS.</summary>
-    public const string Version = "0.3.5";
+    public const string Version = "0.3.6";
 
     /// <summary>"Oracle" (production: IB_PROCESS_ tables through SharedServersAccess) or "Local" (demo).</summary>
     public string DataSource { get; set; } = "Oracle";

@@ -114,8 +114,8 @@ public class DataRulesAndOracleTests
                              "GS/OSD43", "HSE", "MFQ1", "MFQ4", "MFQ5", "MFQ7", "MFQ9", "QMM-C1", "QMM-C2", "PUQ", "LOW2",
                              "QMM-L2", "DBE", "TEF1" }, offered);
         Assert.DoesNotContain("MFQ", offered);
-        Assert.Contains(Catalogs.AllDepartments, d => d.Code == "MFQ" && !d.IsActive);
-        Assert.Equal(37, Catalogs.AllDepartments.Count);
+        Assert.Contains(Catalogs.BuiltInDepartments, d => d.Code == "MFQ" && !d.IsActive);
+        Assert.Equal(37, Catalogs.BuiltInDepartments.Count);
     }
 
     // ------------------------------------------------------------------ SharedServersAccess
@@ -184,10 +184,10 @@ public class DataRulesAndOracleTests
     public void Department_seed_matches_the_catalog()
     {
         var seed = Sql("02_seed_data.sql");
-        foreach (var d in Catalogs.AllDepartments)
+        foreach (var d in Catalogs.BuiltInDepartments)
             Assert.Contains($"VALUES ('{d.Code}', '{d.Area}', '{(d.CanRequest ? "Y" : "N")}', '{d.Group}', '{(d.IsActive ? "Y" : "N")}');", seed);
         var areas = Regex.Match(Sql("01_create_tables.sql"), @"IB_DEPT_CK_AREA CHECK \(AREA IN \(([^)]*)\)").Groups[1].Value;
-        foreach (var a in Catalogs.AllDepartments.Select(d => d.Area).Distinct()) Assert.Contains($"'{a}'", areas);
+        foreach (var a in Catalogs.BuiltInDepartments.Select(d => d.Area).Distinct()) Assert.Contains($"'{a}'", areas);
     }
 
     [Theory]
@@ -556,5 +556,38 @@ public class ImportedRecordTests
         var (repo, _, _, _) = Setup();
         repo.AppendLegacy(new[] { Imported(900033, 33) });
         Assert.Equal(16, repo.NextFolio(4));            // after folio 15 of the Excel, not after 900033
+    }
+}
+
+[CollectionDefinition("Global catalogs", DisableParallelization = true)]
+public class GlobalCatalogsCollection { }
+
+/// <summary>With the database, departments come from IB_PROCESS_DEPARTMENTS: no new executable to change them.</summary>
+[Collection("Global catalogs")]
+public class DepartmentsFromDatabaseTests
+{
+    [Fact]
+    public void The_department_list_of_the_database_replaces_the_built_in_one()
+    {
+        try
+        {
+            Catalogs.UseDepartments(new[]
+            {
+                OracleCatalogs.ToDepartment("MFQ4", "MFQ", "Y", "PROCESS", "Y"),
+                OracleCatalogs.ToDepartment("NEW1 ", "LOW", "Y", "PROCESS", "Y"),        // added in the database only
+                OracleCatalogs.ToDepartment("QMM1", "QMM", "Y", "PROCESS", "N"),         // deactivated in the database
+                OracleCatalogs.ToDepartment("DBE", "DBE", "N", "CROSS_FUNCTIONAL", "Y"),
+            });
+            Assert.Equal(new[] { "MFQ4", "NEW1", "DBE" }, Catalogs.Departments.Select(d => d.Code));
+            Assert.Equal(new[] { "MFQ4", "NEW1" }, Catalogs.Departments.Where(d => d.CanRequest).Select(d => d.Code));
+            Assert.Equal(RoleCode.Low, RoleInfo.AreaOfDepartment("NEW1"));
+            Assert.Equal(RoleCode.Qmm, RoleInfo.AreaOfDepartment("QMM1"));       // inactive: still valid for its records
+            Assert.Equal(Department.CrossFunctional, Catalogs.FindDepartment("DBE")!.Group);
+
+            Catalogs.UseDepartments(Array.Empty<Department>());                   // an empty answer never empties the list
+            Assert.Equal(3, Catalogs.Departments.Count);
+        }
+        finally { Catalogs.UseBuiltInDepartments(); }
+        Assert.Equal(26, Catalogs.Departments.Count);
     }
 }

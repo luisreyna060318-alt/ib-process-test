@@ -26,6 +26,9 @@ public sealed class AppServices
     public required IFeedbackStore Feedback { get; init; }
     public UserPreferences Preferences { get; } = UserPreferences.Load();
 
+    /// <summary>Reads the catalogs managed in the database again (departments).</summary>
+    private Action? ReloadCatalogs { get; init; }
+
     /// <summary>True when the data is in Oracle (shared, permanent).</summary>
     public bool IsDatabase { get; private init; }
     public string DataSourceLabel { get; set; } = "Demo data (synthetic)";
@@ -35,6 +38,7 @@ public sealed class AppServices
     /// <summary>Local (demo) mode: synthetic pallets in memory, users in the JSON file.</summary>
     public static AppServices CreateLocal(AppConfig config)
     {
+        Catalogs.UseBuiltInDepartments();
         var repo = new InMemoryPalletRepository();
         var audit = new InMemoryAuditTrail();
         var users = new UserDirectory(config.ResolvedUserStorePath, config.Owners, config.DemoUsers);
@@ -62,6 +66,7 @@ public sealed class AppServices
     {
         var db = new OracleDb(config.Oracle, credentials);
         var check = db.Check();
+        Catalogs.UseDepartments(OracleCatalogs.LoadDepartments(db));     // departments are managed in the database
         var clock = new SystemClock();
         var parameters = OracleParameters.Load(db);
         var repo = new OraclePalletRepository(db, parameters, () => clock.Today);
@@ -77,6 +82,7 @@ public sealed class AppServices
             Feedback = new OracleFeedbackStore(db),
             IsDatabase = true,
             DataSourceLabel = check,
+            ReloadCatalogs = () => Catalogs.UseDepartments(OracleCatalogs.LoadDepartments(db)),
         };
     }
 
@@ -85,6 +91,7 @@ public sealed class AppServices
     /// <summary>Reloads what other users saved (Oracle) or just refreshes the screens (local).</summary>
     public void Reload()
     {
+        ReloadCatalogs?.Invoke();
         Repository.Refresh();
         Users.Refresh();
         AlertAcks.Refresh();

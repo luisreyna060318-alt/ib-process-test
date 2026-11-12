@@ -30,7 +30,7 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.3.5
+## 3. Aplicación (.NET 8 / WPF) · v0.3.6
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 

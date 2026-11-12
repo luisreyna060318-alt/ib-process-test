@@ -292,3 +292,21 @@ public sealed class OracleMaterialCostCatalog : IMaterialCostCatalog
         cmd.Parameters.Add("src", OracleDbType.Varchar2, rows.Select(_ => src).ToArray(), System.Data.ParameterDirection.Input);
     }
 }
+
+/// <summary>Catalogs read from the database so they are managed there, without a new executable.</summary>
+public static class OracleCatalogs
+{
+    /// <summary>
+    /// IB_PROCESS_DEPARTMENTS, every row (inactive ones too: historical records still use them). Order: process
+    /// departments first, then cross-functional, each alphabetical.
+    /// </summary>
+    public static IReadOnlyList<Department> LoadDepartments(OracleDb db) => db.Query(
+        $@"SELECT DEPARTMENT_CODE, AREA, CAN_REQUEST, DEPARTMENT_GROUP, IS_ACTIVE FROM {db.T("IB_PROCESS_DEPARTMENTS")}
+            ORDER BY CASE DEPARTMENT_GROUP WHEN 'PROCESS' THEN 0 ELSE 1 END, DEPARTMENT_CODE",
+        r => ToDepartment(Str(r, "DEPARTMENT_CODE")!, Str(r, "AREA")!, Str(r, "CAN_REQUEST"), Str(r, "DEPARTMENT_GROUP"), Str(r, "IS_ACTIVE")));
+
+    public static Department ToDepartment(string code, string area, string? canRequest, string? group, string? isActive) =>
+        new(code.Trim(), area.Trim(), canRequest == "Y",
+            string.Equals(group?.Trim(), Department.CrossFunctional, StringComparison.OrdinalIgnoreCase) ? Department.CrossFunctional : Department.Process,
+            isActive != "N");
+}

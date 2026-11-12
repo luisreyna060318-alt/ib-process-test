@@ -53,8 +53,26 @@ public static class Catalogs
     /// </summary>
     public static IReadOnlyList<Department> Departments => AllDepartments.Where(d => d.IsActive).ToList();
 
-    /// <summary>Active departments plus the codes of the old list, kept inactive for historical records.</summary>
-    public static IReadOnlyList<Department> AllDepartments { get; } = new Department[]
+    private static volatile IReadOnlyList<Department>? _departments;     // null = built-in list
+
+    /// <summary>
+    /// Departments in use. With the database they come from IB_PROCESS_DEPARTMENTS (see <see cref="UseDepartments"/>), so
+    /// activating or adding one there needs no new executable. Without it: <see cref="BuiltInDepartments"/>.
+    /// </summary>
+    public static IReadOnlyList<Department> AllDepartments => _departments ?? BuiltInDepartments;
+
+    /// <summary>Replaces the department list (read from the database at start-up and on Reload). An empty list is ignored.</summary>
+    public static void UseDepartments(IEnumerable<Department> departments)
+    {
+        var list = departments.ToList();
+        if (list.Count > 0) _departments = list;
+    }
+
+    /// <summary>Back to the built-in list (Local mode, tests).</summary>
+    public static void UseBuiltInDepartments() => _departments = null;
+
+    /// <summary>Built-in list = the seed of IB_PROCESS_DEPARTMENTS (02_seed_data.sql). Used in Local mode.</summary>
+    public static IReadOnlyList<Department> BuiltInDepartments { get; } = new Department[]
     {
         // Process departments (JuP1/...)
         new("MFQ8", "MFQ", true),
