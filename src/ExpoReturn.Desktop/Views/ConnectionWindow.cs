@@ -82,8 +82,8 @@ public sealed class ConnectionWindow : Window
     {
         _error.Text = error ?? "";
         _status.Text = "The application cannot open without the database: every retry failed.";
-        _help.Text = "Check the network connection to the plant, that SharedServersAccess.dll is next to ExpoReturn.Desktop.exe and " +
-                     $"that tnsnames.ora knows {_server} (TnsAdmin in appsettings.json). Then open the application again.";
+        _help.Text = "Check the network connection to the plant (SharedServersAccess reads its servers.ini from the network share) and " +
+                     $"that tnsnames.ora knows {_server} (TNS_ADMIN or %ORACLE_HOME%\\network\\admin). Then open the application again.";
         _help.Visibility = Visibility.Visible;
         _close.Visibility = Visibility.Visible;
     }

@@ -30,11 +30,11 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.4.0
+## 3. Aplicación (.NET 8 / WPF) · v0.4.1
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
-* **Oracle obligatorio:** todo se guarda en las tablas `IB_PROCESS_` de `IFACTJUP`; no hay modo local ni datos de demostración. La app se conecta sola al abrir, con la cuenta de **SharedServersAccess.dll** y la clave integrada. Si no puede, reintenta de inmediato, a los 5 s y a los 10 s, y no abre si todo falla. Catálogos, permisos por campo y parámetros se leen de la base.
+* **Oracle obligatorio:** todo se guarda en las tablas `IB_PROCESS_` de `IFACTJUP`; no hay modo local ni datos de demostración. La app se conecta sola al abrir, con la cuenta de **SharedServersAccess.dll** y la clave integrada. **El usuario sólo necesita `ExpoReturn.Desktop.exe`**: el DLL va incrustado en el exe y no hay archivo de configuración (para compilar, el DLL se pone en `lib/`, que no se versiona). Si no puede, reintenta de inmediato, a los 5 s y a los 10 s, y no abre si todo falla. Catálogos, permisos por campo y parámetros se leen de la base.
 * **Reglas de datos, también para el Owner:** nunca se borra nada (los accesos que terminan se cierran con fecha, las solicitudes quedan aprobadas o rechazadas). Un campo con valor se puede cambiar pero no dejar vacío. Lo valida la app y lo impide la base de datos con triggers.
 * **Usuario real:** al abrir, la app lee el usuario de Windows. La primera vez pide nombre, Department y Value Stream(s); la función inicial es **Viewer** (sólo lectura).
 * **Departamentos:** lista nueva (MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CTG3, TEF6, GS/OSD43, HSE y, en digitalización y proyectos transversales, QMM-L2, DBE y TEF1). Los códigos anteriores quedan inactivos sólo para el histórico.

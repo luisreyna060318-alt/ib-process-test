@@ -31,7 +31,7 @@ public partial class App : System.Windows.Application
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         // The database connection is mandatory and automatic (no key to type, no local mode).
-        var config = AppConfig.Load();
+        var config = new AppConfig();
         var first = await ConnectionRetry.FirstAttemptAsync(() => AppServices.Connect(config));
         var services = first.Result;
         if (services is null)

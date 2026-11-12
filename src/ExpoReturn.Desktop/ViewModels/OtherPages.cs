@@ -204,9 +204,8 @@ public sealed partial class UsersViewModel : PageViewModel
     public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Label)).ToList();
     public IReadOnlyList<int> ValueStreamOptions { get; } = new[] { 0 }.Concat(Catalogs.ValueStreams.Select(v => v.Id)).ToList();
     public IReadOnlyList<UserFunction> FunctionOptions { get; } = Enum.GetValues<UserFunction>();
-    public string OwnersConfigText => Services.Config.Owners.Count == 0
-        ? $"No Owner configured in {AppConfig.FilePath}. Add your Windows user to \"Owners\" (or insert an Owner row in the database)."
-        : $"Owners configured in appsettings.json: {string.Join(", ", Services.Config.Owners)}";
+    public string OwnersConfigText =>
+        $"Built-in Owner: {string.Join(", ", Services.Config.Owners)}. Other Owners are the OWNER rows of this table (IB_PROCESS_USER_ACCESS).";
 
     [ObservableProperty] private IReadOnlyList<MatrixRow> _rows = Array.Empty<MatrixRow>();
     [ObservableProperty] private IReadOnlyList<RequestRow> _requests = Array.Empty<RequestRow>();

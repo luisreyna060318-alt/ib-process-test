@@ -142,9 +142,10 @@ public class DataRulesAndOracleTests
     [Fact]
     public void Missing_dll_gives_a_clear_message()
     {
+        if (SharedServersCredentials.IsEmbedded) return;     // embedded in this build: there is no file to miss
         var c = new SharedServersCredentials(new OracleSettings { SharedServersDll = Path.Combine(Path.GetTempPath(), "nope", "SharedServersAccess.dll") });
         var ex = Assert.Throws<CredentialsException>(() => c.Initialize("key"));
-        Assert.Contains("was not found", ex.Message);
+        Assert.Contains("not found", ex.Message);
     }
 
     // ------------------------------------------------------------------ code ↔ Oracle scripts
@@ -630,20 +631,29 @@ public class MandatoryConnectionTests
         Assert.Equal(1, calls);                                     // retry 1 ran, the wait before retry 2 was cancelled
     }
 
+    /// <summary>
+    /// The user only needs the executable: SharedServersAccess.dll is embedded and loaded from memory. Only metadata is
+    /// read here (no method of the DLL runs). Skipped when lib/SharedServersAccess.dll was not there at build time.
+    /// </summary>
     [Fact]
-    public void The_master_key_is_built_in_and_can_only_be_overridden_on_purpose()
+    public void SharedServersAccess_travels_inside_the_application()
     {
-        var envVar = "IBP_TEST_KEY_" + Guid.NewGuid().ToString("N");
-        var settings = new OracleSettings { MasterKeyEnvVar = envVar };
-        Assert.Equal("1234", settings.ResolveMasterKey());
-        settings.MasterKey = "fromConfig";
-        Assert.Equal("fromConfig", settings.ResolveMasterKey());
-        try
-        {
-            Environment.SetEnvironmentVariable(envVar, "fromEnv");
-            Assert.Equal("fromEnv", settings.ResolveMasterKey());
-        }
-        finally { Environment.SetEnvironmentVariable(envVar, null); }
+        Assert.Equal("1234", OracleSettings.MasterKey);
+        var lib = Path.Combine(OracleScriptRoot(), "lib", "SharedServersAccess.dll");
+        if (!File.Exists(lib)) return;
+        Assert.True(SharedServersCredentials.IsEmbedded);
+        var asm = SharedServersCredentials.LoadAssembly(Path.Combine(Path.GetTempPath(), "does-not-exist", "SharedServersAccess.dll"));
+        Assert.Equal("SharedServersAccess", asm.GetName().Name);
+        Assert.NotNull(asm.GetType("SharedServersAccess.AccessControl")!.GetMethod("InicializarClaveMaestra", new[] { typeof(string) }));
+        Assert.NotNull(asm.GetType("SharedServersAccess.DiccionarioService")!.GetMethod("ObtenerCredencialesDeServidor", new[] { typeof(string), typeof(bool) }));
+        Assert.Same(asm, SharedServersCredentials.LoadAssembly("x"));          // loaded once per process
+    }
+
+    private static string OracleScriptRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "ExpoReturn.sln"))) dir = dir.Parent;
+        return dir!.FullName;
     }
 }
 

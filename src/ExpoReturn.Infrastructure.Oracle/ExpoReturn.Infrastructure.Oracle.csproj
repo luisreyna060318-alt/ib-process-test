@@ -6,6 +6,16 @@
   <ItemGroup>
     <ProjectReference Include="..\ExpoReturn.Application\ExpoReturn.Application.csproj" />
   </ItemGroup>
+  <!--
+    SharedServersAccess.dll travels INSIDE the application (embedded resource, loaded from memory): the user only needs
+    ExpoReturn.Desktop.exe. Put the DLL in lib/ before building; it is not versioned (.gitignore).
+  -->
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)..\..\lib\SharedServersAccess.dll')">
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\lib\SharedServersAccess.dll" LogicalName="SharedServersAccess.dll" />
+  </ItemGroup>
+  <Target Name="WarnMissingSharedServersAccess" BeforeTargets="Build" Condition="!Exists('$(MSBuildThisFileDirectory)..\..\lib\SharedServersAccess.dll')">
+    <Warning Text="lib/SharedServersAccess.dll not found: the application will look for SharedServersAccess.dll next to the executable." />
+  </Target>
   <ItemGroup>
     <!-- Managed ODP.NET: no Oracle client installation needed. Data Source = TNS alias (tnsnames.ora). -->
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.6.1" />

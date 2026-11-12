@@ -2,12 +2,20 @@ using System.Reflection;
 
 namespace ExpoReturn.Infrastructure.Oracle;
 
-/// <summary>Connection settings (appsettings.json "Oracle"). No password or key is ever stored here.</summary>
+/// <summary>
+/// Connection settings, fixed in the code (there is no configuration file next to the executable).
+/// </summary>
 public sealed class OracleSettings
 {
+    /// <summary>Master key of SharedServersAccess: the connection is automatic, nobody types it.</summary>
+    public const string MasterKey = "1234";
+
     /// <summary>Server title in SharedServersAccess; it is also the Data Source (TNS alias).</summary>
     public string Server { get; set; } = "IFACTJUP";
-    /// <summary>Path of SharedServersAccess.dll; relative = next to the executable.</summary>
+    /// <summary>
+    /// Only used when the DLL is not embedded in the application (build without lib/SharedServersAccess.dll):
+    /// path of the file; relative = next to the executable.
+    /// </summary>
     public string SharedServersDll { get; set; } = "SharedServersAccess.dll";
     /// <summary>Optional servers.ini path for DiccionarioService(path); empty = the DLL's own default.</summary>
     public string? SharedServersIni { get; set; }
@@ -15,19 +23,6 @@ public sealed class OracleSettings
     public string? TnsAdmin { get; set; }
     /// <summary>Schema that owns the IB_PROCESS_ tables when the account is not the owner (empty = own schema).</summary>
     public string? Schema { get; set; }
-    /// <summary>Environment variable with the master key; it wins over everything else when it is set.</summary>
-    public string MasterKeyEnvVar { get; set; } = "SHARED_SERVERS_CLAVE";
-    /// <summary>Master key in appsettings.json, only to override the built-in one; empty = built-in.</summary>
-    public string? MasterKey { get; set; }
-
-    /// <summary>Built-in master key of SharedServersAccess (the connection is automatic, nobody types it).</summary>
-    public const string BuiltInMasterKey = "1234";
-
-    /// <summary>Environment variable → appsettings "MasterKey" → built-in key.</summary>
-    public string ResolveMasterKey() =>
-        Environment.GetEnvironmentVariable(MasterKeyEnvVar) is { Length: > 0 } env ? env
-        : !string.IsNullOrEmpty(MasterKey) ? MasterKey
-        : BuiltInMasterKey;
     /// <summary>Rows shown in the Audit log screen (most recent first).</summary>
     public int AuditRowsShown { get; set; } = 5000;
 }
@@ -44,8 +39,8 @@ public sealed class CredentialsException(string message, int? code = null, Excep
 /// Reads the Oracle account from SharedServersAccess.dll the same way the good-receipt worker does:
 /// AccessControl.InicializarClaveMaestra(key) → new DiccionarioService().ObtenerCredencialesDeServidor(SERVER) →
 /// Conexion / ConexionFormato (Data Source=…;User ID=…;Password=…) with {userX}/{passwordX} replaced by Usuario / Password.
-/// The DLL is a .NET 2.0 assembly; it is loaded at run time (reflection), so it is not part of the build and is
-/// copied next to the executable by whoever installs the application.
+/// The DLL is a .NET 2.0 assembly loaded at run time (reflection). It is embedded in the application and loaded from
+/// memory, so the user only needs the executable; a copy next to the executable is used only if it was not embedded.
 /// </summary>
 public sealed class SharedServersCredentials
 {
@@ -59,7 +54,27 @@ public sealed class SharedServersCredentials
         ? _settings.SharedServersDll
         : Path.Combine(AppContext.BaseDirectory, _settings.SharedServersDll);
 
-    public string? KeyFromEnvironment => Environment.GetEnvironmentVariable(_settings.MasterKeyEnvVar) is { Length: > 0 } k ? k : null;
+    /// <summary>True when SharedServersAccess.dll travels inside the application.</summary>
+    public static bool IsEmbedded => typeof(SharedServersCredentials).Assembly.GetManifestResourceInfo(EmbeddedName) is not null;
+
+    private const string EmbeddedName = "SharedServersAccess.dll";
+
+    /// <summary>Loads the DLL (embedded first, else the file) without running any of its code.</summary>
+    public static Assembly LoadAssembly(string fallbackPath)
+    {
+        using (var stream = typeof(SharedServersCredentials).Assembly.GetManifestResourceStream(EmbeddedName))
+            if (stream is not null)
+            {
+                var bytes = new byte[stream.Length];
+                stream.ReadExactly(bytes);
+                // Already loaded in this process (a reconnection): reuse it, a second copy would have other types.
+                return AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "SharedServersAccess")
+                       ?? Assembly.Load(bytes);
+            }
+        if (!File.Exists(fallbackPath))
+            throw new CredentialsException($"SharedServersAccess.dll is not inside the application and was not found at {fallbackPath}.");
+        return Assembly.LoadFrom(fallbackPath);
+    }
 
     /// <summary>Initializes the master key and checks it decrypts the server entry. Call once at start-up.</summary>
     public void Initialize(string masterKey)
@@ -142,9 +157,8 @@ public sealed class SharedServersCredentials
     {
         if (_assembly is null)
         {
-            if (!File.Exists(DllPath))
-                throw new CredentialsException($"SharedServersAccess.dll was not found: {DllPath}. Copy it next to the application.");
-            try { _assembly = Assembly.LoadFrom(DllPath); }
+            try { _assembly = LoadAssembly(DllPath); }
+            catch (CredentialsException) { throw; }
             catch (Exception ex) { throw new CredentialsException($"SharedServersAccess.dll could not be loaded: {ex.Message}", null, ex); }
         }
         return _assembly.GetType(name, throwOnError: false) ?? throw new CredentialsException($"SharedServersAccess.dll: type {name} not found.");

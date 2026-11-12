@@ -32,13 +32,13 @@ public sealed class AppServices
     private Action? ReloadCatalogs { get; init; }
 
     /// <summary>
-    /// Connects: master key (built-in, or override) → account from SharedServersAccess → check of the IB_PROCESS_ tables →
+    /// Connects: built-in master key → account from SharedServersAccess → check of the IB_PROCESS_ tables →
     /// catalogs, parameters and repositories. Throws if anything fails (the start-up window retries).
     /// </summary>
     public static AppServices Connect(AppConfig config)
     {
         var credentials = new SharedServersCredentials(config.Oracle);
-        credentials.Initialize(config.Oracle.ResolveMasterKey());
+        credentials.Initialize(OracleSettings.MasterKey);
         var db = new OracleDb(config.Oracle, credentials);
         var check = db.Check();
         OracleCatalogs.LoadAndUse(db);                                 // catalogs are managed in the database

@@ -1,4 +1,4 @@
-# Aplicación (v0.4.0): Expo & Return FG Follow Up
+# Aplicación (v0.4.1): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -10,7 +10,7 @@ Los catálogos también se leen de la base: Value Streams, motivos, categorías 
 
 ## Cómo abrirlo
 
-**Opción A · sin instalar nada (revisores):** ejecutar `ExpoReturn.Desktop.exe`, la versión autocontenida para Windows 10/11 x64 que se comparte aparte; no requiere .NET.
+**Opción A · usuarios:** sólo se necesita `ExpoReturn.Desktop.exe`, la versión autocontenida para Windows 10/11 x64. No requiere .NET, ni archivo de configuración, ni copiar el DLL: SharedServersAccess.dll viaja dentro del exe.
 
 **Opción B · desde el código (desarrollo):** con el SDK de .NET 8 en Windows:
 
@@ -45,12 +45,12 @@ dotnet test
 ## Conexión a Oracle (SharedServersAccess.dll)
 
 1. Crear las tablas ejecutando una vez `database/oracle/IB_PROCESS_install.sql` con la cuenta dueña del esquema (ver el README principal).
-2. Copiar **`SharedServersAccess.dll`** junto a `ExpoReturn.Desktop.exe`. No se incluye en el repositorio ni en el zip.
-3. `tnsnames.ora`: la app resuelve el alias `IFACTJUP` como el worker de Python, agregando `NAMES.DEFAULT_DOMAIN` de `sqlnet.ora`. Busca la carpeta en `"TnsAdmin"`, luego en la variable `TNS_ADMIN` y luego en `%ORACLE_HOME%\network\admin`. No hace falta instalar el cliente de Oracle (usa ODP.NET administrado).
-4. **Clave maestra:** la conexión es automática; nadie la escribe. La app usa, en este orden: la variable de entorno `SHARED_SERVERS_CLAVE` si existe, `"MasterKey"` de `appsettings.json` si tiene valor, o la clave integrada.
+2. **SharedServersAccess.dll va dentro del exe** (recurso incrustado, se carga desde memoria); el usuario no lo copia. Para compilar, poner el DLL en `lib/SharedServersAccess.dll`; esa carpeta no se versiona. Si al compilar no está, la app lo busca junto al exe.
+3. `tnsnames.ora`: la app resuelve el alias `IFACTJUP` como el worker de Python, agregando `NAMES.DEFAULT_DOMAIN` de `sqlnet.ora`. Busca la carpeta en la variable `TNS_ADMIN` y luego en `%ORACLE_HOME%\network\admin`. No hace falta instalar el cliente de Oracle (usa ODP.NET administrado).
+4. **Clave maestra:** está en el código; la conexión es automática y nadie la escribe.
 5. Al abrir, la app llama `AccessControl.InicializarClaveMaestra(clave)` y `DiccionarioService.ObtenerCredencialesDeServidor("IFACTJUP")`. Comprueba que el *Data Source* sea `IFACTJUP` (si no, la clave es incorrecta), sustituye `{userX}` / `{passwordX}` y abre la conexión. Si la contraseña vence, vuelve a pedir la cuenta al DLL.
 
-**Si no se puede conectar** (red, falta el DLL, alias de tnsnames, tablas), aparece una ventana *"Could not connect to the database"* con el motivo, y la app reintenta tres veces: **de inmediato, a los 5 segundos y a los 10 segundos**, con cuenta regresiva. Si se conecta, la ventana se cierra y la app abre normalmente. Si los tres reintentos fallan, muestra qué revisar y **la app no abre**. Cerrar la ventana detiene los reintentos.
+**Si no se puede conectar** (red, `servers.ini` de la carpeta de red, alias de tnsnames, tablas), aparece una ventana *"Could not connect to the database"* con el motivo, y la app reintenta tres veces: **de inmediato, a los 5 segundos y a los 10 segundos**, con cuenta regresiva. Si se conecta, la ventana se cierra y la app abre normalmente. Si los tres reintentos fallan, muestra qué revisar y **la app no abre**. Cerrar la ventana detiene los reintentos.
 
 | Operación | Tablas |
 |---|---|
@@ -72,31 +72,20 @@ Cómo queda "sin borrar":
 * Si dos personas editan el mismo retorno, el segundo guardado se rechaza (`ROW_VERSION`) y se pide recargar; nadie sobrescribe a nadie.
 * El botón **Reload** vuelve a leer lo que guardaron otras personas.
 
-## Configuración (`appsettings.json`, junto al ejecutable)
+## Configuración (en el código, sin archivos)
 
-Se crea con valores por defecto la primera vez que se abre la app. Un archivo de una versión anterior se reescribe con las claves actuales y conserva `Oracle` y `Owners`.
+No hay `appsettings.json`: si quedó uno de una versión anterior junto al exe, se puede borrar; la app ya no lo lee. Lo fijo está en el código y lo que cambia se administra en la base de datos:
 
-```json
-{
-  "Oracle": {
-    "Server": "IFACTJUP",
-    "SharedServersDll": "SharedServersAccess.dll",
-    "SharedServersIni": null,
-    "TnsAdmin": null,
-    "Schema": null,
-    "MasterKeyEnvVar": "SHARED_SERVERS_CLAVE",
-    "MasterKey": null,
-    "AuditRowsShown": 5000
-  },
-  "Owners": [ "US\\RLN8JU" ]
-}
-```
+| Qué | Dónde |
+|---|---|
+| Servidor `IFACTJUP`, clave maestra, SharedServersAccess.dll | Código (`OracleSettings`), DLL incrustado en el exe |
+| `tnsnames.ora` | Variable `TNS_ADMIN` o `%ORACLE_HOME%\network\admin` del equipo |
+| Owner inicial `US\RLN8JU` | Código (`AppConfig`) |
+| Otros Owners, Champions, Proxies | `IB_PROCESS_USER_ACCESS` (pantalla *Users & Access*) |
+| Departamentos, VS, motivos, categorías, nombres de estatus, permisos por campo | Tablas `IB_PROCESS_` de catálogos |
+| Tasa de aranceles, plazo IMMEX, umbrales | `IB_PROCESS_PARAMETERS` |
 
-* **Oracle.SharedServersIni:** ruta opcional de `servers.ini`; vacío = la que trae el DLL.
-* **Oracle.TnsAdmin:** carpeta de `tnsnames.ora`, si no está en `TNS_ADMIN` ni en `%ORACLE_HOME%\network\admin`.
-* **Oracle.Schema:** dueño de las tablas si la cuenta del DLL no es la dueña (no es el caso de JUP1QMM).
-* **Oracle.MasterKey:** sólo para cambiar la clave integrada sin publicar otro exe; vacío = clave integrada.
-* **Owners:** usuarios de Windows con la función Owner (con o sin dominio). También puede haber filas OWNER en la tabla de accesos.
+Lo único que la app guarda en el equipo son los filtros recordados de cada usuario (`%LOCALAPPDATA%\ExpoReturn\preferences.json`); si no existe, se crea solo.
 
 ## Departamentos
 
@@ -153,9 +142,9 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 
 ## Guion de revisión sugerido (10 minutos)
 
-0. **Conexión:** con el DLL junto al exe, abrir la app: se conecta sola y arriba aparece *Oracle IFACTJUP · usuario · 5 value streams*.
+0. **Conexión:** abrir el exe (no necesita nada junto a él): se conecta sola y arriba aparece *Oracle IFACTJUP · usuario · 5 value streams*.
 1. **Primera ejecución:** abrir la app; aparece *Welcome*. El usuario de Windows ya viene escrito; elegir Department y VS y guardar. Arriba a la derecha aparece como **Viewer**: todo en gris.
-2. Abrir con el usuario `US\RLN8JU` (Owner por defecto): aparece como **Owner** y ve *Import MM60 file* y la edición de *Users & Access*. Para otro Owner, agregar su usuario en `"Owners"` de `appsettings.json`.
+2. Abrir con el usuario `US\RLN8JU` (Owner por defecto): aparece como **Owner** y ve *Import MM60 file* y la edición de *Users & Access*. Para otro Owner, darle la función *Owner* en *Users & Access*.
 3. **Users & Access:** agregar una fila con otro usuario (o el suyo con otra configuración) como *Champion* de un VS y guardar; la bitácora registra el cambio.
 4. **View as** *Patricia Lozano · GS/OSD43 · VS1 · Champion*: en un registro de VS1 sólo los campos de aduana quedan en verde; en otro VS todo queda en gris.
 5. **My profile** con un usuario no Owner: cambiar el VS. Aparece como solicitud; el Owner la aprueba en **Users & Access** y el VS nuevo entra como Viewer.
@@ -179,6 +168,6 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 | `ExpoReturn.Domain` | `PalletReturn`, catálogos, `Identifiers` (P/N, HU, lote, factura), `FinancialCalculator`, `DutyRisk`, `StatusResolver`, `PalletValidator`, `PalletEvaluator` |
 | `ExpoReturn.Application` | Usuario actual y accesos (`UserContext`, `AccessGrant`, `UserFunction`), `IUserDirectory`, matriz de permisos por área (`FieldPermissions`), `PalletReturnService` (permisos → validación → recálculo → auditoría), `ReportingService` |
 | `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `UserDirectory` (reglas de usuarios, accesos y solicitudes; guarda cambios incrementales, sin borrar) con `JsonUserStore`, `SampleData` (sintético), `LegacyExcelImporter` (ClosedXML) |
-| `ExpoReturn.Infrastructure.Oracle` | `SharedServersCredentials` (carga el DLL en tiempo de ejecución), `OracleDb` (alias TNS, transacciones, errores de los triggers), `OraclePalletRepository`, `OracleAuditTrail`, `OracleUserStore`, `OracleMaterialCostCatalog`, `OracleAlertStore`, `OracleFeedbackStore`, `OracleParameters` (ODP.NET administrado) |
-| `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `AppConfig` (appsettings.json), `ProfileWindow`, `ShellViewModel`, `UsersViewModel`, vistas y `Themes/Theme.xaml` |
-| `tests/ExpoReturn.Domain.Tests` | 73 pruebas: no vaciar campos ni borrar, concurrencia, departamentos, credenciales del DLL, código ↔ scripts Oracle, casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |
+| `ExpoReturn.Infrastructure.Oracle` | `SharedServersCredentials` (DLL incrustado, cargado desde memoria), `OracleCatalogs` (catálogos de la base), `OracleDb` (alias TNS, transacciones, errores de los triggers), `OraclePalletRepository`, `OracleAuditTrail`, `OracleUserStore`, `OracleMaterialCostCatalog`, `OracleAlertStore`, `OracleFeedbackStore`, `OracleParameters` (ODP.NET administrado) |
+| `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `AppConfig` (valores fijos), `ConnectionWindow` (reintentos), `ProfileWindow`, `ShellViewModel`, `UsersViewModel`, vistas y `Themes/Theme.xaml` |
+| `tests/ExpoReturn.Domain.Tests` | 101 pruebas: reintentos de conexión, catálogos de la base, DLL incrustado, no vaciar campos ni borrar, concurrencia, departamentos, credenciales del DLL, código ↔ scripts Oracle, casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |

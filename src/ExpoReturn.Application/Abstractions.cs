@@ -103,8 +103,8 @@ public sealed record ProfileRequest(int Id, string NtUser, string DepartmentCode
 }
 
 /// <summary>
-/// Users, their access and profile requests. Draft: JSON file (path in appsettings.json). Production: Oracle tables.
-/// Owners are configured by Windows user (appsettings.json "Owners") or by an Owner access row.
+/// Users, their access and profile requests, in the Oracle tables (a JSON store exists only for the tests).
+/// Owners: the built-in Windows user of the application, plus the OWNER rows of IB_PROCESS_USER_ACCESS.
 /// </summary>
 public interface IUserDirectory
 {
