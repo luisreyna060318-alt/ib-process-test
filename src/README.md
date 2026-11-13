@@ -1,4 +1,4 @@
-# Aplicación (v0.4.2): Expo & Return FG Follow Up
+# Aplicación (v0.4.3): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -118,8 +118,8 @@ Lista vigente: MFQ8, MFO1, MFO12, MFO1-US, MFE5, QMM1, QMM2, LOP1, LOP2, LOW, CT
 | Pantalla | Qué permite revisar |
 |---|---|
 | **Primera ejecución / My profile** | Lee el usuario de Windows automáticamente y pide nombre, Department y Value Stream(s). Empieza como **Viewer**. Después, cambiar Department o VS queda como **solicitud** para el Owner; el nombre se cambia directo. La función nunca se elige aquí |
-| **Barra superior** | Usuario de Windows, department, VS y función. El Owner ve las solicitudes pendientes y un selector **View as** para ver la app con el acceso de otro usuario (aparece el aviso "PREVIEW") |
-| **Returns inbox** | Lista filtrable por VS, estatus, texto y riesgo arancelario; indicadores; orden por vencimiento IMMEX; filtros recordados por usuario; exportar a Excel de sólo lectura |
+| **Barra superior** | *Connected to Oracle IFACTJUP - cuenta*, usuario de Windows, department, VS y función. Sólo el Owner ve las solicitudes pendientes y el selector **View as** (sigue visible mientras lo usa; aparece el aviso "PREVIEW") |
+| **Returns inbox** | Filtros por VS, estatus, texto, riesgo arancelario y *To homogenize*. Los indicadores (registros, abiertos, en riesgo, balance) siguen los filtros siempre. La tabla se muestra hasta presionar **Show N records**, con **50 registros por página** y paginador; una vez visible, los filtros se aplican en vivo y regresan a la página 1. Ordenar por una columna ordena todos los registros del filtro. Exportar a Excel incluye todo el filtro, no sólo la página. Al volver de un registro se conserva la página |
 | **Return detail / New return** | Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función (Champion/Proxy) del usuario en el VS del registro |
 | **Balance / Duties** | Sustituto de la hoja BALANCE, por VS y año fiscal; clic en un VS o estatus abre la bandeja filtrada |
 | **Alerts** | Agrupadas por área responsable; "Mark as handled" con comentario |

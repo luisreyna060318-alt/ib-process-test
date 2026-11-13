@@ -7,22 +7,32 @@
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
             <TextBlock Text="Returns inbox" Style="{StaticResource PageTitle}" />
-            <TextBlock Style="{StaticResource PageSubtitle}"
-                       Text="One row per pallet returned from El Paso WHS. Status and amounts are calculated automatically. Double-click or Enter opens the detail. Order: open records closest to their IMMEX due date first. Shortcuts: Ctrl+F search · Ctrl+E export · Ctrl+N new return." />
+            <TextBlock FontSize="14.5" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap" Margin="0,0,0,12">
+                <Run Text="Double-click" FontWeight="SemiBold" /><Run Text=" or " /><Run Text="Enter" FontWeight="SemiBold" /><Run Text=" opens a record   ·   " />
+                <Run Text="Ctrl+F" FontWeight="SemiBold" /><Run Text=" search   ·   " /><Run Text="Ctrl+E" FontWeight="SemiBold" /><Run Text=" export   ·   " /><Run Text="Ctrl+N" FontWeight="SemiBold" /><Run Text=" new return" />
+            </TextBlock>
 
-            <!-- Indicadores -->
+            <!-- Indicators: always follow the filters, also while the table is not shown -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Records (filter)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiCount}" Style="{StaticResource KpiValue}" /></StackPanel>
+                <StackPanel.Resources>
+                    <Style TargetType="Border" BasedOn="{StaticResource KpiCard}">
+                        <Setter Property="Padding" Value="20,14" />
+                        <Setter Property="MinWidth" Value="190" />
+                    </Style>
+                    <Style x:Key="BigLabel" TargetType="TextBlock" BasedOn="{StaticResource KpiLabel}"><Setter Property="FontSize" Value="13.5" /></Style>
+                    <Style x:Key="BigValue" TargetType="TextBlock" BasedOn="{StaticResource KpiValue}"><Setter Property="FontSize" Value="30" /></Style>
+                </StackPanel.Resources>
+                <Border>
+                    <StackPanel><TextBlock Text="Records (filter)" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiCount, StringFormat={}{0:N0}}" Style="{StaticResource BigValue}" /></StackPanel>
                 </Border>
-                <Border Style="{StaticResource KpiCard}">
-                    <StackPanel><TextBlock Text="Open" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiOpen}" Style="{StaticResource KpiValue}" /></StackPanel>
+                <Border>
+                    <StackPanel><TextBlock Text="Open" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiOpen, StringFormat={}{0:N0}}" Style="{StaticResource BigValue}" /></StackPanel>
                 </Border>
-                <Border Style="{StaticResource KpiCard}" ToolTip="Status calculated by the application">
-                    <StackPanel><TextBlock Text="At duty risk" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiDutyRisk}" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" /></StackPanel>
+                <Border ToolTip="Status calculated by the application">
+                    <StackPanel><TextBlock Text="At duty risk" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiDutyRisk, StringFormat={}{0:N0}}" Style="{StaticResource BigValue}" Foreground="{StaticResource Danger}" /></StackPanel>
                 </Border>
-                <Border Style="{StaticResource KpiCard}" ToolTip="Excel 2.0: Balance GENERAL DLLS">
-                    <StackPanel><TextBlock Text="Unreconciled general balance (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                <Border ToolTip="Excel 2.0: Balance GENERAL DLLS">
+                    <StackPanel><TextBlock Text="Unreconciled general balance (USD)" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiBalance, StringFormat={}{0:N2}}" Style="{StaticResource BigValue}" /></StackPanel>
                 </Border>
             </StackPanel>
 
@@ -51,13 +61,82 @@
             </Border>
         </StackPanel>
 
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
-            <Button Content="Open detail" Command="{Binding OpenCommand}" Style="{StaticResource PrimaryButton}" ToolTip="Enter" />
-            <TextBlock Text="{Binding Message}" VerticalAlignment="Center" Foreground="{StaticResource Success}" Margin="8,0,0,0" />
-            <TextBlock Text="Filters are remembered per user." VerticalAlignment="Center" Style="{StaticResource Hint}" Margin="16,0,0,0" />
-        </StackPanel>
+        <!-- Pager: 50 records per page -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" Visibility="{Binding IsTableShown, Converter={StaticResource BoolToVis}}">
+            <DockPanel.Resources>
+                <Style x:Key="PagerButton" TargetType="Button">
+                    <Setter Property="MinWidth" Value="34" />
+                    <Setter Property="Height" Value="32" />
+                    <Setter Property="Margin" Value="2,0" />
+                    <Setter Property="Padding" Value="8,0" />
+                    <Setter Property="FontSize" Value="13" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Foreground" Value="{StaticResource Primary}" />
+                    <Setter Property="Background" Value="White" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="B" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#E8EEF7" /></Trigger>
+                                    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </DockPanel.Resources>
+            <Button DockPanel.Dock="Right" Content="Hide table" Command="{Binding HideTableCommand}" Style="{StaticResource LinkButton}" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding PageSummary}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,16,0" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding HasSeveralPages, Converter={StaticResource BoolToVis}}">
+                    <Button Content="«" ToolTip="First page" Command="{Binding FirstPageCommand}" Style="{StaticResource PagerButton}" />
+                    <Button Content="‹" ToolTip="Previous page" Command="{Binding PreviousPageCommand}" Style="{StaticResource PagerButton}" />
+                    <ItemsControl ItemsSource="{Binding PageButtons}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Button x:Name="Num" Content="{Binding Text}" CommandParameter="{Binding Number}" IsEnabled="{Binding IsPage}"
+                                            Command="{Binding DataContext.GoToPageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Style="{StaticResource PagerButton}" />
+                                    <!-- current page: filled, not a link -->
+                                    <Border x:Name="Cur" Background="{StaticResource Primary}" CornerRadius="6" MinWidth="34" Height="32" Margin="2,0" Visibility="Collapsed">
+                                        <TextBlock Text="{Binding Text}" Foreground="White" FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0" />
+                                    </Border>
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter TargetName="Cur" Property="Visibility" Value="Visible" />
+                                        <Setter TargetName="Num" Property="Visibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="›" ToolTip="Next page" Command="{Binding NextPageCommand}" Style="{StaticResource PagerButton}" />
+                    <Button Content="»" ToolTip="Last page" Command="{Binding LastPageCommand}" Style="{StaticResource PagerButton}" />
+                </StackPanel>
+                <TextBlock Text="{Binding Message}" VerticalAlignment="Center" Foreground="{StaticResource Success}" Margin="16,0,0,0" />
+            </StackPanel>
+        </DockPanel>
 
-        <DataGrid x:Name="Grid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+        <!-- Table not shown yet: the records are listed only when the user asks for them -->
+        <Border Style="{StaticResource Card}" Visibility="{Binding IsTableShown, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Button Content="{Binding ShowButtonText}" Command="{Binding ShowTableCommand}" IsEnabled="{Binding HasRecords}" IsDefault="True"
+                        Style="{StaticResource PrimaryButton}" FontSize="15" Padding="28,10" HorizontalAlignment="Center" />
+                <TextBlock Text="Set the filters first; the indicators above already follow them. The table shows 50 records per page."
+                           Style="{StaticResource Hint}" FontSize="12.5" Margin="0,10,0,0" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding Message}" Foreground="{StaticResource Success}" Margin="0,8,0,0" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <DataGrid x:Name="Grid" ItemsSource="{Binding PageRows}" SelectedItem="{Binding SelectedRow}"
+                  Visibility="{Binding IsTableShown, Converter={StaticResource BoolToVis}}" Sorting="OnSorting"
                   MouseDoubleClick="OnRowDoubleClick" PreviewKeyDown="OnGridKeyDown">
             <!-- Encabezados del Excel: pueden ser largos, se acomodan en dos renglones -->
             <DataGrid.ColumnHeaderStyle>
@@ -70,7 +149,7 @@
                 </Style>
             </DataGrid.ColumnHeaderStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
+                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="105" />
                 <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="48" />
                 <DataGridTemplateColumn Header="Status" Width="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
                 <DataGridTextColumn Header="Part number" Binding="{Binding Material}" Width="140" />

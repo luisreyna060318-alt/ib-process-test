@@ -31,6 +31,16 @@ public partial class PalletListView : UserControl
     private void UpdateDqColumn() =>
         DqColumn.Visibility = DataContext is PalletListViewModel { HasLegacy: true } ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>Clicking a header sorts every record of the filter (not only the 50 shown) and goes to page 1.</summary>
+    private void OnSorting(object sender, DataGridSortingEventArgs e)
+    {
+        e.Handled = true;
+        if (DataContext is not PalletListViewModel vm || string.IsNullOrEmpty(e.Column.SortMemberPath)) return;
+        var descending = vm.SortBy(e.Column.SortMemberPath);
+        foreach (var c in Grid.Columns) c.SortDirection = null;
+        e.Column.SortDirection = descending ? ListSortDirection.Descending : ListSortDirection.Ascending;
+    }
+
     private void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is PalletListViewModel vm && Grid.SelectedItem is PalletRow row)

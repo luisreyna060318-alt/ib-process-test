@@ -9,7 +9,7 @@ namespace ExpoReturn.Desktop;
 /// </summary>
 public sealed class AppConfig
 {
-    public const string Version = "0.4.2";
+    public const string Version = "0.4.3";
 
     /// <summary>IFACTJUP through SharedServersAccess; tnsnames.ora from TNS_ADMIN or %ORACLE_HOME%\network\admin.</summary>
     public OracleSettings Oracle { get; } = new();

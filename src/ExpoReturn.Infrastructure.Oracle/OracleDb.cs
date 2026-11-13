@@ -158,7 +158,7 @@ public sealed partial class OracleDb
         using var c = Open();
         using var cmd = Command(c, $"SELECT COUNT(*) FROM {T("IB_PROCESS_VALUE_STREAMS")}");
         var vs = Convert.ToInt32(cmd.ExecuteScalar());
-        return $"Oracle {Server} · {UserName} · {vs} value streams";
+        return $"Connected to Oracle {Server} - {UserName}";
     }
 
     // ------------------------------------------------------------------ value helpers

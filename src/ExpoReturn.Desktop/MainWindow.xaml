@@ -46,6 +46,7 @@
                 <TextBlock Text="{Binding VersionText}" Foreground="#93C5FD" FontSize="11" Margin="0,12,0,0" HorizontalAlignment="Center" />
             </StackPanel>
             <ListBox ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}" Background="Transparent" BorderThickness="0"
+                     PreviewMouseLeftButtonUp="OnNavClick"
                      ItemContainerStyle="{StaticResource NavItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
@@ -67,8 +68,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding DraftNotice}" Foreground="#B45309" FontWeight="SemiBold" FontSize="12" />
-                        <TextBlock Text="{Binding DataSourceLabel}" Foreground="{StaticResource TextMuted}" FontSize="12" />
+                        <TextBlock Text="{Binding DataSourceLabel}" Foreground="{StaticResource TextMuted}" FontWeight="SemiBold" FontSize="12.5" />
                         <TextBlock Foreground="#7C3AED" FontWeight="SemiBold" FontSize="12"
                                    Visibility="{Binding IsPreviewing, Converter={StaticResource BoolToVis}}">
                             <Run Text="PREVIEW · you are seeing the app with the access of " /><Run Text="{Binding CurrentUser.DisplayName, Mode=OneWay}" />

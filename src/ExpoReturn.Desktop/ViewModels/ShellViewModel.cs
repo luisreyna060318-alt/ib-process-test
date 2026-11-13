@@ -48,7 +48,6 @@ public sealed partial class ShellViewModel : ObservableObject
     }
     public string AppTitle => "Expo & Return FG Follow Up";
     public string VersionText => $"v{AppConfig.Version} · Oracle";
-    public string DraftNotice => "Connected to Oracle · records are never deleted; a filled field can be changed but not emptied";
     /// <summary>Import Excel writes records to the database: Owner only.</summary>
     public bool CanImportExcel => IsOwner;
 
@@ -153,6 +152,19 @@ public sealed partial class ShellViewModel : ObservableObject
             "audit" => new AuditViewModel(_services, CurrentUser),
             _ => new PalletListViewModel(_services, CurrentUser, OpenPallet),
         };
+    }
+
+    /// <summary>Menu entry clicked while it is already the selected one: back to its main screen.</summary>
+    public void NavClicked(NavItem item)
+    {
+        if (item != SelectedNav) return;                          // a real change is handled by OnSelectedNavChanged
+        var onMainScreen = item.Key switch
+        {
+            "list" => CurrentPage is PalletListViewModel,
+            "new" => CurrentPage is PalletDetailViewModel { IsNew: true },
+            _ => true,
+        };
+        if (!onMainScreen) OnSelectedNavChanged(item);
     }
 
     private bool ConfirmLeave()
