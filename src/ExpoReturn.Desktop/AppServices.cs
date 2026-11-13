@@ -24,6 +24,7 @@ public sealed class AppServices
     public required IAlertAcknowledgementStore AlertAcks { get; init; }
     public required IMaterialCostCatalog MaterialCosts { get; init; }
     public required IFeedbackStore Feedback { get; init; }
+    public required IDepartmentAdmin Departments { get; init; }
     public UserPreferences Preferences { get; } = UserPreferences.Load();
 
     public string DataSourceLabel { get; set; } = "";
@@ -55,12 +56,16 @@ public sealed class AppServices
             AlertAcks = new OracleAlertStore(db),
             MaterialCosts = new OracleMaterialCostCatalog(db),
             Feedback = new OracleFeedbackStore(db),
+            Departments = new OracleDepartmentAdmin(db),
             DataSourceLabel = check,
             ReloadCatalogs = () => OracleCatalogs.LoadAndUse(db),
         };
     }
 
     // ------------------------------------------------------------------ actions
+
+    /// <summary>Reads the catalogs again (after the Owner changes departments).</summary>
+    public void RefreshCatalogs() => ReloadCatalogs?.Invoke();
 
     /// <summary>Reloads catalogs and what other users saved.</summary>
     public void Reload()

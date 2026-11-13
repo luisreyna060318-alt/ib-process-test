@@ -91,6 +91,8 @@
                         <Button Content="End access" ToolTip="Ends the selected access when you save. Nothing is deleted: the row stays in the history." Command="{Binding RemoveAccessCommand}" Style="{StaticResource SecondaryButton}" />
                         <Button Content="Save changes" Command="{Binding SaveChangesCommand}" Style="{StaticResource PrimaryButton}" />
                         <Button Content="Discard" Command="{Binding DiscardChangesCommand}" Style="{StaticResource LinkButton}" />
+                        <Button Content="Departments…" Command="{Binding OpenDepartmentsCommand}" Style="{StaticResource SecondaryButton}" Margin="24,0,0,0"
+                                ToolTip="Owner: add a department, or stop / start offering one. Departments are never deleted" />
                     </StackPanel>
                     <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,8,0,0" />
                     <TextBlock Text="{Binding OwnersConfigText}" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,6,0,0" />

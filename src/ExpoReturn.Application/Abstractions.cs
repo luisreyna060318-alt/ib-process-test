@@ -56,6 +56,17 @@ public interface IAuditTrail
 public sealed record AlertAcknowledgement(int PalletId, AlertType Type, string NtUser, string Comment, DateTime AtUtc,
                                           Severity Severity = Severity.Info, string? Message = null, string? ResponsibleArea = null);
 
+/// <summary>
+/// Owner maintenance of IB_PROCESS_DEPARTMENTS. A department is never deleted: it is deactivated.
+/// Code and area do not change once created (records and access rows use them).
+/// </summary>
+public interface IDepartmentAdmin
+{
+    IReadOnlyList<Department> All();
+    void Add(Department department);
+    void Update(string code, bool canRequest, bool isActive);
+}
+
 /// <summary>Reviewer feedback ("Send feedback"): local CSV or IB_PROCESS_FEEDBACK.</summary>
 public sealed record FeedbackItem(string NtUser, string Function, string Screen, string Type, string Text, DateTime AtUtc);
 

@@ -701,3 +701,28 @@ public class CatalogsFromDatabaseTests
         Assert.Equal("Exported", WorkflowStatus.Exported.DisplayName());
     }
 }
+
+public class DepartmentAdminTests
+{
+    [Theory]
+    [InlineData("MFQ3", "MFQ", "PROCESS", true)]
+    [InlineData("gs/osd44", "GS", "PROCESS", true)]
+    [InlineData("", "MFQ", "PROCESS", false)]
+    [InlineData("MFQ 3", "MFQ", "PROCESS", false)]
+    [InlineData("MFQ3", "XYZ", "PROCESS", false)]          // area the database would refuse
+    [InlineData("MFQ3", "MFQ", "OTHER", false)]
+    [InlineData("ABCDEFGHIJKLMNOPQRSTU", "MFQ", "PROCESS", false)]
+    public void New_departments_are_checked_before_reaching_the_database(string code, string area, string group, bool ok) =>
+        Assert.Equal(ok, Department.Validate(code, area, group) is null);
+
+    [Fact]
+    public void Areas_offered_are_the_ones_the_database_accepts()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(dir!.FullName, "ExpoReturn.sln"))) dir = dir.Parent;
+        var ddl = File.ReadAllText(Path.Combine(dir.FullName, "database", "oracle", "01_create_tables.sql"));
+        var check = Regex.Match(ddl, @"IB_DEPT_CK_AREA CHECK \(AREA IN \(([^)]*)\)").Groups[1].Value
+            .Split(',').Select(a => a.Trim().Trim('\'')).OrderBy(a => a);
+        Assert.Equal(check, Department.Areas.Select(a => a.Area).OrderBy(a => a));
+    }
+}

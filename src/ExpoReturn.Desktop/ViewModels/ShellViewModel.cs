@@ -19,16 +19,8 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         _services = services;
         _ntUser = ntUser;
-        NavItems = new[]
-        {
-            new NavItem("list", "Returns inbox", "\uE8FD"),
-            new NavItem("new", "New return", "\uE710"),
-            new NavItem("dashboard", "Balance / Duties", "\uE9D2"),
-            new NavItem("alerts", "Alerts", "\uE7BA"),
-            new NavItem("users", "Users & Access", "\uE716"),
-            new NavItem("audit", "Audit log", "\uE81C"),
-        };
         _realUser = services.Users.ContextFor(ntUser);
+        _navItems = BuildNav(_realUser.IsOwner);
         _currentUser = _realUser;
         BuildViewAs();
         _selectedNav = NavItems[0];
@@ -37,7 +29,23 @@ public sealed partial class ShellViewModel : ObservableObject
         services.Users.Changed += (_, _) => RefreshIdentity();
     }
 
-    public IReadOnlyList<NavItem> NavItems { get; }
+    /// <summary>"Users &amp; Access" exists only for the Owner (the real Windows user, also while previewing as someone else).</summary>
+    [ObservableProperty] private IReadOnlyList<NavItem> _navItems;
+
+    private static readonly NavItem UsersNav = new("users", "Users & Access", "\uE716");
+    private static IReadOnlyList<NavItem> BuildNav(bool isOwner)
+    {
+        var list = new List<NavItem>
+        {
+            new("list", "Returns inbox", "\uE8FD"),
+            new("new", "New return", "\uE710"),
+            new("dashboard", "Balance / Duties", "\uE9D2"),
+            new("alerts", "Alerts", "\uE7BA"),
+        };
+        if (isOwner) list.Add(UsersNav);
+        list.Add(new("audit", "Audit log", "\uE81C"));
+        return list;
+    }
     public string AppTitle => "Expo & Return FG Follow Up";
     public string VersionText => $"v{AppConfig.Version} · Oracle";
     public string DraftNotice => "Connected to Oracle · records are never deleted; a filled field can be changed but not emptied";
@@ -62,6 +70,16 @@ public sealed partial class ShellViewModel : ObservableObject
         OnPropertyChanged(nameof(AccessText));
         OnPropertyChanged(nameof(PendingRequestsText));
         OnPropertyChanged(nameof(CanImportExcel));
+        if (NavItems.Contains(UsersNav) != value.IsOwner)
+        {
+            // Owner function given or ended while the app is open: the menu follows; a non-Owner leaves the screen.
+            var key = SelectedNav?.Key;
+            _suppressNav = true;
+            NavItems = BuildNav(value.IsOwner);
+            SelectedNav = NavItems.FirstOrDefault(n => n.Key == key);
+            _suppressNav = false;
+            if (!value.IsOwner && CurrentPage is UsersViewModel) Back();
+        }
     }
 
     private void BuildViewAs()
@@ -131,7 +149,7 @@ public sealed partial class ShellViewModel : ObservableObject
             "new" => new PalletDetailViewModel(_services, CurrentUser, null, Back),
             "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenList),
             "alerts" => new AlertsViewModel(_services, CurrentUser, OpenPallet),
-            "users" => new UsersViewModel(_services, CurrentUser, RealUser),
+            "users" when RealUser.IsOwner => new UsersViewModel(_services, CurrentUser, RealUser),
             "audit" => new AuditViewModel(_services, CurrentUser),
             _ => new PalletListViewModel(_services, CurrentUser, OpenPallet),
         };

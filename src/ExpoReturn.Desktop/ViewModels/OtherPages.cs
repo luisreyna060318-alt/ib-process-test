@@ -201,7 +201,18 @@ public sealed partial class UsersViewModel : PageViewModel
     public override string Title => "Users & Access";
     /// <summary>Only the real Owner edits (not someone previewing as another user).</summary>
     public bool CanEdit => _realUser.IsOwner && User.NtUser == _realUser.NtUser;
-    public IReadOnlyList<LookupItem> DepartmentOptions { get; } = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Label)).ToList();
+    public IReadOnlyList<LookupItem> DepartmentOptions => Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Label)).ToList();
+
+    /// <summary>Owner: add departments, or stop / start offering them (IB_PROCESS_DEPARTMENTS).</summary>
+    [RelayCommand]
+    private void OpenDepartments()
+    {
+        if (!CanEdit) return;
+        new Views.DepartmentsWindow(Services, _realUser) { Owner = System.Windows.Application.Current.MainWindow }.ShowDialog();
+        OnPropertyChanged(nameof(DepartmentOptions));
+        Refresh();
+    }
+
     public IReadOnlyList<int> ValueStreamOptions { get; } = new[] { 0 }.Concat(Catalogs.ValueStreams.Select(v => v.Id)).ToList();
     public IReadOnlyList<UserFunction> FunctionOptions { get; } = Enum.GetValues<UserFunction>();
     public string OwnersConfigText =>

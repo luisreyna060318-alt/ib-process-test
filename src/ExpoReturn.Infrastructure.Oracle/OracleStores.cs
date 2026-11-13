@@ -25,6 +25,7 @@ public sealed class OracleAuditTrail : IAuditTrail
         {
             "USERS" => ("IB_PROCESS_USER_ACCESS", "USERS"),
             "MM60" => ("IB_PROCESS_MM60_COSTS", "MM60"),
+            "DEPARTMENTS" => ("IB_PROCESS_DEPARTMENTS", "DEPARTMENTS"),
             _ => ("IB_PROCESS_PALLET_RETURNS", e.FolioCode),
         };
 
@@ -359,4 +360,39 @@ public static class OracleCatalogs
         new(code.Trim(), area.Trim(), canRequest == "Y",
             string.Equals(group?.Trim(), Department.CrossFunctional, StringComparison.OrdinalIgnoreCase) ? Department.CrossFunctional : Department.Process,
             isActive != "N");
+}
+
+/// <summary>IB_PROCESS_DEPARTMENTS maintenance (Owner): insert and update only, never delete.</summary>
+public sealed class OracleDepartmentAdmin : IDepartmentAdmin
+{
+    private readonly OracleDb _db;
+    public OracleDepartmentAdmin(OracleDb db) => _db = db;
+
+    public IReadOnlyList<Department> All() => OracleCatalogs.LoadDepartments(_db);
+
+    public void Add(Department d)
+    {
+        if (Department.Validate(d.Code, d.Area, d.Group) is { } problem) throw new DataRuleException(problem);
+        _db.InTransaction((c, tx) =>
+        {
+            using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_DEPARTMENTS")} (DEPARTMENT_CODE, AREA, CAN_REQUEST, DEPARTMENT_GROUP, IS_ACTIVE)
+                                              VALUES (:dept, :area, :canRequest, :deptGroup, :isActive)", tx);
+            cmd.Parameters.Add("dept", d.Code.Trim().ToUpperInvariant());
+            cmd.Parameters.Add("area", d.Area);
+            cmd.Parameters.Add("canRequest", d.CanRequest ? "Y" : "N");
+            cmd.Parameters.Add("deptGroup", d.Group);
+            cmd.Parameters.Add("isActive", d.IsActive ? "Y" : "N");
+            cmd.ExecuteNonQuery();
+        });
+    }
+
+    public void Update(string code, bool canRequest, bool isActive) => _db.InTransaction((c, tx) =>
+    {
+        using var cmd = _db.Command(c, $@"UPDATE {_db.T("IB_PROCESS_DEPARTMENTS")} SET CAN_REQUEST = :canRequest, IS_ACTIVE = :isActive
+                                           WHERE DEPARTMENT_CODE = :dept", tx);
+        cmd.Parameters.Add("canRequest", canRequest ? "Y" : "N");
+        cmd.Parameters.Add("isActive", isActive ? "Y" : "N");
+        cmd.Parameters.Add("dept", code);
+        if (cmd.ExecuteNonQuery() == 0) throw new DataRuleException($"Department {code} does not exist.");
+    });
 }

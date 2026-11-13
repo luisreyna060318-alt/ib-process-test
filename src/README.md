@@ -1,4 +1,4 @@
-# Aplicación (v0.4.1): Expo & Return FG Follow Up
+# Aplicación (v0.4.2): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -88,6 +88,8 @@ No hay `appsettings.json`: si quedó uno de una versión anterior junto al exe, 
 Lo único que la app guarda en el equipo son los filtros recordados de cada usuario (`%LOCALAPPDATA%\ExpoReturn\preferences.json`); si no existe, se crea solo.
 
 ## Departamentos
+
+**Desde la app (sólo Owner):** en *Users & Access*, el botón **Departments…** abre la ventana para dar de alta un departamento (código, área, grupo, si puede solicitar) y para activar o desactivar los existentes. Cada cambio queda en la bitácora. La pantalla *Users & Access* sólo aparece en el menú del Owner.
 
 **Con Oracle, los departamentos se administran en la base** (`IB_PROCESS_DEPARTMENTS`); no hace falta un exe nuevo. La app los lee al abrir y con **Reload**:
 

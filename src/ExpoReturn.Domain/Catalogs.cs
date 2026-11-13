@@ -16,6 +16,27 @@ public sealed record Department(string Code, string Area, bool CanRequest, strin
     public const string Process = "PROCESS";
     public const string CrossFunctional = "CROSS_FUNCTIONAL";
     public string Label => Group == CrossFunctional ? $"{Code}  (digitalization / cross-functional)" : Code;
+
+    /// <summary>Areas the database accepts (IB_DEPT_CK_AREA) and what a Champion / Proxy of each edits.</summary>
+    public static IReadOnlyList<(string Area, string Edits)> Areas { get; } = new[]
+    {
+        ("QMM", "request, PO and status category"), ("MFQ", "request"), ("MFE", "request"), ("TEF", "request"), ("PUQ", "request"),
+        ("GS", "import and customs export"), ("LOP", "delivery number"), ("MFO", "plant execution and GR number"),
+        ("LOW", "LOW export"), ("HSE", "HSE scrap confirmation"),
+        ("CTG", "read only"), ("DBE", "read only"), ("QMM-L", "read only"),
+    };
+
+    /// <summary>Checks a new department; returns the problem or null. Code: letters, digits, '-' and '/', at most 20.</summary>
+    public static string? Validate(string? code, string? area, string? group)
+    {
+        var c = code?.Trim().ToUpperInvariant() ?? "";
+        if (c.Length == 0) return "Enter the department code.";
+        if (c.Length > 20) return "The department code has at most 20 characters.";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(c, @"^[A-Z0-9][A-Z0-9/\-]*$")) return "Use only letters, digits, '-' and '/' in the code.";
+        if (Areas.All(a => a.Area != area)) return "Select the area.";
+        if (group is not (Process or CrossFunctional)) return "Select the group.";
+        return null;
+    }
 }
 public sealed record StatusCategory(string Code, string Description, string Kind, string? ResponsibleArea, bool AffectsDuty, bool IsAutoDerived,
                                     bool IsActive = true);
