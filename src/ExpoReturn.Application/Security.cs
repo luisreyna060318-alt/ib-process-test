@@ -88,7 +88,11 @@ public sealed record UserContext(string NtUser, string DisplayName, string? Depa
     public string AreaText => IsOwner ? "Owner" : DepartmentCode ?? "—";
     public string FunctionText => Function.ToString();
     public string Label => $"{DisplayName} · {AreaText} · {ValueStreamText} · {FunctionText}";
-    public string Group => IsOwner ? "Owner" : RoleInfo.AreaOfDepartment(DepartmentCode).DisplayName();
+    /// <summary>Heading in the "View as" list: the AREA of the department (which fields it edits), not the function.</summary>
+    public string Group => IsOwner ? "Owner"
+        : RoleInfo.AreaOfDepartment(DepartmentCode) is var area && area == RoleCode.Viewer
+            ? "Area without editable fields (CTG, DBE, QMM-L)"
+            : $"Area: {area.DisplayName()}";
 }
 
 /// <summary>Editable fields (names = PalletReturn properties = database columns), in Excel column order.</summary>

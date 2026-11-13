@@ -1,4 +1,4 @@
-# Aplicación (v0.4.3): Expo & Return FG Follow Up
+# Aplicación (v0.4.4): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
