@@ -4,13 +4,19 @@ namespace ExpoReturn.Application;
 
 /// <summary>
 /// Functional area that owns a block of fields (the Excel "Areas responsible to fill out information" row).
-/// It comes from the user's department (QMM1 → Qmm, MFQ8/MFE5/TEF6 → Requestor, GS/OSD43 → Gs, …).
+/// It comes from the user's department (QMM → Qmm, MFQ / PUQ → Requestor, OSD → Gs (customs), …).
+/// "Requestor" is also the requesting side of any process: whoever requests it fills the request block.
 /// AdminQmmPe and Viewer are kept for the Owner and read-only users.
 /// </summary>
 public enum RoleCode { AdminQmmPe, Qmm, Requestor, Gs, Lop, Mfo, Low, Hse, Viewer }
 
-/// <summary>What a user may do in a department and Value Stream. Owner ignores department and VS.</summary>
-public enum UserFunction { Viewer = 0, Proxy = 1, Champion = 2, Owner = 3 }
+/// <summary>
+/// What a user may do in a department and Value Stream (Owner ignores both):
+/// Viewer reads (also while the registration is pending); Member captures the processes they create or request;
+/// Proxy / Champion manage the processes of their department, edit their area's fields in every process of the VS,
+/// also closed ones, and may delete.
+/// </summary>
+public enum UserFunction { Viewer = 0, Member = 1, Proxy = 2, Champion = 3, Owner = 4 }
 
 public static class RoleInfo
 {
@@ -18,8 +24,8 @@ public static class RoleInfo
     {
         RoleCode.AdminQmmPe => "Owner (QMM / Process Excellence)",
         RoleCode.Qmm => "QMM",
-        RoleCode.Requestor => "Requestor (MFQ / MFE / TEF)",
-        RoleCode.Gs => "Customs GS/OSD43",
+        RoleCode.Requestor => "Requestor (MFQ / PUQ)",
+        RoleCode.Gs => "Customs (OSD)",
         RoleCode.Lop => "Plant Logistics (LOP)",
         RoleCode.Mfo => "Manufacturing (MFO)",
         RoleCode.Low => "Warehouse (LOW)",
@@ -30,7 +36,7 @@ public static class RoleInfo
     /// <summary>Short area name used in the access matrix.</summary>
     public static string ShortName(this RoleCode r) => r switch
     {
-        RoleCode.Mfo => "MFO", RoleCode.Qmm => "QMM", RoleCode.Requestor => "MFQ", RoleCode.Gs => "GS / OSD43",
+        RoleCode.Mfo => "MFO", RoleCode.Qmm => "QMM", RoleCode.Requestor => "MFQ", RoleCode.Gs => "OSD",
         RoleCode.Lop => "LOP", RoleCode.Low => "LOW", RoleCode.Hse => "HSE", RoleCode.AdminQmmPe => "Owner", _ => "Viewer",
     };
 
@@ -40,19 +46,18 @@ public static class RoleInfo
         return Catalogs.FindDepartment(departmentCode)?.Area switch
         {
             "QMM" => RoleCode.Qmm,
-            // Requesting areas: they fill the request block. [VALIDATE] MFE / TEF.
-            "MFQ" or "PUQ" or "MFE" or "TEF" => RoleCode.Requestor,
-            "GS" => RoleCode.Gs,
+            "MFQ" or "PUQ" => RoleCode.Requestor,
+            "OSD" or "GS" => RoleCode.Gs,
             "LOP" => RoleCode.Lop,
             "MFO" => RoleCode.Mfo,
             "LOW" => RoleCode.Low,
             "HSE" => RoleCode.Hse,
-            // CTG, DBE, QMM-L (controlling, digitalization, cross-functional): read only. [VALIDATE]
             _ => RoleCode.Viewer,
         };
     }
 
-    public static bool CanEdit(this UserFunction f) => f is UserFunction.Champion or UserFunction.Proxy or UserFunction.Owner;
+    public static bool CanCapture(this UserFunction f) => f >= UserFunction.Member;
+    public static bool Manages(this UserFunction f) => f >= UserFunction.Proxy;
 }
 
 /// <summary>One row of the user access table: user × department × Value Stream × function.</summary>
@@ -63,13 +68,14 @@ public sealed record AccessGrant(string DepartmentCode, int ValueStreamId, UserF
 
 /// <summary>
 /// The user running the application, read from Windows. Department and Value Streams come from the user's
-/// profile; what they can edit comes from the access grants (Champion/Proxy) the Owner assigned.
+/// profile; what they can do comes from the access grants (Member / Proxy / Champion) the Owner assigned.
 /// </summary>
 public sealed record UserContext(string NtUser, string DisplayName, string? DepartmentCode, bool IsOwner, IReadOnlyList<AccessGrant> Grants)
 {
     /// <summary>Owner = full access (department and VS are irrelevant).</summary>
     public bool IsAdmin => IsOwner;
-    public IEnumerable<AccessGrant> EditGrants => Grants.Where(g => g.Function is UserFunction.Champion or UserFunction.Proxy);
+    /// <summary>Grants that allow capturing (Member, Proxy, Champion).</summary>
+    public IEnumerable<AccessGrant> EditGrants => Grants.Where(g => g.Function.CanCapture());
 
     /// <summary>Main area (for labels and defaults): first editing grant, else the profile department.</summary>
     public RoleCode Role => IsOwner ? RoleCode.AdminQmmPe
@@ -81,6 +87,8 @@ public sealed record UserContext(string NtUser, string DisplayName, string? Depa
     public IReadOnlyList<int> ValueStreams => Grants.Select(g => g.ValueStreamId).Distinct().OrderBy(v => v).ToList();
     public bool SeesAllValueStreams => IsOwner;
     public bool CoversValueStream(int vs) => IsOwner || EditGrants.Any(g => g.ValueStreamId == vs);
+    /// <summary>May read the processes of a VS (any function there, Viewer included).</summary>
+    public bool ReadsValueStream(int vs) => IsOwner || Grants.Any(g => g.ValueStreamId == vs);
     public bool CanEditArea(RoleCode area, int vs) => IsOwner || EditGrants.Any(g => g.Area == area && g.ValueStreamId == vs);
 
     public string ValueStreamText => IsOwner ? "All VS"
@@ -91,7 +99,7 @@ public sealed record UserContext(string NtUser, string DisplayName, string? Depa
     /// <summary>Heading in the "View as" list: the AREA of the department (which fields it edits), not the function.</summary>
     public string Group => IsOwner ? "Owner"
         : RoleInfo.AreaOfDepartment(DepartmentCode) is var area && area == RoleCode.Viewer
-            ? "Area without editable fields (CTG, DBE, QMM-L)"
+            ? "No department"
             : $"Area: {area.DisplayName()}";
 }
 
@@ -124,13 +132,43 @@ public static class Fields
     };
     public static readonly string[] Stage5 = { nameof(PalletReturn.StatusCategoryCode) };
     public static IEnumerable<string> All => Stage1.Concat(Stage2).Concat(Stage3).Concat(Stage4).Concat(Stage5);
+
+    /// <summary>Fields of the IB PROCESS (header): request, customs entry and delivery number.</summary>
+    public static readonly HashSet<string> Process = new()
+    {
+        nameof(IbProcess.QmmResponsible), nameof(IbProcess.RequestingDepartment), nameof(IbProcess.RequestorName),
+        nameof(IbProcess.ReasonId), nameof(IbProcess.ReturnReasonDetail), nameof(IbProcess.ImportDate), nameof(IbProcess.ImportInvoice),
+        nameof(IbProcess.ImportDateElpJup1), nameof(IbProcess.DeliveryNumber),
+    };
+
+    /// <summary>Registered users chosen with a field: same permission as the field they go with.</summary>
+    public static readonly Dictionary<string, string> Linked = new()
+    {
+        [nameof(IbProcess.QmmResponsibleNtUser)] = nameof(IbProcess.QmmResponsible),
+        [nameof(IbProcess.RequestorNtUser)] = nameof(IbProcess.RequestorName),
+    };
+
+    /// <summary>Fields of each pallet.</summary>
+    public static IEnumerable<string> Pallet => All.Where(f => !Process.Contains(f));
+
+    /// <summary>Request block: filled in by whoever requests the process (and by QMM).</summary>
+    public static IReadOnlyCollection<string> RequestBlock => Stage1;
 }
 
-/// <summary>Area × field matrix (IB_PROCESS_FIELD_PERMISSIONS). Mirrors the Excel area row.</summary>
+/// <summary>
+/// Who may do what on an IB PROCESS (fields: IB_PROCESS_FIELD_PERMISSIONS).
+/// <list type="bullet">
+/// <item>Owner: everything, every process and VS.</item>
+/// <item>Champion / Proxy (in the process VS): processes of their department → create, request block, their area's fields,
+/// delete; every other process of the VS → their area's fields (QMM and support areas; the request block of another department is not theirs). Closed processes too.</item>
+/// <item>Member (in the process VS): processes they created, request or are QMM Responsible of → request block and their area's fields; members of
+/// support areas (OSD, LOP, MFO, LOW, HSE) also capture their area's fields in any process of the VS. Not closed ones,
+/// no delete.</item>
+/// <item>Viewer (or registration pending): reads the processes of their VS.</item>
+/// </list>
+/// </summary>
 public static class FieldPermissions
 {
-    /// <summary>QMM (request, PO date, PO number, status category), GS/OSD43 (import and customs export),
-    /// LOP (delivery number), MFO (rework and GR number), LOW (LOW export), HSE (kg and confirmation).</summary>
     private static volatile Dictionary<RoleCode, HashSet<string>>? _fromDatabase;
     private static Dictionary<RoleCode, HashSet<string>> Map => _fromDatabase ?? BuiltIn;
 
@@ -152,17 +190,14 @@ public static class FieldPermissions
     /// <summary>Area code of IB_PROCESS_FIELD_PERMISSIONS.AREA_CODE.</summary>
     public static RoleCode? AreaOfCode(string? code) => code?.Trim().ToUpperInvariant() switch
     {
-        "QMM" => RoleCode.Qmm, "REQUESTOR" => RoleCode.Requestor, "GS" => RoleCode.Gs, "LOP" => RoleCode.Lop,
+        "QMM" => RoleCode.Qmm, "REQUESTOR" => RoleCode.Requestor, "OSD" or "GS" => RoleCode.Gs, "LOP" => RoleCode.Lop,
         "MFO" => RoleCode.Mfo, "LOW" => RoleCode.Low, "HSE" => RoleCode.Hse, _ => null,
     };
 
     private static readonly Dictionary<RoleCode, HashSet<string>> BuiltIn = new()
     {
         [RoleCode.Qmm] = new(Fields.Stage1.Append(nameof(PalletReturn.StatusCategoryCode))),
-        [RoleCode.Requestor] = new(Fields.Stage1.Except(new[]
-        {
-            nameof(PalletReturn.QmmResponsible), nameof(PalletReturn.DateReturnedToWhs), nameof(PalletReturn.ReturnPONumber),
-        })),
+        [RoleCode.Requestor] = new(Fields.Stage1),
         [RoleCode.Gs] = new(new[]
         {
             nameof(PalletReturn.ImportDate), nameof(PalletReturn.ImportInvoice), nameof(PalletReturn.ImportDateElpJup1),
@@ -175,15 +210,63 @@ public static class FieldPermissions
         [RoleCode.Viewer] = new(),
     };
 
-    /// <summary>Owner edits everything; others need a Champion/Proxy grant for the pallet's VS in an area that owns the field.</summary>
-    public static bool CanEdit(UserContext user, PalletReturn pallet, string field)
+    private static bool IsSupportArea(RoleCode area) => area is RoleCode.Gs or RoleCode.Lop or RoleCode.Mfo or RoleCode.Low or RoleCode.Hse;
+
+    private static IEnumerable<AccessGrant> GrantsIn(UserContext user, IbProcess process) =>
+        user.Grants.Where(g => g.ValueStreamId == process.ValueStreamId && g.Function.CanCapture());
+
+    /// <summary>The user created the process, requests it or is its QMM Responsible.</summary>
+    private static bool IsMine(UserContext user, IbProcess process) =>
+        string.Equals(process.CreatedBy, user.NtUser, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(process.RequestorNtUser, user.NtUser, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(process.QmmResponsibleNtUser, user.NtUser, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The grant is on the requesting side of the process: its department (Champion / Proxy) or creator / requestor.</summary>
+    private static bool RequestSide(UserContext user, AccessGrant g, IbProcess process) =>
+        IsMine(user, process)
+        || (g.Function.Manages() && string.Equals(g.DepartmentCode, process.RequestingDepartment, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>May the user change <paramref name="field"/> of the process (header field) or of <paramref name="pallet"/>?</summary>
+    public static bool CanEdit(UserContext user, IbProcess process, PalletReturn? pallet, string field)
     {
         if (user.IsOwner) return true;
-        // Records imported from the Excel 2.0 are working records: same rules as the rest (closed → Owner only).
-        if (pallet.Status.IsClosed()) return false;
-        return user.EditGrants.Any(g => g.ValueStreamId == pallet.ValueStreamId
-                                        && Map.TryGetValue(g.Area, out var set) && set.Contains(field));
+        field = Fields.Linked.GetValueOrDefault(field, field);
+        var closed = pallet?.Status.IsClosed() ?? (process.Pallets.Count > 0 && process.Status.IsClosed());
+        foreach (var g in GrantsIn(user, process))
+        {
+            if (closed && !g.Function.Manages()) continue;          // closed: Owner, Champion and Proxy only
+            var requestSide = RequestSide(user, g, process);
+            if (requestSide && Fields.RequestBlock.Contains(field)) return true;
+            if (g.Area == RoleCode.Requestor && !requestSide) continue;     // another department's request is not theirs
+            if (!Map.TryGetValue(g.Area, out var set) || !set.Contains(field)) continue;
+            if (g.Function.Manages() || IsSupportArea(g.Area) || requestSide) return true;
+        }
+        return false;
     }
+
+    /// <summary>Same as before for code that still works pallet by pallet (its process is taken from the pallet).</summary>
+    public static bool CanEdit(UserContext user, PalletReturn pallet, string field) =>
+        CanEdit(user, pallet.Process, Fields.Process.Contains(field) ? null : pallet, field);
+
+    /// <summary>May create IB processes in the VS (Member, Proxy, Champion there; Owner).</summary>
+    public static bool CanCreate(UserContext user, int valueStreamId) =>
+        user.IsOwner || user.Grants.Any(g => g.ValueStreamId == valueStreamId && g.Function.CanCapture());
+
+    /// <summary>May delete the process (and its pallets): Owner; Champion / Proxy of the requesting department in the VS.</summary>
+    public static bool CanDelete(UserContext user, IbProcess process) =>
+        user.IsOwner
+        || GrantsIn(user, process).Any(g => g.Function.Manages()
+            && (string.Equals(g.DepartmentCode, process.RequestingDepartment, StringComparison.OrdinalIgnoreCase) || IsMine(user, process)));
+
+    /// <summary>May add pallets (request block of the process).</summary>
+    public static bool CanAddPallet(UserContext user, IbProcess process) =>
+        CanEdit(user, process, null, nameof(PalletReturn.ReturnedMaterial));
+
+    /// <summary>A pallet not saved yet is removed by whoever added it; a saved one is deleted like the process.</summary>
+    public static bool CanRemovePallet(UserContext user, IbProcess process, PalletReturn pallet) =>
+        pallet.Id == 0 ? CanAddPallet(user, process) : CanDelete(user, process);
+
+    public static bool CanRead(UserContext user, IbProcess process) => user.ReadsValueStream(process.ValueStreamId);
 
     public static IReadOnlyCollection<string> EditableFields(RoleCode role) =>
         role == RoleCode.AdminQmmPe ? Fields.All.ToList() : Map.TryGetValue(role, out var set) ? set : Array.Empty<string>();

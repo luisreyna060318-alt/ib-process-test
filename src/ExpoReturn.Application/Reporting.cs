@@ -33,15 +33,15 @@ public sealed record Alert(AlertType Type, Severity Severity, int PalletId, stri
 /// <summary>Balance by VS / fiscal year and alert rules (SRS chapter 03).</summary>
 public sealed class ReportingService
 {
-    private readonly IPalletReturnRepository _repo;
+    private readonly IProcessRepository _repo;
     private readonly IClock _clock;
     private readonly CalcParameters _prm = CalcParameters.Default;
 
-    public ReportingService(IPalletReturnRepository repo, IClock clock) { _repo = repo; _clock = clock; }
+    public ReportingService(IProcessRepository repo, IClock clock) { _repo = repo; _clock = clock; }
 
     public IReadOnlyList<BalanceRow> BalanceByValueStream(int? fiscalYear = null)
     {
-        var rows = _repo.GetAll()
+        var rows = _repo.AllPallets()
             .Where(p => p.ImportDateElpJup1 is not null)
             .Where(p => fiscalYear is null || p.ImportDateElpJup1!.Value.Year == fiscalYear)
             .GroupBy(p => p.ValueStreamId)
@@ -49,7 +49,7 @@ public sealed class ReportingService
             .Select(g => Row($"VS{g.Key}", g.ToList()))
             .ToList();
         if (rows.Count > 0)
-            rows.Add(Row("Total", _repo.GetAll().Where(p => p.ImportDateElpJup1 is not null
+            rows.Add(Row("Total", _repo.AllPallets().Where(p => p.ImportDateElpJup1 is not null
                                                        && (fiscalYear is null || p.ImportDateElpJup1!.Value.Year == fiscalYear)).ToList()));
         return rows;
     }
@@ -66,16 +66,16 @@ public sealed class ReportingService
     }
 
     public IReadOnlyList<StatusCount> StatusDistribution() =>
-        _repo.GetAll().GroupBy(p => p.Status).OrderBy(g => g.Key).Select(g => new StatusCount(g.Key, g.Count())).ToList();
+        _repo.AllPallets().GroupBy(p => p.Status).OrderBy(g => g.Key).Select(g => new StatusCount(g.Key, g.Count())).ToList();
 
     public IReadOnlyList<int> FiscalYears() =>
-        _repo.GetAll().Where(p => p.ImportDateElpJup1 is not null).Select(p => p.ImportDateElpJup1!.Value.Year).Distinct().OrderBy(y => y).ToList();
+        _repo.AllPallets().Where(p => p.ImportDateElpJup1 is not null).Select(p => p.ImportDateElpJup1!.Value.Year).Distinct().OrderBy(y => y).ToList();
 
     public IReadOnlyList<Alert> Alerts()
     {
         var today = _clock.Today;
         var list = new List<Alert>();
-        foreach (var p in _repo.GetAll().Where(p => !p.Status.IsClosed()))
+        foreach (var p in _repo.AllPallets().Where(p => !p.Status.IsClosed()))
         {
             var vs = $"VS{p.ValueStreamId}";
             var f = p.Financials;
@@ -86,8 +86,8 @@ public sealed class ReportingService
             if (p.LegalDueDate is { } due && f.QtyOpenTotal > 0)
             {
                 var left = (due - today).Days;
-                if (left < 0) list.Add(new(AlertType.LegalExpired, Severity.Error, p.Id, p.FolioCode, vs, $"IMMEX term expired {-left} days ago (USD {f.BalanceGeneralUsd:N2}).", "GS/OSD43 + QMM"));
-                else if (left <= _prm.AlertCriticalDaysLeft) list.Add(new(AlertType.AgingCritical, Severity.Error, p.Id, p.FolioCode, vs, $"Expires in {left} days (USD {f.BalanceGeneralUsd:N2}).", "GS/OSD43 + QMM"));
+                if (left < 0) list.Add(new(AlertType.LegalExpired, Severity.Error, p.Id, p.FolioCode, vs, $"IMMEX term expired {-left} days ago (USD {f.BalanceGeneralUsd:N2}).", "OSD + QMM"));
+                else if (left <= _prm.AlertCriticalDaysLeft) list.Add(new(AlertType.AgingCritical, Severity.Error, p.Id, p.FolioCode, vs, $"Expires in {left} days (USD {f.BalanceGeneralUsd:N2}).", "OSD + QMM"));
                 else if (left <= _prm.AlertWarningDaysLeft) list.Add(new(AlertType.AgingWarning, Severity.Warning, p.Id, p.FolioCode, vs, $"Expires in {left} days.", "QMM"));
             }
             if (f.QtyOpenFloor > 0 && days > _prm.SlaReworkDays)

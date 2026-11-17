@@ -11,23 +11,31 @@ public sealed class SystemClock : IClock
 }
 
 /// <summary>
-/// Pallet persistence. Draft: in memory. Production: Oracle IB_PROCESS_PALLET_RETURNS.
-/// There is no delete: a record can only be created or updated.
+/// IB PROCESS persistence (IB_PROCESS_PROCESSES + IB_PROCESS_PALLETS). The whole process (header and its pallets) is
+/// saved in one transaction; a pallet that is no longer in the process is deleted with it.
 /// </summary>
-public interface IPalletReturnRepository
+public interface IProcessRepository
 {
-    IReadOnlyList<PalletReturn> GetAll();
-    PalletReturn? Get(int id);
-    /// <summary>Insert (Id = 0) or update. Throws <see cref="ConcurrencyException"/> if someone else saved the record first.</summary>
-    void Save(PalletReturn pallet);
+    IReadOnlyList<IbProcess> GetAll();
+    IbProcess? Get(int processId);
+    /// <summary>Every pallet of every process (balance, alerts, reports work per pallet).</summary>
+    IReadOnlyList<PalletReturn> AllPallets() => GetAll().SelectMany(p => p.Pallets).ToList();
+    PalletReturn? GetPallet(int palletId) => GetAll().SelectMany(p => p.Pallets).FirstOrDefault(p => p.Id == palletId);
+    /// <summary>
+    /// Insert (Id = 0) or update the header and every pallet; pallets missing from <paramref name="process"/> are deleted.
+    /// Throws <see cref="ConcurrencyException"/> if someone else saved the header or a pallet first.
+    /// </summary>
+    void Save(IbProcess process);
+    /// <summary>Deletes the process with its pallets, status history and alerts.</summary>
+    void Delete(int processId);
     int NextFolio(int valueStreamId);
     /// <summary>Reloads from the store (other users may have saved records).</summary>
     void Refresh();
     /// <summary>
-    /// Adds the Excel 2.0 rows as working records (editable, IsLegacy marks the origin). Rows already loaded (same sheet
-    /// and row) are skipped, so edits made after a first import are never overwritten; nothing is replaced or deleted.
+    /// Adds the Excel 2.0 rows as working records (one process with one pallet per row; IsLegacy marks the origin).
+    /// Rows already loaded (same sheet and row) are skipped, so edits made after a first import are never overwritten.
     /// </summary>
-    LegacyAppendResult AppendLegacy(IEnumerable<PalletReturn> pallets);
+    LegacyAppendResult AppendLegacy(IEnumerable<IbProcess> processes);
     event EventHandler? Changed;
 }
 
@@ -36,11 +44,15 @@ public sealed record LegacyAppendResult(int Added, int AlreadyLoaded, IReadOnlyL
 /// <summary>The record was changed by another user after it was opened.</summary>
 public sealed class ConcurrencyException(string message) : Exception(message);
 
-/// <summary>A rule of the data store was broken (e.g. emptying a filled field, deleting).</summary>
+/// <summary>A rule of the data store was broken (e.g. emptying a filled field).</summary>
 public sealed class DataRuleException(string message) : Exception(message);
 
+/// <param name="PalletId">Pallet changed (0 = a field of the process header, or not a record).</param>
+/// <param name="ProcessId">IB PROCESS the entry belongs to (0 = users, MM60, departments…).</param>
+/// <param name="Deleted">The record was deleted; <paramref name="Snapshot"/> keeps it as it was.</param>
 public sealed record AuditEntry(int PalletId, string FolioCode, string Field, string? OldValue, string? NewValue,
-                                string NtUser, DateTime ChangedAtUtc, string? Reason)
+                                string NtUser, DateTime ChangedAtUtc, string? Reason, int ProcessId = 0,
+                                bool Deleted = false, string? Snapshot = null)
 {
     public DateTime ChangedAtLocal => ChangedAtUtc.ToLocalTime();
 }
@@ -48,7 +60,8 @@ public sealed record AuditEntry(int PalletId, string FolioCode, string Field, st
 public interface IAuditTrail
 {
     void Record(IEnumerable<AuditEntry> entries);
-    IReadOnlyList<AuditEntry> For(int palletId);
+    /// <summary>Every entry of an IB PROCESS (header and pallets).</summary>
+    IReadOnlyList<AuditEntry> For(int processId);
     IReadOnlyList<AuditEntry> All();
 }
 
@@ -106,10 +119,12 @@ public sealed record UserAccess(string NtUser, string DepartmentCode, int ValueS
 public enum RequestStatus { Pending, Approved, Rejected }
 
 /// <summary>A user's request to change department or Value Streams; applied only when the Owner approves it.</summary>
+/// <param name="IsRegistration">First run: approving makes the user a Member in the department and VS asked for.</param>
 public sealed record ProfileRequest(int Id, string NtUser, string DepartmentCode, IReadOnlyList<int> ValueStreams, DateTime RequestedAtUtc,
                                     RequestStatus Status = RequestStatus.Pending, string? DecidedBy = null,
-                                    DateTime? DecidedAtUtc = null, string? Comment = null)
+                                    DateTime? DecidedAtUtc = null, string? Comment = null, bool IsRegistration = false)
 {
+    public string TypeText => IsRegistration ? "New user" : "Profile change";
     public string ValueStreamText => string.Join(", ", ValueStreams.Select(v => $"VS{v}"));
 }
 
@@ -125,7 +140,10 @@ public interface IUserDirectory
     IReadOnlyList<UserAccess> Access();
     bool IsOwner(string ntUser);
     UserContext ContextFor(string ntUser);
-    /// <summary>First run: creates the profile with Viewer access in each selected VS (department may be empty only for an Owner).</summary>
+    /// <summary>
+    /// First run: creates the profile with Viewer access in each selected VS and a registration request for the Owner
+    /// (approved = Member). Department may be empty only for an Owner, who needs no request.
+    /// </summary>
     void Register(string ntUser, string displayName, string? departmentCode, IReadOnlyList<int> valueStreams);
     /// <summary>Reloads users, access and requests from the store (other people may have changed them).</summary>
     void Refresh();

@@ -98,7 +98,7 @@ public sealed record Mm60ImportSummary(int Materials, int RowsSkipped, string Sh
 /// </summary>
 public static class Mm60Import
 {
-    public static Mm60ImportSummary Run(string path, IMaterialCostCatalog catalog, IPalletReturnRepository repo, IAuditTrail audit,
+    public static Mm60ImportSummary Run(string path, IMaterialCostCatalog catalog, IProcessRepository repo, IAuditTrail audit,
                                         IClock clock, Domain.CalcParameters parameters, string ownerNtUser)
     {
         var read = Mm60Reader.Read(path);
@@ -113,25 +113,31 @@ public static class Mm60Import
     /// Gives the MM60 unit cost to the records still without it (new or imported from the Excel, "COSTEAR"), recalculates
     /// and audits them as SYSTEM. Returns how many were updated.
     /// </summary>
-    public static int CompletePendingCosts(IMaterialCostCatalog catalog, IPalletReturnRepository repo, IAuditTrail audit, IClock clock,
+    public static int CompletePendingCosts(IMaterialCostCatalog catalog, IProcessRepository repo, IAuditTrail audit, IClock clock,
                                            Domain.CalcParameters parameters, string reason)
     {
         var now = clock.UtcNow;
         var updated = 0;
-        foreach (var p in repo.GetAll().Where(p => p.UnitCostSource == "PENDING"))
+        foreach (var process in repo.GetAll().Where(x => x.Pallets.Any(p => p.UnitCostSource == "PENDING")))
         {
-            if (catalog.Find(p.ReturnedMaterial) is not { UnitCostUsd: > 0 } cost) continue;
-            var edit = p.Clone();
-            edit.UnitCostUsd = cost.UnitCostUsd;
-            edit.UnitCostSource = "MM60";
-            edit.ModifiedBy = "SYSTEM";
-            edit.ModifiedAtUtc = now;
+            var edit = process.Clone();
+            var done = new List<Domain.PalletReturn>();
+            foreach (var p in edit.Pallets.Where(p => p.UnitCostSource == "PENDING"))
+            {
+                if (catalog.Find(p.ReturnedMaterial) is not { UnitCostUsd: > 0 } cost) continue;
+                p.UnitCostUsd = cost.UnitCostUsd;
+                p.UnitCostSource = "MM60";
+                p.ModifiedBy = "SYSTEM";
+                p.ModifiedAtUtc = now;
+                done.Add(p);
+            }
+            if (done.Count == 0) continue;
             Domain.PalletEvaluator.Apply(edit, parameters, clock.Today);
             try { repo.Save(edit); }
             catch (ConcurrencyException) { continue; }      // someone saved it meanwhile: it keeps PENDING until the next import
-            audit.Record(new[] { new AuditEntry(edit.Id, edit.FolioCode, nameof(Domain.PalletReturn.UnitCostUsd), null,
-                cost.UnitCostUsd.ToString(System.Globalization.CultureInfo.InvariantCulture), "SYSTEM", now, reason) });
-            updated++;
+            audit.Record(done.Select(p => new AuditEntry(p.Id, p.FolioCode, nameof(Domain.PalletReturn.UnitCostUsd), null,
+                p.UnitCostUsd!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), "SYSTEM", now, reason, edit.Id)));
+            updated += done.Count;
         }
         return updated;
     }

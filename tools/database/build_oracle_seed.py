@@ -54,7 +54,7 @@ ins("IB_PROCESS_WORKFLOW_STATUS", ["WORKFLOW_STATUS_ID", "CODE", "NAME", "STAGE_
     (10, "CLOSED_DUTY_PAID", "Closed (duty paid)", 5, "Y", 10)])
 
 cats = [(1, "EXPORT", "OUTCOME", None, "N", "Y"), (2, "SCRAP", "OUTCOME", None, "N", "Y"), (3, "INVENTORY", "OUTCOME", None, "N", "Y"),
-        (4, "ENVIO NACIONAL", "OUTCOME", "GS", "N", "N"), (5, "SCRAP SIN SALIDA FISICA", "DISCREPANCY", "HSE", "Y", "N"),
+        (4, "ENVIO NACIONAL", "OUTCOME", "OSD", "N", "N"), (5, "SCRAP SIN SALIDA FISICA", "DISCREPANCY", "HSE", "Y", "N"),
         (6, "NO REPORTADO CORRECTAMENTE", "DISCREPANCY", None, "Y", "N"), (7, "NO REPORTADO CON CONO VERDE", "DISCREPANCY", "MFO", "Y", "N"),
         (8, "NO LLEGO CON CONO", "DISCREPANCY", "LOP", "Y", "N"), (9, "MATERIAL CON CONO NO REPORTADO POR LOW", "DISCREPANCY", "LOW", "Y", "N"),
         (10, "MATERIAL NO LLEGO DE ELP", "DISCREPANCY", "LOP", "Y", "N"), (11, "LOW-NO REPORTADO (PLATAFORMA,CONO,RMA)", "DISCREPANCY", "LOW", "Y", "N"),
@@ -67,21 +67,24 @@ L.append("-- Status category list of each VS sheet")
 ins("IB_PROCESS_STATUS_CAT_VS", ["VALUE_STREAM_ID", "STATUS_CATEGORY_ID", "SORT_ORDER"],
     [(vs, c, i + 1) for vs, ids in by_vs.items() for i, c in enumerate(ids)])
 
-stage1 = ["QMM_RESPONSIBLE", "REQUESTING_DEPARTMENT", "REQUESTOR_NAME", "REASON_ID", "REASON_DETAIL", "RETURNED_PART_NUMBER",
-          "QTY_IMPORTED", "ORIGINAL_HU", "ORIGINAL_BATCH", "PO_DATE", "PO_NUMBER"]
+# Keep in sync with FieldPermissions (Application/Security.cs); a test compares both.
+head1 = ["QMM_RESPONSIBLE", "REQUESTING_DEPARTMENT", "REQUESTOR_NAME", "REASON_ID", "REASON_DETAIL"]
+pal1 = ["RETURNED_PART_NUMBER", "QTY_IMPORTED", "ORIGINAL_HU", "ORIGINAL_BATCH", "PO_DATE", "PO_NUMBER"]
 stage3 = ["NEW_PART_NUMBER", "PHYSICAL_DELIVERED_QTY", "NEW_HU", "REWORK_BATCH", "REINSERTION_QTY", "SENT_BACK_DATE",
           "OLD_MATERIAL_DELIVERED_QTY", "SCRAP_QTY", "SCRAP_DATE"]
-perms = [("QMM", f, 1) for f in stage1] + [("QMM", "STATUS_CATEGORY_ID", 5)]
-perms += [("REQUESTOR", f, 1) for f in stage1 if f not in ("QMM_RESPONSIBLE", "PO_DATE", "PO_NUMBER")]
-perms += [("GS", f, 2) for f in ("IMPORT_DATE", "IMPORT_INVOICE", "ELP_JUP1_CROSSING_DATE")] + [("GS", "CUSTOMS_EXPORT", 4)]
-perms += [("LOP", "DELIVERY_NUMBER", 2)]
-perms += [("MFO", f, 3) for f in stage3] + [("MFO", "GR_NUMBER", 4)]
-perms += [("LOW", "LOW_EXPORT_NUMBER", 4), ("LOW", "LOW_EXPORT_DATE", 4)]
-perms += [("HSE", "HSE_SCRAP_KG", 4), ("HSE", "HSE_CONFIRMATION_DATE", 4)]
-L.append("-- Fields each area edits (Champion / Proxy in their VS). OWNER edits everything and needs no rows.")
-ins("IB_PROCESS_FIELD_PERMISSIONS", ["AREA_CODE", "FIELD_NAME", "STAGE_NO"], perms)
+perms = [(a, f, "PROCESS", 1) for a in ("QMM", "REQUESTOR") for f in head1]
+perms += [(a, f, "PALLET", 1) for a in ("QMM", "REQUESTOR") for f in pal1]
+perms += [("QMM", "STATUS_CATEGORY_ID", "PALLET", 5)]
+perms += [("OSD", f, "PROCESS", 2) for f in ("IMPORT_DATE", "IMPORT_INVOICE", "ELP_JUP1_CROSSING_DATE")] + [("OSD", "CUSTOMS_EXPORT", "PALLET", 4)]
+perms += [("LOP", "DELIVERY_NUMBER", "PROCESS", 2)]
+perms += [("MFO", f, "PALLET", 3) for f in stage3] + [("MFO", "GR_NUMBER", "PALLET", 4)]
+perms += [("LOW", "LOW_EXPORT_NUMBER", "PALLET", 4), ("LOW", "LOW_EXPORT_DATE", "PALLET", 4)]
+perms += [("HSE", "HSE_SCRAP_KG", "PALLET", 4), ("HSE", "HSE_CONFIRMATION_DATE", "PALLET", 4)]
+L.append("-- Fields each area edits. REQUESTOR = the requesting side of a process (its department, creator or requestor).")
+L.append("-- OWNER edits everything and needs no rows.")
+ins("IB_PROCESS_FIELD_PERMISSIONS", ["AREA_CODE", "FIELD_NAME", "FIELD_LEVEL", "STAGE_NO"], perms)
 
-L.append("-- Parameters (provisional values: [VALIDATE GS/OSD43])")
+L.append("-- Parameters (provisional values: [VALIDATE OSD])")
 ins("IB_PROCESS_PARAMETERS", ["PARAM_KEY", "VALID_FROM", "NUMERIC_VALUE", "DESCRIPTION"], [])
 for key, val, desc in [("DUTY_RATE", 0.19, "Duty rate applied to the unreconciled USD value (Excel: *0.19). [VALIDATE GS/OSD43]"),
                        ("IMMEX_LEGAL_TERM_DAYS", 540, "Legal term of the temporary import in days. [VALIDATE GS/OSD43 by regime / pedimento key]"),
@@ -95,7 +98,7 @@ for key, val, desc in [("DUTY_RATE", 0.19, "Duty rate applied to the unreconcile
     L.append(f"INSERT INTO IB_PROCESS_PARAMETERS (PARAM_KEY, VALID_FROM, NUMERIC_VALUE, DESCRIPTION) VALUES ({q(key)}, DATE '2024-01-01', {val}, {q(desc)});")
 L.append("")
 
-L.append("-- Folio counters")
+L.append("-- Folio counters (one folio per IB PROCESS and VS)")
 ins("IB_PROCESS_FOLIO_COUNTERS", ["VALUE_STREAM_ID", "LAST_FOLIO"], [(v, 0) for v in (1, 4, 5, 7, 9)])
 
 L += ["-- First Owner (Windows user US\\RLN8JU). The display name can be changed later from My profile.",

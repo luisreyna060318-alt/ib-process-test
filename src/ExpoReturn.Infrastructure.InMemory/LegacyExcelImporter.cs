@@ -14,6 +14,8 @@ public sealed record LegacyImportResult(
     IReadOnlyDictionary<string, int> IssueCounts,
     IReadOnlyDictionary<string, int> RowsPerSheet)
 {
+    /// <summary>One IB PROCESS per Excel row (historical rows stay one by one).</summary>
+    public IReadOnlyList<IbProcess> Processes => Pallets.Select(p => p.Process).ToList();
     public string Summary =>
         $"{Pallets.Count} records imported ({string.Join(", ", RowsPerSheet.Select(kv => $"{kv.Key}: {kv.Value}"))}); " +
         $"{IssueCounts.Values.Sum()} data quality findings.";
@@ -71,7 +73,12 @@ public static partial class LegacyExcelImporter
         var pallets = new List<PalletReturn>();
         var issues = new Dictionary<string, int>();
         var perSheet = new Dictionary<string, int>();
-        void Flag(PalletReturn p, string code) { p.DataQualityFlags.Add(code); issues[code] = issues.GetValueOrDefault(code) + 1; }
+        void Flag(PalletReturn p, string code)
+        {
+            p.DataQualityFlags.Add(code);
+            var key = code.Split(':')[0];                  // "DQ-DEPT-MAPPED:MFQ4" is counted as DQ-DEPT-MAPPED
+            issues[key] = issues.GetValueOrDefault(key) + 1;
+        }
 
         foreach (var vs in new[] { 1, 4, 5, 7, 9 })
         {
@@ -112,8 +119,13 @@ public static partial class LegacyExcelImporter
                     if (m.Success) { dept ??= m.Groups["dept"].Value.ToUpperInvariant(); p.RequestorName = m.Groups["name"].Value.Trim(); }
                     else p.RequestorName = requestor;
                 }
-                p.RequestingDepartment = dept;
+                // Departments were cleaned up: the code typed in the Excel goes to the current one by prefix
+                // (MFQ4 → MFQ, LOW2 → LOW, GS/OSD43 → OSD); the original text stays in the findings.
+                var mapped = Catalogs.MapLegacyDepartment(dept);
+                p.RequestingDepartment = mapped;
                 if (dept is null) Flag(p, "DQ-DEPT-MISSING");
+                else if (mapped is null) Flag(p, $"DQ-DEPT-NOT-IN-CATALOG:{dept}");
+                else if (!string.Equals(mapped, dept, StringComparison.OrdinalIgnoreCase)) Flag(p, $"DQ-DEPT-MAPPED:{dept}");
                 var reasonText = Text(C("Reason"));
                 p.ReasonId = Catalogs.FindReasonByText(reasonText)?.Id;
                 if (p.ReasonId is null) Flag(p, "DQ-REASON-MISSING");

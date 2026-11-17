@@ -10,25 +10,25 @@ public static class FieldHelp
 
     private static readonly Dictionary<string, Entry> Map = new()
     {
-        ["ValueStreamId"] = new("Chosen only when the return is created. Defines the folio sequence and who can edit."),
+        ["ValueStreamId"] = new("Chosen only when the IB PROCESS is created. Defines the folio sequence and who can edit."),
         ["FolioNumber"] = new("Sequential per Value Stream, assigned by the system on first save.", "VS7-00012"),
-        ["QmmResponsible"] = new("QMM Champion or Proxy of the VS (Users & Access). Required to move to Requested (VAL-017)."),
-        ["RequestingDepartment"] = new("Department that requests the return. Required (VAL-016).", "MFQ4, LOP2, PUQ"),
-        ["RequestorName"] = new("Person who requests. Required.", "Montaño, Sofía"),
+        ["QmmResponsible"] = new("Registered user of a QMM department in the VS. Whoever creates the process is set here if they are from QMM; it can be changed. Required (VAL-017)."),
+        ["RequestingDepartment"] = new("Department that requests the IB PROCESS (QMM, MFQ, PUQ, MFO, LOP, OSD, LOW, HSE). Required (VAL-016).", "MFQ, LOP, PUQ"),
+        ["RequestorName"] = new("Registered user who requests. Whoever creates the process is set here if they are not from QMM; it can be changed. Required.", "Montaño, Sofía"),
         ["ReasonId"] = new("One of the 10 reasons of the Excel list. Required (VAL-015). If it is reflash, the new part number is required."),
         ["ReturnReasonDetail"] = new("Free text explaining the case.", "Connector contamination, 100% sorting"),
         ["ReturnedMaterial"] = new("SAP format XXXX.XXX.XXX-XX(X) (VAL-010). It can be typed without dots: it is normalized. Required.", "0265957012-24W → 0265.957.012-24W"),
         ["UnitCostUsd"] = new("Taken from the MM60 cost master (Price / Price unit) that the Owner loads with Import MM60 file. Without cost it shows \"No cost (COSTEAR)\" (VAL-011). Calculated."),
         ["SapUsdTotal"] = new("Quantity imported × unit cost. Calculated."),
         ["QtyImported"] = new("Pieces temporarily imported. Whole number greater than 0 (VAL-012). Required.", "528"),
-        ["OriginalHU"] = new("10-digit handling unit (VAL-013). Enter the HU or the batch.", "2107104180"),
-        ["OriginalBatch"] = new("SAP batch: two letters and eight digits (VAL-014).", "AA23743599"),
-        ["DateReturnedToWhs"] = new("PO date / date returned to the El Paso warehouse. Entered by QMM. [VALIDATE meaning]"),
-        ["ReturnPONumber"] = new("8-digit return PO number (VAL-024). Entered by QMM.", "49398082"),
-        ["ImportDate"] = new("Import date. Not earlier than the PO date (VAL-021). Entered by GS/OSD43.", "30/10/2026"),
+        ["OriginalHU"] = new("10-digit handling unit (VAL-013). Every pallet needs its HU or its batch (VAL-050); a pallet cannot repeat inside the process (VAL-053).", "2107104180"),
+        ["OriginalBatch"] = new("SAP batch: two letters and eight digits (VAL-014). Valid identifier of the pallet when there is no HU.", "AA23743599"),
+        ["DateReturnedToWhs"] = new("PO date of the pallet. Copied from the previous pallet when a pallet is added."),
+        ["ReturnPONumber"] = new("8-digit return PO number (VAL-024). Required per pallet (VAL-051); it can repeat in other pallets or processes (the app asks before saving). Copied from the previous pallet.", "49398082"),
+        ["ImportDate"] = new("Import date. Not earlier than the PO date (VAL-021). Entered by OSD (customs).", "30/10/2026"),
         ["ImportInvoice"] = new("Import invoice MPS + 8 digits; its year must match the import date (VAL-023).", "MPS26000222"),
         ["ImportDateElpJup1"] = new("El Paso → JuP1 crossing date. Opens the IMMEX cycle (aging and legal term). Requires import date and invoice (VAL-022)."),
-        ["DeliveryNumber"] = new("Delivery number recorded by LOP."),
+        ["DeliveryNumber"] = new("Delivery number recorded by LOP. One per IB PROCESS."),
         ["NewMaterial"] = new("Part number after rework. Required and different from the original if the reason is reflash (VAL-031).", "0261.S10.8GT-6DV"),
         ["PhysicalDeliveredQty"] = new("Old material delivered + reinsertion (VAL-032). Entering it CLOSES the MFO rework; missing pieces count as missing (VAL-034)."),
         ["NewHU"] = new("10-digit new HU (VAL-036).", "2106697268"),
@@ -79,14 +79,17 @@ public static class FieldLabels
     public static readonly HashSet<string> Required = new()
     {
         "QmmResponsible", "RequestingDepartment", "RequestorName", "ReasonId", "ReturnedMaterial", "QtyImported", "OriginalHU", "OriginalBatch",
+        "ReturnPONumber",
     };
 
     // field → (name in the app, Excel 2.0 header)
     private static readonly Dictionary<string, (string Label, string? Excel)> Map = new()
     {
         ["ValueStreamId"] = ("Value Stream (VS)", "VS1 · VS4 · VS5 · VS7 · VS9 sheet"),
-        ["FolioNumber"] = ("Folio", "#"),
+        ["FolioNumber"] = ("IB PROCESS folio", "#"),
         ["QmmResponsible"] = ("QMM Responsible", "QMM Responsible"),
+        ["QmmResponsibleNtUser"] = ("QMM Responsible (user)", null),
+        ["RequestorNtUser"] = ("Requestor (user)", null),
         ["RequestingDepartment"] = ("Requesting Department", "Requesting department"),
         ["RequestorName"] = ("Requestor", "Requestor"),
         ["ReasonId"] = ("Reason", "Reason"),
@@ -97,7 +100,7 @@ public static class FieldLabels
         ["QtyImported"] = ("Quantity Imported", "Quantity imported"),
         ["OriginalHU"] = ("Original HU", "Original #HU"),
         ["OriginalBatch"] = ("Original Batch", "Original Batch"),
-        ["DateReturnedToWhs"] = ("PO Date / Returned to WHS", "Date PO"),
+        ["DateReturnedToWhs"] = ("PO Date", "Date PO"),
         ["ReturnPONumber"] = ("PO Number", "PO Number"),
         ["ImportDate"] = ("Import Date", "Import Date"),
         ["ImportInvoice"] = ("Import Invoice", "Invoice"),
@@ -126,6 +129,8 @@ public static class FieldLabels
         ["DutiesToPayUsd"] = ("Duties to Pay (USD)", "DUTIES TO PAY USD"),
         ["Status"] = ("Status", null),
         ["Record"] = ("Record", null),
+        ["Pallet"] = ("Pallet", null),
+        ["IB PROCESS"] = ("IB PROCESS", null),
     };
 
     public static string Get(string field) => Map.TryGetValue(field, out var e) ? e.Label : field;

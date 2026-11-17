@@ -10,7 +10,7 @@
                             <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{Binding Severity, Converter={StaticResource SeverityBrush}}">
                                 <Run Text="{Binding Code, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding SeverityText, Mode=OneWay}" />
                             </TextBlock>
-                            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="12" />
+                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="12" />
                         </StackPanel>
                     </Border>
                 </Button>
@@ -188,8 +188,13 @@
                 <StackPanel Grid.Column="1">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding Title}" Style="{StaticResource PageTitle}" Margin="0,0,14,0" />
-                        <Border Background="{Binding PreviewStatus, Converter={StaticResource StatusBrush}}" CornerRadius="11" Padding="10,3" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding PreviewStatusName}" Foreground="White" FontWeight="SemiBold" />
+                        <Border Background="{Binding ProcessStatus, Converter={StaticResource StatusBrush}}" CornerRadius="11" Padding="10,3" VerticalAlignment="Center"
+                                ToolTip="Status of the IB PROCESS: duty risk if any pallet is at risk; otherwise the least advanced open pallet">
+                            <TextBlock Text="{Binding ProcessStatusName}" Foreground="White" FontWeight="SemiBold" />
+                        </Border>
+                        <Border Background="{Binding PreviewStatus, Converter={StaticResource StatusBrush}}" CornerRadius="11" Padding="10,3" Margin="8,0,0,0" VerticalAlignment="Center"
+                                ToolTip="Status of the selected pallet">
+                            <TextBlock Foreground="White" FontWeight="SemiBold"><Run Text="{Binding PalletDisplay, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding PreviewStatusName, Mode=OneWay}" /></TextBlock>
                         </Border>
                         <Border Background="#FEF3C7" CornerRadius="11" Padding="10,3" Margin="8,0,0,0" VerticalAlignment="Center"
                                 Visibility="{Binding IsLegacy, Converter={StaticResource BoolToVis}}">
@@ -205,7 +210,7 @@
                         <Border Background="{StaticResource EditableFill}" BorderBrush="{StaticResource EditableBorder}" BorderThickness="1" Width="26" Height="14" CornerRadius="2" VerticalAlignment="Center" />
                         <TextBlock Text="You can edit it" Style="{StaticResource Hint}" FontSize="12" Margin="6,0,14,0" VerticalAlignment="Center" />
                         <Border Background="{StaticResource ReadOnlyFill}" BorderBrush="{StaticResource BorderBrushLight}" BorderThickness="1" Width="26" Height="14" CornerRadius="2" VerticalAlignment="Center" />
-                        <TextBlock Text="Read-only (another area, another VS or closed record)" Style="{StaticResource Hint}" FontSize="12" Margin="6,0,14,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Read-only (another area, another VS or closed pallet)" Style="{StaticResource Hint}" FontSize="12" Margin="6,0,14,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock Text="{Binding EditableSummary}" Style="{StaticResource Hint}" FontSize="12" />
                     <TextBlock Text="{Binding DutyRiskReason}" Foreground="{StaticResource Danger}" FontWeight="SemiBold" Margin="0,4,0,0"
@@ -213,13 +218,16 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
                     <Border Style="{StaticResource KpiCard}" MinWidth="130">
-                        <StackPanel><TextBlock Text="Balance (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Preview.BalanceGeneralUsd, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                        <StackPanel><TextBlock Text="Process balance (USD)" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding ProcessBalance, StringFormat={}{0:N2}}" Style="{StaticResource KpiValue}" /></StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource KpiCard}" MinWidth="120">
+                        <StackPanel><TextBlock Text="Pallets" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding Process.Pallets.Count}" Style="{StaticResource KpiValue}" /></StackPanel>
                     </Border>
                     <Border Style="{StaticResource KpiCard}" MinWidth="120">
                         <StackPanel><TextBlock Text="Days in JuP1" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding DaysInJuP1, TargetNullValue=—}" Style="{StaticResource KpiValue}" /></StackPanel>
                     </Border>
                     <Border Style="{StaticResource KpiCard}" MinWidth="140">
-                        <StackPanel><TextBlock Text="IMMEX due date" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding LegalDueDate, StringFormat={}{0:dd/MM/yyyy}, TargetNullValue=—}" Style="{StaticResource KpiValue}" /></StackPanel>
+                        <StackPanel><TextBlock Text="Nearest IMMEX due date" Style="{StaticResource KpiLabel}" /><TextBlock Text="{Binding ProcessDueDate, StringFormat={}{0:dd/MM/yyyy}, TargetNullValue=—}" Style="{StaticResource KpiValue}" /></StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -231,7 +239,9 @@
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                     <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" Width="110" ToolTip="Ctrl+S" />
                     <Button Content="Discard changes" Command="{Binding DiscardCommand}" Style="{StaticResource SecondaryButton}" />
-                    <TextBlock Text="Reason (Owner only, on closed records):" VerticalAlignment="Center" Margin="8,0,6,0" Style="{StaticResource FieldLabel}" />
+                    <Button Content="Delete IB PROCESS" Command="{Binding DeleteCommand}" Style="{StaticResource SecondaryButton}" Foreground="{StaticResource Danger}"
+                            Visibility="{Binding CanDeleteProcess, Converter={StaticResource BoolToVis}}" ToolTip="Deletes the process and its pallets (asks for the reason; the audit log keeps a copy)" />
+                    <TextBlock Text="Reason (closed process or removed pallets):" VerticalAlignment="Center" Margin="8,0,6,0" Style="{StaticResource FieldLabel}" />
                     <TextBox Text="{Binding SaveReason, UpdateSourceTrigger=PropertyChanged}" Width="240" />
                 </StackPanel>
                 <Border Margin="12,0,0,0" CornerRadius="4" Padding="10,5" Visibility="{Binding Message, Converter={StaticResource BoolToVis}}">
@@ -250,11 +260,41 @@
             </DockPanel>
         </Border>
 
+        <!-- ===== Left panel: pallets of the process ===== -->
+        <Border DockPanel.Dock="Left" Width="250" Style="{StaticResource Card}" Margin="0,0,10,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource SectionTitle}"><Run Text="Pallets (" /><Run Text="{Binding Process.Pallets.Count, Mode=OneWay}" /><Run Text=")" /></TextBlock>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="+ Add pallet" Command="{Binding AddPalletCommand}" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding CanAddPallet}"
+                                ToolTip="New pallet with the PO and PO date of the last one" />
+                        <Button Content="Remove" Command="{Binding RemovePalletCommand}" Style="{StaticResource SecondaryButton}" IsEnabled="{Binding CanRemovePallet}"
+                                ToolTip="Removes the selected pallet (at least one stays)" />
+                    </StackPanel>
+                </StackPanel>
+                <ListBox ItemsSource="{Binding Process.Pallets}" SelectedItem="{Binding SelectedPallet}" BorderThickness="0" HorizontalContentAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{Binding Status, Converter={StaticResource StatusBrush}}" BorderThickness="3,0,0,0" Padding="8,4" Margin="0,0,0,2">
+                                <StackPanel>
+                                    <TextBlock FontWeight="SemiBold"><Run Text="Pallet " /><Run Text="{Binding LineNo, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding QtyImported, Mode=OneWay, StringFormat={}{0:N0}}" /><Run Text=" pcs" /></TextBlock>
+                                    <TextBlock Text="{Binding ReturnedMaterial, TargetNullValue='(no part number)'}" FontSize="12" />
+                                    <TextBlock FontSize="11" Foreground="#6B7280" TextWrapping="Wrap"><Run Text="HU/Batch: " /><Run Text="{Binding PalletIdText, Mode=OneWay}" /><Run Text=" · PO " /><Run Text="{Binding ReturnPONumber, Mode=OneWay}" /></TextBlock>
+                                    <TextBlock Text="{Binding StatusName}" FontSize="11" Foreground="#6B7280" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
         <!-- ===== Right panel: validations and reconciliation ===== -->
         <Border DockPanel.Dock="Right" Width="350" Style="{StaticResource Card}" Margin="10,0,0,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="Quantity reconciliation" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Text="Quantity reconciliation (selected pallet)" Style="{StaticResource SectionTitle}" />
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -300,37 +340,39 @@
         <!-- ===== Tabs by block ===== -->
         <TabControl SelectedIndex="{Binding SelectedTab}" Background="White" BorderBrush="{StaticResource BorderBrushLight}">
 
-            <!-- 1 · Request -->
-            <TabItem Header="1 · Request (QMM)">
+            <!-- 1 · IB PROCESS (header) -->
+            <TabItem Header="1 · IB PROCESS">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
                     <StackPanel>
-                        <TextBlock Text="Stage 1 · Request — QMM and requesting area" Style="{StaticResource SectionTitle}" />
-                        <TextBlock Style="{StaticResource Hint}" Margin="0,-4,0,12" Text="* Required to move to Requested (enter the original HU or the original batch). Hover over a field to see its Excel 2.0 column, the rule and an example." />
+                        <TextBlock Text="IB PROCESS · request (QMM and requesting area)" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,-4,0,12" Text="Common to every pallet of the process. * Required to move to Requested. Hover over a field to see its Excel 2.0 column, the rule and an example." />
                         <UniformGrid Style="{StaticResource Grid3}">
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ValueStreamId]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="Value Stream (VS)" Style="{StaticResource FieldLabel}" />
-                                <ComboBox ItemsSource="{Binding ValueStreamOptions}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Edit.ValueStreamId}" IsEnabled="{Binding Perm[ValueStreamId]}" />
+                                <ComboBox ItemsSource="{Binding ValueStreamOptions}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Process.ValueStreamId}" IsEnabled="{Binding Perm[ValueStreamId]}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[FolioNumber]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Folio" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="IB PROCESS folio" Style="{StaticResource FieldLabel}" />
                                 <TextBox Text="{Binding FolioDisplay, Mode=OneWay}" Style="{StaticResource ReadOnlyBox}" />
                                 <TextBlock Text="Sequential per Value Stream" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[QmmResponsible]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="QMM Responsible (Champion / Proxy) *" Style="{StaticResource FieldLabel}" />
-                                <ComboBox ItemsSource="{Binding QmmOptions}" Text="{Binding Edit.QmmResponsible, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" IsEnabled="{Binding Perm[QmmResponsible]}" />
+                                <TextBlock Text="QMM Responsible *" Style="{StaticResource FieldLabel}" />
+                                <ComboBox ItemsSource="{Binding QmmUserOptions}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Process.QmmResponsibleNtUser}" IsEnabled="{Binding Perm[QmmResponsible]}" />
+                                <TextBlock Text="{Binding Process.QmmResponsible, StringFormat='Saved as: {0}'}" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[RequestingDepartment]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="Requesting Department *" Style="{StaticResource FieldLabel}" />
-                                <ComboBox ItemsSource="{Binding DepartmentOptions}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Edit.RequestingDepartment}" IsEnabled="{Binding Perm[RequestingDepartment]}" />
+                                <ComboBox ItemsSource="{Binding DepartmentOptions}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Process.RequestingDepartment}" IsEnabled="{Binding Perm[RequestingDepartment]}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[RequestorName]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Requestor (Last name, First name) *" Style="{StaticResource FieldLabel}" />
-                                <TextBox Text="{Binding Edit.RequestorName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[RequestorName]}" />
+                                <TextBlock Text="Requestor *" Style="{StaticResource FieldLabel}" />
+                                <ComboBox ItemsSource="{Binding RequestorUserOptions}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Process.RequestorNtUser}" IsEnabled="{Binding Perm[RequestorName]}" />
+                                <TextBlock Text="{Binding Process.RequestorName, StringFormat='Saved as: {0}'}" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ReasonId]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="Reason *" Style="{StaticResource FieldLabel}" />
-                                <ComboBox ItemsSource="{Binding ReasonOptions}" SelectedValuePath="Id" DisplayMemberPath="Label" SelectedValue="{Binding Edit.ReasonId}" IsEnabled="{Binding Perm[ReasonId]}">
+                                <ComboBox ItemsSource="{Binding ReasonOptions}" SelectedValuePath="Id" DisplayMemberPath="Label" SelectedValue="{Binding Process.ReasonId}" IsEnabled="{Binding Perm[ReasonId]}">
                                     <ComboBox.ItemContainerStyle>
                                         <Style TargetType="ComboBoxItem"><Setter Property="ToolTip" Value="{Binding Code}" /></Style>
                                     </ComboBox.ItemContainerStyle>
@@ -339,10 +381,42 @@
                         </UniformGrid>
                         <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ReturnReasonDetail]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                             <TextBlock Text="Reason Detail" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Edit.ReturnReasonDetail, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultiLine}" IsEnabled="{Binding Perm[ReturnReasonDetail]}" />
+                            <TextBox Text="{Binding Process.ReturnReasonDetail, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultiLine}" IsEnabled="{Binding Perm[ReturnReasonDetail]}" />
                         </StackPanel>
 
-                        <TextBlock Text="Original pallet in El Paso" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="Customs entry and delivery (El Paso → JuP1) — OSD and LOP" Style="{StaticResource SectionTitle}" />
+                        <UniformGrid Style="{StaticResource Grid3}">
+                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ImportDate]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
+                                <TextBlock Text="Import Date" Style="{StaticResource FieldLabel}" />
+                                <DatePicker SelectedDate="{Binding Process.ImportDate}" IsEnabled="{Binding Perm[ImportDate]}" />
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ImportInvoice]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
+                                <TextBlock Text="Import Invoice" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Process.ImportInvoice, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[ImportInvoice]}" CharacterCasing="Upper" />
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ImportDateElpJup1]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
+                                <TextBlock Text="ELP → JuP1 Crossing Date" Style="{StaticResource FieldLabel}" />
+                                <DatePicker SelectedDate="{Binding Process.ImportDateElpJup1}" IsEnabled="{Binding Perm[ImportDateElpJup1]}" />
+                                <TextBlock Text="Opens the IMMEX cycle: aging and legal term start" Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[DeliveryNumber]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
+                                <TextBlock Text="Delivery Number (LOP)" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Process.DeliveryNumber, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[DeliveryNumber]}" />
+                                <TextBlock Text="One per IB PROCESS" Style="{StaticResource Hint}" />
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- 2 · Pallet -->
+            <TabItem Header="2 · Pallet">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitle}">
+                            <Run Text="Pallet " /><Run Text="{Binding PalletDisplay, Mode=OneWay}" /><Run Text=" · original pallet in El Paso" />
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,-4,0,12" Text="Each pallet needs its PO and its HU or batch (the pallet cannot repeat inside the process; the PO can). Choose the pallet in the list on the left." />
                         <UniformGrid Style="{StaticResource Grid3}">
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ReturnedMaterial]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="Returned Part Number (13 digits) *" Style="{StaticResource FieldLabel}" />
@@ -366,47 +440,22 @@
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[OriginalHU]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="Original HU (10 digits) *" Style="{StaticResource FieldLabel}" />
                                 <TextBox Text="{Binding Edit.OriginalHU, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[OriginalHU]}" />
+                                <TextBlock Text="HU or batch" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[OriginalBatch]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="Original Batch *" Style="{StaticResource FieldLabel}" />
                                 <TextBox Text="{Binding Edit.OriginalBatch, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[OriginalBatch]}" CharacterCasing="Upper" />
+                                <TextBlock Text="HU or batch" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[DateReturnedToWhs]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="PO Date / Returned to WHS" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="PO Date" Style="{StaticResource FieldLabel}" />
                                 <DatePicker SelectedDate="{Binding Edit.DateReturnedToWhs}" IsEnabled="{Binding Perm[DateReturnedToWhs]}" />
+                                <TextBlock Text="Copied from the previous pallet" Style="{StaticResource Hint}" />
                             </StackPanel>
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ReturnPONumber]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="PO Number" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="PO Number *" Style="{StaticResource FieldLabel}" />
                                 <TextBox Text="{Binding Edit.ReturnPONumber, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[ReturnPONumber]}" />
-                                <TextBlock Text="8 digits" Style="{StaticResource Hint}" />
-                            </StackPanel>
-                        </UniformGrid>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- 2 · Customs / inbound -->
-            <TabItem Header="2 · Customs / inbound">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
-                    <StackPanel>
-                        <TextBlock Text="Stage 2 · Customs and inbound logistics (El Paso → JuP1) — GS/OSD43 and LOP" Style="{StaticResource SectionTitle}" />
-                        <UniformGrid Style="{StaticResource Grid3}">
-                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ImportDate]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Import Date" Style="{StaticResource FieldLabel}" />
-                                <DatePicker SelectedDate="{Binding Edit.ImportDate}" IsEnabled="{Binding Perm[ImportDate]}" />
-                            </StackPanel>
-                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ImportInvoice]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Import Invoice" Style="{StaticResource FieldLabel}" />
-                                <TextBox Text="{Binding Edit.ImportInvoice, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[ImportInvoice]}" CharacterCasing="Upper" />
-                            </StackPanel>
-                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[ImportDateElpJup1]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="ELP → JuP1 Crossing Date" Style="{StaticResource FieldLabel}" />
-                                <DatePicker SelectedDate="{Binding Edit.ImportDateElpJup1}" IsEnabled="{Binding Perm[ImportDateElpJup1]}" />
-                                <TextBlock Text="Opens the IMMEX cycle: aging and legal term start" Style="{StaticResource Hint}" />
-                            </StackPanel>
-                            <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[DeliveryNumber]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
-                                <TextBlock Text="Delivery Number (LOP)" Style="{StaticResource FieldLabel}" />
-                                <TextBox Text="{Binding Edit.DeliveryNumber, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Perm[DeliveryNumber]}" />
+                                <TextBlock Text="8 digits · copied from the previous pallet" Style="{StaticResource Hint}" />
                             </StackPanel>
                         </UniformGrid>
                     </StackPanel>
@@ -417,7 +466,7 @@
             <TabItem Header="3 · MFO execution">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
                     <StackPanel>
-                        <TextBlock Text="Stage 3 · Plant execution (rework) — MFO" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="Pallet execution (rework) — MFO" Style="{StaticResource SectionTitle}" />
                         <UniformGrid Style="{StaticResource Grid3}">
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[NewMaterial]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="New Part Number" Style="{StaticResource FieldLabel}" />
@@ -469,7 +518,7 @@
             <TabItem Header="4 · Exit / HSE">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
                     <StackPanel>
-                        <TextBlock Text="Stage 4 · Material exit — LOW, GS/OSD43, MFO and HSE" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="Pallet exit — LOW, OSD (customs), MFO and HSE" Style="{StaticResource SectionTitle}" />
                         <UniformGrid Style="{StaticResource Grid3}">
                             <StackPanel Style="{StaticResource Field}" ToolTip="{Binding Help[LowExportNumber]}" ToolTipService.ShowOnDisabled="True" ToolTipService.ShowDuration="20000">
                                 <TextBlock Text="LOW Export Number" Style="{StaticResource FieldLabel}" />

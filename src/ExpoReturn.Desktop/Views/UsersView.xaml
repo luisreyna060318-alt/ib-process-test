@@ -12,39 +12,7 @@
         <StackPanel>
             <TextBlock Text="Users &amp; Access" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" TextWrapping="Wrap"
-                       Text="Each user is identified by their Windows account. The table below says, per department and Value Stream, whether the user is Champion, Proxy or Viewer; the Owner has full access regardless of department and VS. Only the Owner can change it." />
-
-            <!-- Pending profile requests (Owner) -->
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="{Binding HasRequests, Converter={StaticResource BoolToVis}}">
-                <StackPanel>
-                    <TextBlock Text="Pending profile requests" Style="{StaticResource SectionTitle}" />
-                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" TextWrapping="Wrap"
-                               Text="Users who changed their department or Value Streams in My profile. Approving applies the change; Value Streams added start as Viewer, and a department change resets Champion/Proxy to Viewer." />
-                    <DataGrid ItemsSource="{Binding Requests}" RowHeight="36">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
-                            <DataGridTextColumn Header="User" Binding="{Binding DisplayName}" Width="*" />
-                            <DataGridTextColumn Header="Windows user" Binding="{Binding NtUser}" Width="*" />
-                            <DataGridTextColumn Header="Current" Binding="{Binding CurrentDepartment}" Width="90" />
-                            <DataGridTextColumn Header="Current VS" Binding="{Binding CurrentValueStreams}" Width="140" />
-                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedDepartment}" Width="90" />
-                            <DataGridTextColumn Header="Requested VS" Binding="{Binding RequestedValueStreams}" Width="140" />
-                            <DataGridTemplateColumn Width="190">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" IsEnabled="{Binding DataContext.CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                                            <Button Content="Approve" Style="{StaticResource LinkButton}"
-                                                    Command="{Binding DataContext.ApproveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                            <Button Content="Reject" Style="{StaticResource LinkButton}"
-                                                    Command="{Binding DataContext.RejectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </StackPanel>
-            </Border>
+                       Text="Each user is identified by their Windows account. The table below says, per department and Value Stream, whether the user is Champion, Proxy, Member or Viewer; new users and profile changes are approved in Requests; the Owner has full access regardless of department and VS. Only the Owner can change it." />
 
             <!-- Access table (Owner edits) -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
@@ -107,8 +75,8 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="QMM" Binding="{Binding Qmm}" Width="*" ElementStyle="{StaticResource WrapCell}" />
-                            <DataGridTextColumn Header="MFQ" Binding="{Binding Mfq}" Width="*" ElementStyle="{StaticResource WrapCell}" />
-                            <DataGridTextColumn Header="GS / OSD43" Binding="{Binding Gs}" Width="*" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTextColumn Header="MFQ / PUQ" Binding="{Binding Mfq}" Width="*" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTextColumn Header="OSD" Binding="{Binding Gs}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="LOP" Binding="{Binding Lop}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="MFO" Binding="{Binding Mfo}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="LOW" Binding="{Binding Low}" Width="*" ElementStyle="{StaticResource WrapCell}" />
@@ -120,7 +88,7 @@
 
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock Text="Fields each area can edit (Champion or Proxy, in their Value Streams)" Style="{StaticResource SectionTitle}" />
+                    <TextBlock TextWrapping="Wrap" Text="Fields each area can edit (in their Value Streams). Champion / Proxy: every process of the VS, plus create and delete for their department. Member: processes they created or request; OSD, LOP, MFO, LOW and HSE members also their area fields on any process of the VS." Style="{StaticResource SectionTitle}" />
                     <ItemsControl ItemsSource="{Binding EditableByArea}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="12" /></DataTemplate>

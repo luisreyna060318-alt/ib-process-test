@@ -6,10 +6,10 @@
     </UserControl.InputBindings>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Returns inbox" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="IB PROCESS inbox" Style="{StaticResource PageTitle}" />
             <TextBlock FontSize="14.5" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap" Margin="0,0,0,12">
-                <Run Text="Double-click" FontWeight="SemiBold" /><Run Text=" or " /><Run Text="Enter" FontWeight="SemiBold" /><Run Text=" opens a record   ·   " />
-                <Run Text="Ctrl+F" FontWeight="SemiBold" /><Run Text=" search   ·   " /><Run Text="Ctrl+E" FontWeight="SemiBold" /><Run Text=" export   ·   " /><Run Text="Ctrl+N" FontWeight="SemiBold" /><Run Text=" new return" />
+                <Run Text="Double-click" FontWeight="SemiBold" /><Run Text=" or " /><Run Text="Enter" FontWeight="SemiBold" /><Run Text=" opens an IB PROCESS   ·   ▸ shows its pallets   ·   " />
+                <Run Text="Ctrl+F" FontWeight="SemiBold" /><Run Text=" search   ·   " /><Run Text="Ctrl+E" FontWeight="SemiBold" /><Run Text=" export   ·   " /><Run Text="Ctrl+N" FontWeight="SemiBold" /><Run Text=" new IB PROCESS" />
             </TextBlock>
 
             <!-- Indicators: always follow the filters, also while the table is not shown -->
@@ -23,7 +23,7 @@
                     <Style x:Key="BigValue" TargetType="TextBlock" BasedOn="{StaticResource KpiValue}"><Setter Property="FontSize" Value="30" /></Style>
                 </StackPanel.Resources>
                 <Border>
-                    <StackPanel><TextBlock Text="Records (filter)" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiCount, StringFormat={}{0:N0}}" Style="{StaticResource BigValue}" /></StackPanel>
+                    <StackPanel><TextBlock Text="IB processes (filter)" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiCount, StringFormat={}{0:N0}}" Style="{StaticResource BigValue}" /></StackPanel>
                 </Border>
                 <Border>
                     <StackPanel><TextBlock Text="Open" Style="{StaticResource BigLabel}" /><TextBlock Text="{Binding KpiOpen, StringFormat={}{0:N0}}" Style="{StaticResource BigValue}" /></StackPanel>
@@ -41,7 +41,7 @@
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Content="Export to Excel" Command="{Binding ExportCommand}" Style="{StaticResource SecondaryButton}" Margin="0"
-                                ToolTip="Exports what you see with the current filters to a protected read-only Excel file (Ctrl+E)" />
+                                ToolTip="Exports the pallets of the filtered IB processes to a protected read-only Excel file (Ctrl+E)" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Value Stream" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
@@ -50,7 +50,7 @@
                         <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="210" Margin="0,0,16,0" />
                         <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                         <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="260" Margin="0,0,16,0"
-                                 ToolTip="Folio, part number, HU/batch, invoice, QMM responsible or customs export (Ctrl+F)" />
+                                 ToolTip="IB PROCESS or pallet folio, part number, HU/batch, PO, invoice, QMM responsible, requestor, delivery or customs export (Ctrl+F)" />
                         <CheckBox Content="Duty risk only" IsChecked="{Binding OnlyDutyRisk}" Margin="0,0,16,0" />
                         <CheckBox Content="To homogenize" IsChecked="{Binding OnlyDataFindings}" Margin="0,0,16,0"
                                   Visibility="{Binding HasLegacy, Converter={StaticResource BoolToVis}}"
@@ -148,21 +148,75 @@
                     </Setter>
                 </Style>
             </DataGrid.ColumnHeaderStyle>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                    <Setter Property="DetailsVisibility" Value="{Binding IsExpanded, Converter={StaticResource BoolToVis}}" />
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="105" />
+                <DataGridTemplateColumn Header="" Width="34" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ToggleButton IsChecked="{Binding IsExpanded, UpdateSourceTrigger=PropertyChanged}" Width="22" Height="20" Padding="0"
+                                          Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Show / hide the pallets of the process">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton">
+                                        <Setter Property="Content" Value="▸" />
+                                        <Style.Triggers>
+                                            <Trigger Property="IsChecked" Value="True"><Setter Property="Content" Value="▾" /></Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ToggleButton.Style>
+                            </ToggleButton>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="IB PROCESS" Binding="{Binding FolioCode}" Width="105" />
                 <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="48" />
                 <DataGridTemplateColumn Header="Status" Width="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
-                <DataGridTextColumn Header="Part number" Binding="{Binding Material}" Width="140" />
-                <DataGridTextColumn Header="Qty" Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="60" />
+                <DataGridTextColumn Header="Pallets" Binding="{Binding PalletCount}" Width="60" />
+                <DataGridTextColumn Header="Pieces" Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="70" />
+                <DataGridTextColumn Header="Part number(s)" Binding="{Binding Material}" Width="150" />
+                <DataGridTextColumn Header="PO" Binding="{Binding PoNumbers}" Width="100" />
                 <DataGridTextColumn Header="SAP value (USD)" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="105" />
                 <DataGridTextColumn Header="Balance (USD)" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="105" />
-                <DataGridTextColumn Header="Days in JuP1" Binding="{Binding DaysInJuP1}" Width="95" />
-                <DataGridTextColumn Header="Days to due" Binding="{Binding DaysToLegalDue}" Width="100" />
-                <DataGridTextColumn Header="QMM responsible" Binding="{Binding Qmm}" Width="145" />
+                <DataGridTextColumn Header="Days in JuP1" Binding="{Binding DaysInJuP1}" Width="90" />
+                <DataGridTextColumn Header="Nearest IMMEX due" Binding="{Binding DueDate, StringFormat={}{0:dd/MM/yyyy}}" Width="100" SortMemberPath="DueDate" />
+                <DataGridTextColumn Header="Days to due" Binding="{Binding DaysToLegalDue}" Width="85" />
+                <DataGridTextColumn Header="QMM responsible" Binding="{Binding Qmm}" Width="140" />
+                <DataGridTextColumn Header="Requestor" Binding="{Binding Requestor}" Width="140" />
+                <DataGridTextColumn Header="Dept." Binding="{Binding Department}" Width="60" />
                 <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" Width="105" />
-                <DataGridTextColumn Header="Status category" Binding="{Binding Category}" Width="*" MinWidth="215" />
-                <DataGridTextColumn x:Name="DqColumn" Header="Data quality" Binding="{Binding DqText}" Width="*" />
+                <DataGridTextColumn x:Name="DqColumn" Header="Data quality" Binding="{Binding DqText}" Width="*" MinWidth="160" />
             </DataGrid.Columns>
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="0,1,0,1" Padding="40,6,12,8">
+                        <ItemsControl ItemsSource="{Binding Pallets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="115" /><ColumnDefinition Width="165" /><ColumnDefinition Width="140" /><ColumnDefinition Width="70" />
+                                            <ColumnDefinition Width="120" /><ColumnDefinition Width="95" /><ColumnDefinition Width="100" /><ColumnDefinition Width="85" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding FolioCode}" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding StatusName}" Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Material}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Qty, StringFormat={}{0:N0} pcs}" />
+                                        <TextBlock Grid.Column="4" Text="{Binding HuOrBatch}" ToolTip="Original HU or batch" />
+                                        <TextBlock Grid.Column="5" Text="{Binding Po, StringFormat=PO {0}}" />
+                                        <TextBlock Grid.Column="6" Text="{Binding Balance, StringFormat={}{0:N2} USD}" />
+                                        <TextBlock Grid.Column="7" Text="{Binding DaysToLegalDue, StringFormat={}{0} days}" ToolTip="Days to the IMMEX due date" />
+                                        <TextBlock Grid.Column="8" Text="{Binding Category}" TextTrimming="CharacterEllipsis" Foreground="#6B7280" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
         </DataGrid>
     </DockPanel>
 </UserControl>

@@ -181,9 +181,85 @@ public sealed record RequestRow(ProfileRequest Request, string DisplayName, stri
 {
     public int Id => Request.Id;
     public string NtUser => Request.NtUser;
+    public string TypeText => Request.TypeText;
     public string RequestedDepartment => Request.DepartmentCode;
     public string RequestedValueStreams => Request.ValueStreamText;
     public DateTime RequestedAtLocal => Request.RequestedAtUtc.ToLocalTime();
+    public string StatusText => Request.Status.ToString();
+    public string? DecidedBy => Request.DecidedBy;
+    public DateTime? DecidedAtLocal => Request.DecidedAtUtc?.ToLocalTime();
+    public string? Comment => Request.Comment;
+    public bool IsPending => Request.Status == RequestStatus.Pending;
+}
+
+// =====================================================================
+// Requests (Owner): new users and profile changes
+// =====================================================================
+public sealed partial class RequestsViewModel : PageViewModel
+{
+    private readonly UserContext _realUser;
+
+    public RequestsViewModel(AppServices services, UserContext user, UserContext realUser) : base(services, user)
+    {
+        _realUser = realUser;
+        Refresh();
+    }
+
+    public override string Title => "Requests";
+    /// <summary>Only the real Owner decides (not someone previewing as another user).</summary>
+    public bool CanEdit => _realUser.IsOwner && User.NtUser == _realUser.NtUser;
+
+    [ObservableProperty] private IReadOnlyList<RequestRow> _pending = Array.Empty<RequestRow>();
+    [ObservableProperty] private IReadOnlyList<RequestRow> _history = Array.Empty<RequestRow>();
+    [ObservableProperty] private string? _message;
+    public bool HasPending => Pending.Count > 0;
+    public string PendingText => Pending.Count == 0 ? "No pending requests." : $"{Pending.Count} pending request(s)";
+    partial void OnPendingChanged(IReadOnlyList<RequestRow> value) { OnPropertyChanged(nameof(HasPending)); OnPropertyChanged(nameof(PendingText)); }
+
+    protected override void UserChanged() => OnPropertyChanged(nameof(CanEdit));
+
+    public override void Refresh()
+    {
+        Services.Users.Refresh();
+        var users = Services.Users.Users().ToDictionary(u => u.NtUser, StringComparer.OrdinalIgnoreCase);
+        RequestRow Row(ProfileRequest r) => new(r, users.TryGetValue(r.NtUser, out var u) ? u.DisplayName : r.NtUser,
+            users.TryGetValue(r.NtUser, out var u1) ? u1.DepartmentCode ?? "—" : "—",
+            users.TryGetValue(r.NtUser, out var u2) ? u2.ValueStreamText : "—");
+        var all = Services.Users.Requests(pendingOnly: false);
+        Pending = all.Where(r => r.Status == RequestStatus.Pending).OrderBy(r => r.RequestedAtUtc).Select(Row).ToList();
+        History = all.Where(r => r.Status != RequestStatus.Pending).OrderByDescending(r => r.DecidedAtUtc ?? r.RequestedAtUtc).Take(200).Select(Row).ToList();
+    }
+
+    [RelayCommand]
+    private void Reload() { Refresh(); Message = null; }
+
+    [RelayCommand]
+    private void Approve(RequestRow? row) => Decide(row, true);
+
+    [RelayCommand]
+    private void Reject(RequestRow? row) => Decide(row, false);
+
+    private void Decide(RequestRow? row, bool approve)
+    {
+        if (row is null || !CanEdit || !row.IsPending) return;
+        var what = row.Request.IsRegistration
+            ? $"New user · {row.RequestedDepartment} · {row.RequestedValueStreams}" + (approve ? "\nApproving makes them Member (capture) in those VS." : "\nRejecting keeps them as Viewer.")
+            : $"{row.CurrentDepartment} · {row.CurrentValueStreams}  →  {row.RequestedDepartment} · {row.RequestedValueStreams}";
+        var comment = Views.InputDialog.Ask(approve ? "Approve request" : "Reject request",
+            $"{row.DisplayName} ({row.NtUser})\n{what}\n\nComment (optional):",
+            System.Windows.Application.Current.MainWindow, allowEmpty: true);
+        if (comment is null) return;
+        try { Services.Users.Decide(row.Id, approve, _realUser.NtUser, string.IsNullOrWhiteSpace(comment) ? null : comment.Trim()); }
+        catch (Exception ex) { Message = $"Not saved: {ex.Message}"; return; }
+        Services.Audit.Record(new[] { new AuditEntry(0, "USERS", row.Request.IsRegistration ? "Registration request" : "Profile request",
+            $"{row.CurrentDepartment} · {row.CurrentValueStreams}",
+            $"{(approve ? "Approved" : "Rejected")}: {row.RequestedDepartment} · {row.RequestedValueStreams} ({row.NtUser})", _realUser.NtUser, Services.Clock.UtcNow, comment) });
+        Message = !approve ? "Request rejected."
+            : row.Request.IsRegistration
+                ? $"Approved. {row.DisplayName} is now Member in {row.RequestedDepartment} · {row.RequestedValueStreams}. Promote to Proxy / Champion in Users & Access."
+                : $"Approved. {row.DisplayName} now has {row.RequestedDepartment} · {row.RequestedValueStreams}.";
+        Refresh();
+    }
 }
 
 public sealed partial class UsersViewModel : PageViewModel
@@ -219,13 +295,9 @@ public sealed partial class UsersViewModel : PageViewModel
         $"Built-in Owner: {string.Join(", ", Services.Config.Owners)}. Other Owners are the OWNER rows of this table (IB_PROCESS_USER_ACCESS).";
 
     [ObservableProperty] private IReadOnlyList<MatrixRow> _rows = Array.Empty<MatrixRow>();
-    [ObservableProperty] private IReadOnlyList<RequestRow> _requests = Array.Empty<RequestRow>();
     [ObservableProperty] private AccessEditRow? _selectedEdit;
     [ObservableProperty] private string? _message;
-    public bool HasRequests => Requests.Count > 0;
     public ObservableCollection<AccessEditRow> EditRows { get; } = new();
-
-    partial void OnRequestsChanged(IReadOnlyList<RequestRow> value) => OnPropertyChanged(nameof(HasRequests));
 
     public IReadOnlyList<string> EditableByArea => MatrixAreas
         .Select(r => $"{r.DisplayName()}: {string.Join(", ", FieldPermissions.EditableFields(r).Select(FieldLabels.Get))}").ToList();
@@ -244,35 +316,9 @@ public sealed partial class UsersViewModel : PageViewModel
             .Select(vs => new MatrixRow($"VS{vs}", Cell(vs, RoleCode.Qmm), Cell(vs, RoleCode.Requestor), Cell(vs, RoleCode.Gs),
                                         Cell(vs, RoleCode.Lop), Cell(vs, RoleCode.Mfo), Cell(vs, RoleCode.Low), Cell(vs, RoleCode.Hse)))
             .ToList();
-        Requests = Services.Users.Requests().Select(r => new RequestRow(r, Name(r.NtUser),
-            users.TryGetValue(r.NtUser, out var u) ? u.DepartmentCode ?? "—" : "—",
-            users.TryGetValue(r.NtUser, out var u2) ? u2.ValueStreamText : "—")).ToList();
         EditRows.Clear();
         foreach (var a in access.OrderBy(a => a.Function == UserFunction.Owner ? 0 : 1).ThenBy(a => Name(a.NtUser)).ThenBy(a => a.ValueStreamId))
             EditRows.Add(AccessEditRow.From(a, Name(a.NtUser)));
-    }
-
-    [RelayCommand]
-    private void Approve(RequestRow? row) => Decide(row, true);
-
-    [RelayCommand]
-    private void Reject(RequestRow? row) => Decide(row, false);
-
-    private void Decide(RequestRow? row, bool approve)
-    {
-        if (row is null || !CanEdit) return;
-        var comment = Views.InputDialog.Ask(approve ? "Approve request" : "Reject request",
-            $"{row.DisplayName} ({row.NtUser})\n{row.CurrentDepartment} · {row.CurrentValueStreams}  →  {row.RequestedDepartment} · {row.RequestedValueStreams}\n\nComment (optional):",
-            System.Windows.Application.Current.MainWindow, allowEmpty: true);
-        if (comment is null) return;
-        try { Services.Users.Decide(row.Id, approve, _realUser.NtUser, string.IsNullOrWhiteSpace(comment) ? null : comment.Trim()); }
-        catch (Exception ex) { Message = $"Not saved: {ex.Message}"; return; }
-        Services.Audit.Record(new[] { new AuditEntry(0, "USERS", "Profile request", $"{row.CurrentDepartment} · {row.CurrentValueStreams}",
-            $"{(approve ? "Approved" : "Rejected")}: {row.RequestedDepartment} · {row.RequestedValueStreams} ({row.NtUser})", _realUser.NtUser, Services.Clock.UtcNow, comment) });
-        Message = approve
-            ? $"Request approved. {row.DisplayName} now has {row.RequestedDepartment} · {row.RequestedValueStreams}; new VS start as Viewer."
-            : "Request rejected.";
-        Refresh();
     }
 
     [RelayCommand]
@@ -304,7 +350,7 @@ public sealed partial class UsersViewModel : PageViewModel
         var after = EditRows.Select(r => r.ToAccess()).ToList();
         if (after.Any(a => string.IsNullOrWhiteSpace(a.NtUser))) { Message = "Every row needs a Windows user."; return; }
         if (after.Any(a => a.Function != UserFunction.Owner && (a.DepartmentCode.Length == 0 || a.ValueStreamId == 0)))
-        { Message = "Viewer, Proxy and Champion rows need a department and a Value Stream (only Owner ignores them)."; return; }
+        { Message = "Viewer, Member, Proxy and Champion rows need a department and a Value Stream (only Owner ignores them)."; return; }
         var dup = after.GroupBy(a => (a.NtUser.ToUpperInvariant(), a.DepartmentCode, a.ValueStreamId)).FirstOrDefault(g => g.Count() > 1);
         if (dup is not null) { Message = $"{dup.Key.Item1} appears twice for {dup.Key.DepartmentCode} · VS{dup.Key.ValueStreamId}. Keep one row."; return; }
         if (!after.Any(a => a.Function == UserFunction.Owner) && Services.Config.Owners.Count == 0)

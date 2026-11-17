@@ -24,7 +24,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _currentUser = _realUser;
         BuildViewAs();
         _selectedNav = NavItems[0];
-        _currentPage = new PalletListViewModel(services, _currentUser, OpenPallet);
+        _currentPage = new PalletListViewModel(services, _currentUser, OpenProcess);
         _dataSourceLabel = services.DataSourceLabel;
         services.Users.Changed += (_, _) => RefreshIdentity();
     }
@@ -33,16 +33,17 @@ public sealed partial class ShellViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<NavItem> _navItems;
 
     private static readonly NavItem UsersNav = new("users", "Users & Access", "\uE716");
+    private static readonly NavItem RequestsNav = new("requests", "Requests", "\uE8F2");
     private static IReadOnlyList<NavItem> BuildNav(bool isOwner)
     {
         var list = new List<NavItem>
         {
-            new("list", "Returns inbox", "\uE8FD"),
-            new("new", "New return", "\uE710"),
+            new("list", "IB PROCESS inbox", "\uE8FD"),
+            new("new", "New IB PROCESS", "\uE710"),
             new("dashboard", "Balance / Duties", "\uE9D2"),
             new("alerts", "Alerts", "\uE7BA"),
         };
-        if (isOwner) list.Add(UsersNav);
+        if (isOwner) { list.Add(RequestsNav); list.Add(UsersNav); }
         list.Add(new("audit", "Audit log", "\uE81C"));
         return list;
     }
@@ -149,8 +150,9 @@ public sealed partial class ShellViewModel : ObservableObject
             "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenList),
             "alerts" => new AlertsViewModel(_services, CurrentUser, OpenPallet),
             "users" when RealUser.IsOwner => new UsersViewModel(_services, CurrentUser, RealUser),
+            "requests" when RealUser.IsOwner => new RequestsViewModel(_services, CurrentUser, RealUser),
             "audit" => new AuditViewModel(_services, CurrentUser),
-            _ => new PalletListViewModel(_services, CurrentUser, OpenPallet),
+            _ => new PalletListViewModel(_services, CurrentUser, OpenProcess),
         };
     }
 
@@ -175,12 +177,22 @@ public sealed partial class ShellViewModel : ObservableObject
         return true;
     }
 
-    private void OpenPallet(int id)
+    private void OpenProcess(int id)
     {
         if (!ConfirmLeave()) return;
-        var pallet = _services.Repository.Get(id);
+        var process = _services.Repository.Get(id);
+        if (process is null) return;
+        CurrentPage = new PalletDetailViewModel(_services, CurrentUser, process, Back);
+    }
+
+    /// <summary>Alerts are per pallet: opens its IB PROCESS with that pallet selected.</summary>
+    private void OpenPallet(int palletId)
+    {
+        if (!ConfirmLeave()) return;
+        var pallet = _services.Repository.GetPallet(palletId);
         if (pallet is null) return;
-        CurrentPage = new PalletDetailViewModel(_services, CurrentUser, pallet, Back);
+        var process = _services.Repository.Get(pallet.Process.Id) ?? pallet.Process;
+        CurrentPage = new PalletDetailViewModel(_services, CurrentUser, process, Back, palletId);
     }
 
     /// <summary>UX-B13: opens the inbox with a filter (from Balance / Duties).</summary>
@@ -190,7 +202,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _suppressNav = true;
         SelectedNav = NavItems[0];
         _suppressNav = false;
-        CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenPallet, filter);
+        CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenProcess, filter);
     }
 
     /// <summary>UX-B12: Ctrl+N opens a new return from any screen.</summary>
@@ -209,7 +221,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _suppressNav = true;
         SelectedNav = NavItems[0];
         _suppressNav = false;
-        CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenPallet);
+        CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenProcess);
     }
 
     /// <summary>MM60 cost master status for the sidebar (Owner).</summary>

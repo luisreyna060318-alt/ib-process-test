@@ -23,13 +23,14 @@ public static class SampleData
     };
 
     private static readonly string[] Requestors = { "Montaño, Sofía", "Quiroga, Tomás", "Bermúdez, Elena", "Cisneros, Marco", "Olvera, Rubén", "Treviño, Lucía" };
-    private static readonly string[] Depts = { "MFQ8", "LOP2", "MFE5", "TEF6", "QMM1", "LOP1" };
+    private static readonly string[] Depts = { "MFQ", "LOP", "PUQ", "MFO", "QMM", "MFQ" };
 
     /// <summary>Demo MM60 cost master: the materials used by the sample pallets.</summary>
     public static IReadOnlyList<MaterialCost> DemoCosts() =>
         Materials.Select(m => new MaterialCost(m.Pn, m.Desc, m.Cost, 1m, "USD")).ToList();
 
-    public static void Seed(InMemoryPalletRepository repo, IAuditTrail audit, IUserDirectory users, IClock clock)
+    /// <summary>Synthetic IB processes (tests): one pallet each, and every fourth process gets a second pallet.</summary>
+    public static void Seed(InMemoryProcessRepository repo, IAuditTrail audit, IUserDirectory users, IClock clock)
     {
         var today = clock.Today;
         var scenarios = Enum.GetValues<Scenario>();
@@ -45,28 +46,35 @@ public static class SampleData
                 var vs = vsList[n % vsList.Length];
                 folio[vs] = folio.GetValueOrDefault(vs) + 1;
                 var p = Build(sc, vs, folio[vs], n, today, users);
-                PalletEvaluator.Apply(p, CalcParameters.Default, today);
+                if (n % 4 == 1 && sc is not Scenario.Draft)
+                {
+                    // second pallet of the same request: other HU, same PO
+                    var second = p.Process.NewPallet(p.CreatedBy);
+                    second.ReturnedMaterial = p.ReturnedMaterial; second.UnitCostUsd = p.UnitCostUsd; second.UnitCostSource = p.UnitCostSource;
+                    second.QtyImported = 48; second.OriginalHU = (2108100000 + n * 37).ToString();
+                }
+                PalletEvaluator.Apply(p.Process, CalcParameters.Default, today);
                 list.Add(p);
                 n++;
             }
         }
-        repo.ReplaceAll(list);
+        repo.ReplaceAll(list.Select(p => p.Process));
 
         foreach (var p in repo.GetAll())
         {
             audit.Record(new[]
             {
-                new AuditEntry(p.Id, p.FolioCode, "Record", null, "Request created", p.CreatedBy, p.CreatedAtUtc, null),
+                new AuditEntry(0, p.FolioCode, "Record", null, "Request created", p.CreatedBy, p.CreatedAtUtc, null, p.Id),
             });
             if (p.ImportDateElpJup1 is not null)
-                audit.Record(new[] { new AuditEntry(p.Id, p.FolioCode, nameof(PalletReturn.ImportDateElpJup1), null,
-                    p.ImportDateElpJup1.Value.ToString("yyyy-MM-dd"), GsUser(users, p.ValueStreamId), p.ImportDateElpJup1.Value.ToUniversalTime().AddHours(10), null) });
+                audit.Record(new[] { new AuditEntry(0, p.FolioCode, nameof(IbProcess.ImportDateElpJup1), null,
+                    p.ImportDateElpJup1.Value.ToString("yyyy-MM-dd"), GsUser(users, p.ValueStreamId), p.ImportDateElpJup1.Value.ToUniversalTime().AddHours(10), null, p.Id) });
         }
     }
 
     private static string GsUser(IUserDirectory users, int vs) =>
         users.Access().FirstOrDefault(a => a.ValueStreamId == vs && a.Function == UserFunction.Champion
-                                           && RoleInfo.AreaOfDepartment(a.DepartmentCode) == RoleCode.Gs)?.NtUser ?? "DEMO\\GS.OSD43";
+                                           && RoleInfo.AreaOfDepartment(a.DepartmentCode) == RoleCode.Gs)?.NtUser ?? "DEMO\\OSD";
 
     private static PalletReturn Build(Scenario sc, int vs, int folio, int n, DateTime today, IUserDirectory users)
     {
@@ -101,10 +109,9 @@ public static class SampleData
             CreatedAtUtc = cross.AddDays(-3).ToUniversalTime(),
             CreatedBy = UserDirectory.DemoNtUser(qmm),
         };
-        if (sc == Scenario.Draft) { p.ReasonId = null; p.RequestorName = null; return p; }
-
         p.DateReturnedToWhs = cross.AddDays(-2);
         p.ReturnPONumber = (49845000 + n * 7).ToString();
+        if (sc == Scenario.Draft) { p.ReasonId = null; p.RequestorName = null; return p; }
         if (sc == Scenario.Requested) return p;
 
         p.ImportDate = cross;

@@ -19,6 +19,13 @@ public static class PalletEvaluator
         return new PalletEvaluation(fin, status, risk, StatusResolver.AutoCategory(status, fin), issues);
     }
 
+    /// <summary>Calculates every pallet of a process and tells the screens the totals changed.</summary>
+    public static void Apply(IbProcess process, CalcParameters prm, DateTime today)
+    {
+        foreach (var p in process.Pallets) Apply(p, prm, today);
+        process.RaiseTotals();
+    }
+
     /// <summary>Escribe los resultados calculados en el registro (al guardar o al migrar).</summary>
     public static PalletEvaluation Apply(PalletReturn p, CalcParameters prm, DateTime today)
     {

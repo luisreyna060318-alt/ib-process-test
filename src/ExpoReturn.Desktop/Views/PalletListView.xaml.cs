@@ -43,14 +43,14 @@ public partial class PalletListView : UserControl
 
     private void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is PalletListViewModel vm && Grid.SelectedItem is PalletRow row)
+        if (DataContext is PalletListViewModel vm && Grid.SelectedItem is ProcessRow row)
             vm.OpenCommand.Execute(row);
     }
 
     /// <summary>UX-B12: Enter abre el renglón seleccionado (en lugar de bajar al siguiente).</summary>
     private void OnGridKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || DataContext is not PalletListViewModel vm || Grid.SelectedItem is not PalletRow row) return;
+        if (e.Key != Key.Enter || DataContext is not PalletListViewModel vm || Grid.SelectedItem is not ProcessRow row) return;
         vm.OpenCommand.Execute(row);
         e.Handled = true;
     }

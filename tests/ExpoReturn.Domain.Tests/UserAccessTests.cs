@@ -17,7 +17,7 @@ public class UserAccessTests
     public void First_run_registers_the_user_as_viewer_in_the_selected_value_streams()
     {
         var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: false);
-        dir.Register("bosch\\abc1jup", "Ana Uno", "GS/OSD43", new[] { 4, 7 });
+        dir.Register("bosch\\abc1jup", "Ana Uno", "OSD", new[] { 4, 7 });
 
         var user = dir.ContextFor("BOSCH\\ABC1JUP");
         Assert.Equal(UserFunction.Viewer, user.Function);
@@ -29,8 +29,8 @@ public class UserAccessTests
     public void Champion_or_proxy_edits_only_their_area_fields_in_their_value_streams()
     {
         var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: false);
-        dir.Register("BOSCH\\GS1", "Gus Dos", "GS/OSD43", new[] { 4 });
-        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\GS1", "GS/OSD43", 4, UserFunction.Proxy) });
+        dir.Register("BOSCH\\GS1", "Gus Dos", "OSD", new[] { 4 });
+        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\GS1", "OSD", 4, UserFunction.Proxy) });
 
         var gs = dir.ContextFor("BOSCH\\GS1");
         Assert.True(FieldPermissions.CanEdit(gs, Imported(4), nameof(PalletReturn.ImportInvoice)));
@@ -55,30 +55,30 @@ public class UserAccessTests
     public void Profile_changes_wait_for_the_owner_and_a_department_change_resets_functions()
     {
         var dir = new UserDirectory((string?)null, new[] { "BOSCH\\OWNER" }, includeDemoUsers: false);
-        dir.Register("BOSCH\\U1", "User One", "QMM1", new[] { 1 });
-        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\U1", "QMM1", 1, UserFunction.Champion) });
+        dir.Register("BOSCH\\U1", "User One", "QMM", new[] { 1 });
+        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\U1", "QMM", 1, UserFunction.Champion) });
 
         // Same department, one more VS: request pending, access unchanged
-        var req = dir.RequestChange("BOSCH\\U1", "QMM1", new[] { 1, 5 });
+        var req = dir.RequestChange("BOSCH\\U1", "QMM", new[] { 1, 5 });
         Assert.Equal(new[] { 1 }, dir.ContextFor("BOSCH\\U1").ValueStreams);
         Assert.NotNull(dir.PendingRequestFor("BOSCH\\U1"));
 
         dir.Decide(req.Id, approve: true, "BOSCH\\OWNER", null);
         var u = dir.ContextFor("BOSCH\\U1");
         Assert.Contains(u.Grants, g => g.ValueStreamId == 1 && g.Function == UserFunction.Champion);   // kept
-        Assert.Contains(u.Grants, g => g.ValueStreamId == 5 && g.Function == UserFunction.Viewer);     // new VS as Viewer
+        Assert.Contains(u.Grants, g => g.ValueStreamId == 5 && g.Function == UserFunction.Member);     // new VS: Member (the user already captures)
 
-        // Department change: Champion/Proxy go back to Viewer
-        var req2 = dir.RequestChange("BOSCH\\U1", "MFO1", new[] { 1 });
+        // Department change: Champion/Proxy go back to Member
+        var req2 = dir.RequestChange("BOSCH\\U1", "MFO", new[] { 1 });
         dir.Decide(req2.Id, approve: true, "BOSCH\\OWNER", null);
         u = dir.ContextFor("BOSCH\\U1");
-        Assert.Equal("MFO1", u.DepartmentCode);
-        Assert.All(u.Grants, g => Assert.Equal(UserFunction.Viewer, g.Function));
+        Assert.Equal("MFO", u.DepartmentCode);
+        Assert.All(u.Grants, g => Assert.Equal(UserFunction.Member, g.Function));
 
         // Rejected request changes nothing
         var req3 = dir.RequestChange("BOSCH\\U1", "LOW", new[] { 9 });
         dir.Decide(req3.Id, approve: false, "BOSCH\\OWNER", "No");
-        Assert.Equal("MFO1", dir.ContextFor("BOSCH\\U1").DepartmentCode);
+        Assert.Equal("MFO", dir.ContextFor("BOSCH\\U1").DepartmentCode);
     }
 
     [Fact]

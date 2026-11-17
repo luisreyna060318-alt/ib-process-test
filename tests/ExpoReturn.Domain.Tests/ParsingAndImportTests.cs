@@ -47,7 +47,7 @@ public class ParsingAndImportTests
     [Fact]
     public void Sample_data_covers_every_open_and_closed_status()
     {
-        var repo = new InMemoryPalletRepository();
+        var repo = new InMemoryProcessRepository();
         SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
         var statuses = repo.GetAll().Select(p => p.Status).Distinct().ToList();
         foreach (var s in new[] { WorkflowStatus.Draft, WorkflowStatus.Requested, WorkflowStatus.Imported, WorkflowStatus.InRework,
@@ -59,11 +59,11 @@ public class ParsingAndImportTests
     [Fact]
     public void Save_respects_field_permissions_and_audits_changes()
     {
-        var repo = new InMemoryPalletRepository();
+        var repo = new InMemoryProcessRepository();
         var audit = new InMemoryAuditTrail();
         var clock = new SystemClock();
         SampleData.Seed(repo, audit, new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), clock);
-        var svc = new PalletReturnService(repo, audit, clock);
+        var svc = new ProcessService(repo, audit, clock);
         var open = repo.GetAll().First(p => p.Status == WorkflowStatus.Imported);
 
         var mfoOtherVs = new UserContext("T\\MFO", "MFO", "MFO", false, new[] { new AccessGrant("MFO", open.ValueStreamId == 1 ? 4 : 1, UserFunction.Champion) });
@@ -72,7 +72,7 @@ public class ParsingAndImportTests
         Assert.False(denied.Success);
         Assert.Contains(nameof(PalletReturn.ImportInvoice), denied.DeniedFields);
 
-        var gs = new UserContext("T\\GS", "GS", "GS/OSD43", false, new[] { new AccessGrant("GS/OSD43", open.ValueStreamId, UserFunction.Proxy) });
+        var gs = new UserContext("T\\GS", "GS", "OSD", false, new[] { new AccessGrant("OSD", open.ValueStreamId, UserFunction.Proxy) });
         var edit2 = open.Clone(); edit2.ImportInvoice = $"MPS{open.ImportDate:yy}999999";
         var ok = svc.Save(edit2, gs);
         Assert.True(ok.Success, ok.Summary);
@@ -100,5 +100,14 @@ public class ParsingAndImportTests
         foreach (var vs in new[] { "VS1", "VS4", "VS5", "VS7", "VS9" }) Assert.True(result.RowsPerSheet[vs] > 50, vs);
         Assert.True(result.Pallets.Count > 600);
         Assert.True(result.Champions.Count > 10);
+
+        // v0.5.0: one IB PROCESS per Excel row, departments mapped to the 8 of the catalog (original kept in the findings)
+        Assert.Equal(result.Pallets.Count, result.Processes.Count);
+        Assert.All(result.Processes, p => Assert.Single(p.Pallets));
+        foreach (var g in result.Processes.GroupBy(p => p.RequestingDepartment ?? "(empty)").OrderByDescending(g => g.Count()))
+            _out.WriteLine($"  Dept {g.Key}: {g.Count()}");
+        Assert.All(result.Processes.Where(p => p.RequestingDepartment is not null),
+            p => Assert.NotNull(Catalogs.FindDepartment(p.RequestingDepartment)));
+        Assert.Contains(result.Pallets, p => p.DataQualityFlags.Any(f => f.StartsWith("DQ-DEPT-MAPPED")));
     }
 }

@@ -33,7 +33,7 @@
             <TextBlock Text="Function" Style="{StaticResource FieldLabel}" />
             <TextBlock Margin="0,0,0,4">
                 <Run Text="{Binding FunctionText, Mode=OneWay}" FontWeight="SemiBold" />
-                <Run Text="  · assigned by the Owner (Viewer = read-only)" Foreground="{StaticResource TextMuted}" />
+                <Run Text="  · assigned by the Owner (Viewer = read-only, Member = captures)" Foreground="{StaticResource TextMuted}" />
             </TextBlock>
 
             <Border Background="#FEF3C7" CornerRadius="4" Padding="10,6" Margin="0,10,0,0"

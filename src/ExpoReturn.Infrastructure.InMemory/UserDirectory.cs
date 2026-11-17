@@ -159,8 +159,24 @@ public sealed class UserDirectory : IUserDirectory
                 store.Access.Add(row);
                 changes.AddedAccess.Add(row);
             }
+            // Viewer until the Owner approves the registration (then Member). The Owner needs no request.
+            if (dept is not null && vss.Count > 0 && !IsOwner(key))
+            {
+                var id = _real.Requests.Concat(_demo.Requests).Select(r => r.Id).DefaultIfEmpty(0).Max() + 1;
+                var request = new ProfileRequest(id, key, dept, vss, DateTime.UtcNow, IsRegistration: true);
+                store.Requests.Add(request);
+                changes.NewRequests.Add(request);
+            }
         }
-        Persist(changes);
+        var ids = Persist(changes);
+        if (ids.Count > 0)
+            lock (_gate)
+            {
+                var store = StoreOf(key);
+                for (var i = 0; i < store.Requests.Count; i++)
+                    if (store.Requests[i].NtUser == key && ids.TryGetValue(store.Requests[i].Id, out var realId))
+                        store.Requests[i] = store.Requests[i] with { Id = realId };
+            }
     }
 
     public void UpdateDisplayName(string ntUser, string displayName)
@@ -189,6 +205,8 @@ public sealed class UserDirectory : IUserDirectory
         lock (_gate)
         {
             // A new request replaces the user's previous pending one (kept as rejected, not deleted).
+            // If that one was the registration, the new one still is (approving it makes the user a Member).
+            var wasRegistration = store.Requests.Any(r => r.NtUser == key && r.Status == RequestStatus.Pending && r.IsRegistration);
             for (var i = 0; i < store.Requests.Count; i++)
                 if (store.Requests[i].NtUser == key && store.Requests[i].Status == RequestStatus.Pending)
                 {
@@ -199,7 +217,8 @@ public sealed class UserDirectory : IUserDirectory
                     changes.DecidedRequests.Add(store.Requests[i]);
                 }
             var id = _real.Requests.Concat(_demo.Requests).Select(r => r.Id).DefaultIfEmpty(0).Max() + 1;
-            request = new ProfileRequest(id, key, departmentCode.Trim(), valueStreams.Distinct().OrderBy(v => v).ToList(), DateTime.UtcNow);
+            request = new ProfileRequest(id, key, departmentCode.Trim(), valueStreams.Distinct().OrderBy(v => v).ToList(), DateTime.UtcNow,
+                                         IsRegistration: wasRegistration);
             store.Requests.Add(request);
             changes.NewRequests.Add(request);
         }
@@ -215,8 +234,10 @@ public sealed class UserDirectory : IUserDirectory
     }
 
     /// <summary>
-    /// Approve: the profile takes the new department / VS. VS removed lose their access rows (closed); new VS get Viewer rows.
-    /// If the department changes, Champion/Proxy functions go back to Viewer (they belonged to the old department).
+    /// Approve a registration: the user becomes Member in the department and every VS asked for.
+    /// Approve a change: the profile takes the new department / VS; VS removed lose their access rows (closed); new VS get
+    /// the user's level (Member if they could capture, else Viewer). If the department changes, Champion / Proxy go back
+    /// to Member (they belonged to the old department).
     /// </summary>
     public void Decide(int requestId, bool approve, string ownerNtUser, string? comment)
     {
@@ -245,10 +266,14 @@ public sealed class UserDirectory : IUserDirectory
                 }
                 var deptChanged = !string.Equals(oldDept, req.DepartmentCode, StringComparison.OrdinalIgnoreCase);
                 var current = store.Access.Where(a => a.NtUser == req.NtUser).ToList();
+                var captures = req.IsRegistration || current.Any(a => a.Function is >= UserFunction.Member and < UserFunction.Owner);
+                var level = captures ? UserFunction.Member : UserFunction.Viewer;
+                // Kept: Owner rows and, same department, the rows of the VS asked for (a registration only upgrades Viewer rows).
                 var target = current.Where(a => a.Function == UserFunction.Owner
-                                                || (!deptChanged && req.ValueStreams.Contains(a.ValueStreamId))).ToList();
+                                                || (!deptChanged && req.ValueStreams.Contains(a.ValueStreamId)
+                                                    && (!req.IsRegistration || a.Function >= UserFunction.Member))).ToList();
                 foreach (var vs in req.ValueStreams.Where(vs => !target.Any(k => k.ValueStreamId == vs && k.Function != UserFunction.Owner)))
-                    target.Add(new UserAccess(req.NtUser, req.DepartmentCode, vs, UserFunction.Viewer));
+                    target.Add(new UserAccess(req.NtUser, req.DepartmentCode, vs, level));
                 ApplyAccessDiff(store, current, target, changes);
             }
         }
@@ -344,30 +369,30 @@ public sealed class UserDirectory : IUserDirectory
         //            department     VS1                  VS4                  VS5                  VS7                   VS9
         var champions = new (string Dept, string[] Names)[]
         {
-            ("QMM1",     new[] { "Andrea Salinas",    "Ivonne Castillo",   "Natalia Ocampo",    "Julián Robles",      "Rodrigo Sandoval" }),
-            ("MFQ8",     new[] { "Tomás Arriaga",     "Karla Ontiveros",   "Elena Barajas",     "Marcos Valenzuela",  "Sofía Rentería" }),
-            ("GS/OSD43", new[] { "Patricia Lozano",   "Adrián Cisneros",   "Beatriz Galindo",   "Rebeca Treviño",     "Hugo Navarrete" }),
-            ("LOP1",     new[] { "Héctor Villalobos", "Mariana Quiroz",    "Rogelio Bermúdez",  "Lorena Ibarra",      "Fabián Zamora" }),
-            ("MFO1",     new[] { "Gerardo Peralta",   "Fernanda Ruiz",     "Mauricio Peña",     "Paola Esquer",       "Jorge Montes" }),
+            ("QMM",      new[] { "Andrea Salinas",    "Ivonne Castillo",   "Natalia Ocampo",    "Julián Robles",      "Rodrigo Sandoval" }),
+            ("MFQ",      new[] { "Tomás Arriaga",     "Karla Ontiveros",   "Elena Barajas",     "Marcos Valenzuela",  "Sofía Rentería" }),
+            ("OSD",      new[] { "Patricia Lozano",   "Adrián Cisneros",   "Beatriz Galindo",   "Rebeca Treviño",     "Hugo Navarrete" }),
+            ("LOP",      new[] { "Héctor Villalobos", "Mariana Quiroz",    "Rogelio Bermúdez",  "Lorena Ibarra",      "Fabián Zamora" }),
+            ("MFO",      new[] { "Gerardo Peralta",   "Fernanda Ruiz",     "Mauricio Peña",     "Paola Esquer",       "Jorge Montes" }),
             ("LOW",      new[] { "Óscar Medina",      "Alma Rosales",      "Pedro Cázares",     "Verónica Luján",     "Gilberto Saucedo" }),
             ("HSE",      new[] { "Silvia Cárdenas",   "Ignacio Meléndez",  "Claudia Íñiguez",   "Samuel Ochoa",       "Teresa Bustamante" }),
         };
         int[] vsOrder = { 1, 4, 5, 7, 9 };
         foreach (var (dept, names) in champions)
             for (var i = 0; i < vsOrder.Length; i++) Add(names[i], dept, UserFunction.Champion, vsOrder[i]);
-        Add("Mónica Trejo", "QMM1", UserFunction.Proxy, 1);
-        Add("Raúl Quintana", "QMM1", UserFunction.Proxy, 4);
-        Add("César Domínguez", "QMM1", UserFunction.Proxy, 5);
-        Add("Andrea Salinas", "QMM1", UserFunction.Proxy, 7);          // Champion in VS1 and Proxy in VS7
-        Add("Diana Solís", "QMM1", UserFunction.Proxy, 9);
-        Add("Luis Paredes", "MFO1", UserFunction.Proxy, 1);
-        Add("Joel Aranda", "MFO1", UserFunction.Proxy, 4);
-        Add("Daniel Correa", "MFO1", UserFunction.Proxy, 5);
-        Add("Abril Fuentes", "MFO1", UserFunction.Proxy, 9);
-        Add("Iván Robledo", "GS/OSD43", UserFunction.Proxy, 1, 4, 5, 7, 9);
+        Add("Mónica Trejo", "QMM", UserFunction.Proxy, 1);
+        Add("Raúl Quintana", "QMM", UserFunction.Proxy, 4);
+        Add("César Domínguez", "QMM", UserFunction.Proxy, 5);
+        Add("Andrea Salinas", "QMM", UserFunction.Proxy, 7);          // Champion in VS1 and Proxy in VS7
+        Add("Diana Solís", "QMM", UserFunction.Proxy, 9);
+        Add("Luis Paredes", "MFO", UserFunction.Proxy, 1);
+        Add("Joel Aranda", "MFO", UserFunction.Proxy, 4);
+        Add("Daniel Correa", "MFO", UserFunction.Proxy, 5);
+        Add("Abril Fuentes", "MFO", UserFunction.Proxy, 9);
+        Add("Iván Robledo", "OSD", UserFunction.Proxy, 1, 4, 5, 7, 9);
         Add("Ernesto Galván", "LOW", UserFunction.Proxy, 1, 4, 5, 7, 9);
         Add("Ramiro Olvera", "HSE", UserFunction.Proxy, 1, 4, 5, 7, 9);
-        Add("Consulta Gerencia", "QMM1", UserFunction.Viewer, 1, 4, 5, 7, 9);
+        Add("Consulta Gerencia", "QMM", UserFunction.Viewer, 1, 4, 5, 7, 9);
     }
 }
 

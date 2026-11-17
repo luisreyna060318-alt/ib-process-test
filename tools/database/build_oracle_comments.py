@@ -11,23 +11,24 @@ from fields import FIELDS  # noqa: E402
 OUT = os.path.join(ROOT, "database", "oracle", "03_comments_and_triggers.sql")
 TABLES = {
     "IB_PROCESS_VALUE_STREAMS": "Value Streams (one per Excel sheet VS1, VS4, VS5, VS7, VS9)",
-    "IB_PROCESS_DEPARTMENTS": "Departments; AREA decides the fields a Champion/Proxy edits; IS_ACTIVE N = history only",
+    "IB_PROCESS_DEPARTMENTS": "Departments; AREA decides the fields its members edit; IS_ACTIVE N = not offered",
     "IB_PROCESS_REASONS": "Reasons of the Excel list",
     "IB_PROCESS_WORKFLOW_STATUS": "Calculated workflow status",
     "IB_PROCESS_STATUS_CATEGORIES": "Status categories = options of the Excel COMMENTS column",
     "IB_PROCESS_STATUS_CAT_VS": "Status category options of each VS sheet",
     "IB_PROCESS_MM60_COSTS": "MM60 cost master (Excel sheet MM60 COST SAP)",
     "IB_PROCESS_USERS": "Users identified by their Windows account (DOMAIN\\USER)",
-    "IB_PROCESS_USER_ACCESS": "User / Department / Value Stream / Function (VIEWER, PROXY, CHAMPION, OWNER)",
-    "IB_PROCESS_PROFILE_REQUESTS": "Department / VS change requests, approved or rejected by the Owner",
+    "IB_PROCESS_USER_ACCESS": "User / Department / Value Stream / Function (VIEWER, MEMBER, PROXY, CHAMPION, OWNER)",
+    "IB_PROCESS_PROFILE_REQUESTS": "Registrations and department / VS changes, approved or rejected by the Owner",
     "IB_PROCESS_REQUEST_VS": "Value Streams of each profile request",
     "IB_PROCESS_FIELD_PERMISSIONS": "Fields each area edits",
     "IB_PROCESS_PARAMETERS": "Versioned parameters (duty rate, IMMEX term, alert thresholds)",
     "IB_PROCESS_FOLIO_COUNTERS": "Last folio per Value Stream",
-    "IB_PROCESS_PALLET_RETURNS": "One row per returned pallet (one row of a VS sheet of the Excel 2.0)",
+    "IB_PROCESS_PROCESSES": "IB PROCESS: request, customs entry and delivery number shared by its pallets",
+    "IB_PROCESS_PALLETS": "Pallets of an IB PROCESS (each with its PO and HU or batch); historical rows: one pallet per process",
     "IB_PROCESS_STATUS_HISTORY": "Calculated status changes",
     "IB_PROCESS_ALERTS": "Alerts and how they were handled",
-    "IB_PROCESS_AUDIT_LOG": "Field-level audit log (append-only)",
+    "IB_PROCESS_AUDIT_LOG": "Field-level audit log (append-only); D rows keep a snapshot of what was deleted",
     "IB_PROCESS_FEEDBACK": "Reviewer feedback",
 }
 
@@ -40,14 +41,20 @@ L = ["/* =====================================================================",
 for t, c in TABLES.items():
     L.append(f"COMMENT ON TABLE {t} IS {q(c)};")
 L.append("")
+PROCESS_COLUMNS = {"FOLIO_NUMBER", "QMM_RESPONSIBLE", "REQUESTING_DEPARTMENT", "REQUESTOR_NAME", "REASON_ID", "REASON_DETAIL",
+                   "IMPORT_DATE", "IMPORT_INVOICE", "ELP_JUP1_CROSSING_DATE", "DELIVERY_NUMBER", "VALUE_STREAM_ID"}
 for stage, label, code, col, typ, excel, idx, area, origin, rule in FIELDS:
     for c in [x.strip().split(" ")[0] for x in col.split(",")]:
-        L.append(f"COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.{c} IS {q(f'{label} · Excel: {excel} · {origin} by {area}')};")
+        table = "IB_PROCESS_PROCESSES" if c in PROCESS_COLUMNS else "IB_PROCESS_PALLETS"
+        L.append(f"COMMENT ON COLUMN {table}.{c} IS {q(f'{label} · Excel: {excel} · {origin} by {area}')};")
 L += ["",
-      "COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.IS_LEGACY IS 'Y = imported from the Excel 2.0 (editable working record, to homogenize); N = created in the app';",
-      "COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.LEGACY_SHEET IS 'Excel 2.0 sheet the record was imported from (VS1, VS4, VS5, VS7, VS9)';",
-      "COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.LEGACY_ROW IS 'Excel 2.0 row the record was imported from; sheet + row is loaded only once';",
-      "COMMENT ON COLUMN IB_PROCESS_PALLET_RETURNS.DATA_QUALITY_FLAGS IS 'Findings of the Excel import (kept as found); the app shows the current findings to homogenize';",
+      "COMMENT ON COLUMN IB_PROCESS_PROCESSES.IS_LEGACY IS 'Y = imported from the Excel 2.0 (editable, to homogenize); N = created in the app';",
+      "COMMENT ON COLUMN IB_PROCESS_PROCESSES.LEGACY_SHEET IS 'Excel 2.0 sheet the record was imported from (VS1, VS4, VS5, VS7, VS9)';",
+      "COMMENT ON COLUMN IB_PROCESS_PROCESSES.LEGACY_ROW IS 'Excel 2.0 row the record was imported from; sheet + row is loaded only once';",
+      "COMMENT ON COLUMN IB_PROCESS_PROCESSES.QMM_RESPONSIBLE_NT IS 'Registered user who is QMM Responsible (new processes)';",
+      "COMMENT ON COLUMN IB_PROCESS_PROCESSES.REQUESTOR_NT IS 'Registered user who requests: a MEMBER can work on the processes they created or request';",
+      "COMMENT ON COLUMN IB_PROCESS_PALLETS.LINE_NO IS 'Pallet number inside the process (VS7-00012-01)';",
+      "COMMENT ON COLUMN IB_PROCESS_PALLETS.DATA_QUALITY_FLAGS IS 'Findings of the Excel import (kept as found); the app shows the current findings to homogenize';",
       "",
       "-- The audit log is append-only: no UPDATE or DELETE, not even from the application.",
       "CREATE OR REPLACE TRIGGER IB_PROCESS_AUDIT_LOG_RO",

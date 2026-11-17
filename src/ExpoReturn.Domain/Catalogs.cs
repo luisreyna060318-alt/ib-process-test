@@ -20,10 +20,9 @@ public sealed record Department(string Code, string Area, bool CanRequest, strin
     /// <summary>Areas the database accepts (IB_DEPT_CK_AREA) and what a Champion / Proxy of each edits.</summary>
     public static IReadOnlyList<(string Area, string Edits)> Areas { get; } = new[]
     {
-        ("QMM", "request, PO and status category"), ("MFQ", "request"), ("MFE", "request"), ("TEF", "request"), ("PUQ", "request"),
-        ("GS", "import and customs export"), ("LOP", "delivery number"), ("MFO", "plant execution and GR number"),
+        ("QMM", "request, PO and status category"), ("MFQ", "request"), ("PUQ", "request"),
+        ("OSD", "import and customs export"), ("LOP", "delivery number"), ("MFO", "plant execution and GR number"),
         ("LOW", "LOW export"), ("HSE", "HSE scrap confirmation"),
-        ("CTG", "read only"), ("DBE", "read only"), ("QMM-L", "read only"),
     };
 
     /// <summary>Checks a new department; returns the problem or null. Code: letters, digits, '-' and '/', at most 20.</summary>
@@ -119,10 +118,7 @@ public static class Catalogs
         new Reason(10, "R10", "Inspect due to mistakes in standard pack", "PACKAGING", false),
     };
 
-    /// <summary>
-    /// Departments offered in the application (list agreed with the process owner, plus GS/OSD43 and HSE, which take part in
-    /// the flow). [VALIDATE] areas of MFE / TEF / CTG / DBE / QMM-L and the last cross-functional department of the list.
-    /// </summary>
+    /// <summary>Departments offered in the application (active rows of IB_PROCESS_DEPARTMENTS).</summary>
     public static IReadOnlyList<Department> Departments => AllDepartments.Where(d => d.IsActive).ToList();
 
     private static volatile IReadOnlyList<Department>? _departments;     // null = built-in list
@@ -146,37 +142,23 @@ public static class Catalogs
     /// <summary>Built-in list = the seed of IB_PROCESS_DEPARTMENTS (02_seed_data.sql). Used in Local mode.</summary>
     public static IReadOnlyList<Department> BuiltInDepartments { get; } = new Department[]
     {
-        // Process departments (JuP1/...)
-        new("MFQ8", "MFQ", true),
-        new("MFO1", "MFO", true),
-        new("MFO12", "MFO", true),
-        new("MFO1-US", "MFO", true),
-        new("MFE5", "MFE", true),
-        new("QMM1", "QMM", true),
-        new("QMM2", "QMM", true),
-        new("LOP1", "LOP", true),
-        new("LOP2", "LOP", true),
-        new("LOW", "LOW", false),
-        new("CTG3", "CTG", false),
-        new("TEF6", "TEF", true),
-        new("GS/OSD43", "GS", false),
-        new("HSE", "HSE", false),
-        // Requesting departments of the Excel 2.0 list (sheet "Sheet1") and LOW2, found in the Excel rows
-        new("MFQ1", "MFQ", true), new("MFQ4", "MFQ", true), new("MFQ5", "MFQ", true), new("MFQ7", "MFQ", true), new("MFQ9", "MFQ", true),
-        new("QMM-C1", "QMM", true), new("QMM-C2", "QMM", true), new("PUQ", "PUQ", true), new("LOW2", "LOW", true),
-        // Digitalization and cross-functional projects
-        new("QMM-L2", "QMM-L", false, Department.CrossFunctional),
-        new("DBE", "DBE", false, Department.CrossFunctional),
-        new("TEF1", "TEF", false, Department.CrossFunctional),
-        // Old list: history only
-        new("QMM", "QMM", true, IsActive: false),
-        new("MFQ", "MFQ", true, IsActive: false),
-        new("MFQ2", "MFQ", true, IsActive: false), new("MFQ3", "MFQ", true, IsActive: false), new("MFQ6", "MFQ", true, IsActive: false),
-        new("MFO", "MFO", true, IsActive: false),
-        new("MFO4", "MFO", true, IsActive: false), new("MFO5", "MFO", true, IsActive: false),
-        new("MFO7", "MFO", true, IsActive: false), new("MFO9", "MFO", true, IsActive: false),
-        new("LOP", "LOP", true, IsActive: false),
+        new("QMM", "QMM", true), new("MFQ", "MFQ", true), new("PUQ", "PUQ", true), new("MFO", "MFO", true),
+        new("LOP", "LOP", true), new("OSD", "OSD", true), new("LOW", "LOW", true), new("HSE", "HSE", true),
     };
+
+    /// <summary>
+    /// Department of a code typed in the Excel 2.0: the current code itself, else by prefix (MFQ4 → MFQ, MFO5 → MFO,
+    /// LOW2 → LOW, GS/OSD43 → OSD). Null when nothing matches.
+    /// </summary>
+    public static string? MapLegacyDepartment(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return null;
+        var c = code.Trim().ToUpperInvariant();
+        if (FindDepartment(c) is { } exact) return exact.Code;
+        if (c.Contains("OSD") || c.StartsWith("GS")) return FindDepartment("OSD")?.Code;
+        return AllDepartments.OrderByDescending(d => d.Code.Length)
+            .FirstOrDefault(d => c.StartsWith(d.Code, StringComparison.OrdinalIgnoreCase))?.Code;
+    }
 
     public static Department? FindDepartment(string? code) =>
         string.IsNullOrWhiteSpace(code) ? null
@@ -193,7 +175,7 @@ public static class Catalogs
         Cat("EXPORT", "OUTCOME", null, false, true),
         Cat("SCRAP", "OUTCOME", null, false, true),
         Cat("INVENTORY", "OUTCOME", null, false, true),
-        Cat("ENVIO NACIONAL", "OUTCOME", "GS", false, false),
+        Cat("ENVIO NACIONAL", "OUTCOME", "OSD", false, false),
         Cat("SCRAP SIN SALIDA FISICA", "DISCREPANCY", "HSE", true, false),
         Cat("NO REPORTADO CORRECTAMENTE", "DISCREPANCY", null, true, false),
         Cat("NO REPORTADO CON CONO VERDE", "DISCREPANCY", "MFO", true, false),

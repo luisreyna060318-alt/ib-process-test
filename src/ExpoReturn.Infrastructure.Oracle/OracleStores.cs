@@ -14,20 +14,23 @@ public sealed class OracleAuditTrail : IAuditTrail
     private readonly OracleDb _db;
     private readonly string _appVersion;
     private static readonly Dictionary<string, string> PropertyOfColumn =
-        OraclePalletRepository.ColumnOfProperty.ToDictionary(kv => kv.Value, kv => kv.Key);
+        OracleProcessRepository.ColumnOfProperty.ToDictionary(kv => kv.Value, kv => kv.Key);
 
     public OracleAuditTrail(OracleDb db, string appVersion) { _db = db; _appVersion = appVersion; }
 
-    /// <summary>Entries without a pallet (users, MM60) are stored against their own table.</summary>
-    private static (string Table, string RecordId) Target(AuditEntry e) => e.PalletId > 0
-        ? ("IB_PROCESS_PALLET_RETURNS", e.PalletId.ToString(CultureInfo.InvariantCulture))
+    /// <summary>A pallet field → IB_PROCESS_PALLETS; a header field → IB_PROCESS_PROCESSES; users, MM60… → their table.</summary>
+    private static (string Table, string RecordId) Target(AuditEntry e) =>
+        e.PalletId > 0 ? ("IB_PROCESS_PALLETS", e.PalletId.ToString(CultureInfo.InvariantCulture))
+        : e.ProcessId > 0 ? ("IB_PROCESS_PROCESSES", e.ProcessId.ToString(CultureInfo.InvariantCulture))
         : e.FolioCode switch
         {
             "USERS" => ("IB_PROCESS_USER_ACCESS", "USERS"),
             "MM60" => ("IB_PROCESS_MM60_COSTS", "MM60"),
             "DEPARTMENTS" => ("IB_PROCESS_DEPARTMENTS", "DEPARTMENTS"),
-            _ => ("IB_PROCESS_PALLET_RETURNS", e.FolioCode),
+            _ => ("IB_PROCESS_PROCESSES", e.FolioCode),
         };
+
+    private const string Columns = "AUDIT_ID, TABLE_NAME, RECORD_ID, PROCESS_ID, FOLIO_CODE, ACTION, FIELD_NAME, OLD_VALUE, NEW_VALUE, NT_USER, CHANGE_REASON, CHANGED_AT";
 
     public void Record(IEnumerable<AuditEntry> entries)
     {
@@ -40,13 +43,15 @@ public sealed class OracleAuditTrail : IAuditTrail
             {
                 var (table, id) = Target(e);
                 using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_AUDIT_LOG")}
-                    (TABLE_NAME, RECORD_ID, FOLIO_CODE, ACTION, FIELD_NAME, OLD_VALUE, NEW_VALUE, NT_USER, CLIENT_MACHINE, APP_VERSION, CORRELATION_ID, CHANGE_REASON)
-                    VALUES (:t, :id, :folio, :action, :field, :oldValue, :newValue, :nt, :machine, :version, :corr, :reason)", tx);
+                    (TABLE_NAME, RECORD_ID, PROCESS_ID, FOLIO_CODE, ACTION, FIELD_NAME, OLD_VALUE, NEW_VALUE, NT_USER, CLIENT_MACHINE, APP_VERSION,
+                     CORRELATION_ID, CHANGE_REASON, SNAPSHOT)
+                    VALUES (:t, :id, :processId, :folio, :action, :field, :oldValue, :newValue, :nt, :machine, :version, :corr, :reason, :snapshot)", tx);
                 cmd.Parameters.Add("t", table);
                 cmd.Parameters.Add("id", id);
-                cmd.Parameters.Add("folio", Db(Cut(e.FolioCode, 14)));
-                cmd.Parameters.Add("action", e.OldValue is null ? "I" : "U");
-                cmd.Parameters.Add("field", Db(Cut(OraclePalletRepository.ColumnOfProperty.GetValueOrDefault(e.Field, e.Field), 30)));
+                cmd.Parameters.Add("processId", e.ProcessId > 0 ? e.ProcessId : DBNull.Value);
+                cmd.Parameters.Add("folio", Db(Cut(e.FolioCode, 18)));
+                cmd.Parameters.Add("action", e.Deleted ? "D" : e.OldValue is null ? "I" : "U");
+                cmd.Parameters.Add("field", Db(Cut(OracleProcessRepository.ColumnOfProperty.GetValueOrDefault(e.Field, e.Field), 30)));
                 cmd.Parameters.Add("oldValue", Db(Cut(e.OldValue, 2000)));
                 cmd.Parameters.Add("newValue", Db(Cut(e.NewValue, 2000)));
                 cmd.Parameters.Add("nt", e.NtUser);
@@ -54,27 +59,29 @@ public sealed class OracleAuditTrail : IAuditTrail
                 cmd.Parameters.Add("version", _appVersion);
                 cmd.Parameters.Add("corr", correlation);
                 cmd.Parameters.Add("reason", Db(Cut(e.Reason, 500)));
+                cmd.Parameters.Add("snapshot", OracleDbType.Clob, string.IsNullOrEmpty(e.Snapshot) ? DBNull.Value : e.Snapshot, System.Data.ParameterDirection.Input);
                 cmd.ExecuteNonQuery();
             }
         });
     }
 
-    public IReadOnlyList<AuditEntry> For(int palletId) => Read(
-        $"SELECT * FROM {_db.T("IB_PROCESS_AUDIT_LOG")} WHERE TABLE_NAME = 'IB_PROCESS_PALLET_RETURNS' AND RECORD_ID = :id ORDER BY CHANGED_AT DESC, AUDIT_ID DESC",
-        ("id", palletId.ToString(CultureInfo.InvariantCulture)));
+    public IReadOnlyList<AuditEntry> For(int processId) => Read(
+        $"SELECT {Columns} FROM {_db.T("IB_PROCESS_AUDIT_LOG")} WHERE PROCESS_ID = :id ORDER BY CHANGED_AT DESC, AUDIT_ID DESC",
+        ("id", processId));
 
     public IReadOnlyList<AuditEntry> All() => Read(
-        $"SELECT * FROM (SELECT * FROM {_db.T("IB_PROCESS_AUDIT_LOG")} ORDER BY CHANGED_AT DESC, AUDIT_ID DESC) WHERE ROWNUM <= :n",
+        $"SELECT * FROM (SELECT {Columns} FROM {_db.T("IB_PROCESS_AUDIT_LOG")} ORDER BY CHANGED_AT DESC, AUDIT_ID DESC) WHERE ROWNUM <= :n",
         ("n", Math.Max(100, _db.Settings.AuditRowsShown)));
 
     private List<AuditEntry> Read(string sql, params (string, object?)[] args) => _db.Query(sql, r =>
     {
         var table = Str(r, "TABLE_NAME");
         var record = Str(r, "RECORD_ID") ?? "";
-        var palletId = table == "IB_PROCESS_PALLET_RETURNS" && int.TryParse(record, out var id) ? id : 0;
+        var palletId = table == "IB_PROCESS_PALLETS" && int.TryParse(record, out var id) ? id : 0;
         var field = Str(r, "FIELD_NAME") ?? "";
         return new AuditEntry(palletId, Str(r, "FOLIO_CODE") ?? record, PropertyOfColumn.GetValueOrDefault(field, field),
-            Str(r, "OLD_VALUE"), Str(r, "NEW_VALUE"), Str(r, "NT_USER") ?? "", Utc(r, "CHANGED_AT") ?? DateTime.UtcNow, Str(r, "CHANGE_REASON"));
+            Str(r, "OLD_VALUE"), Str(r, "NEW_VALUE"), Str(r, "NT_USER") ?? "", Utc(r, "CHANGED_AT") ?? DateTime.UtcNow, Str(r, "CHANGE_REASON"),
+            Int(r, "PROCESS_ID") ?? 0, Str(r, "ACTION") == "D");
     }, args);
 
     internal static string? Cut(string? s, int max) => string.IsNullOrEmpty(s) ? s : s.Length <= max ? s : s[..max];
@@ -95,11 +102,11 @@ public sealed partial class OracleAlertStore : IAlertAcknowledgementStore
 
     public void Refresh()
     {
-        var rows = _db.Query($@"SELECT PALLET_RETURN_ID, ALERT_TYPE, HANDLED_BY, HANDLED_AT, HANDLED_COMMENT, SEVERITY, MESSAGE, RESPONSIBLE_AREA
+        var rows = _db.Query($@"SELECT PALLET_ID, ALERT_TYPE, HANDLED_BY, HANDLED_AT, HANDLED_COMMENT, SEVERITY, MESSAGE, RESPONSIBLE_AREA
                                   FROM {_db.T("IB_PROCESS_ALERTS")} WHERE HANDLED_AT IS NOT NULL ORDER BY HANDLED_AT", r =>
         {
             var type = TypeOf(Str(r, "ALERT_TYPE"));
-            return type is null ? null : new AlertAcknowledgement(Int(r, "PALLET_RETURN_ID")!.Value, type.Value, Str(r, "HANDLED_BY") ?? "",
+            return type is null ? null : new AlertAcknowledgement(Int(r, "PALLET_ID")!.Value, type.Value, Str(r, "HANDLED_BY") ?? "",
                 Str(r, "HANDLED_COMMENT") ?? "", Utc(r, "HANDLED_AT") ?? DateTime.UtcNow,
                 Str(r, "SEVERITY") switch { "CRITICAL" => Severity.Error, "WARNING" => Severity.Warning, _ => Severity.Info },
                 Str(r, "MESSAGE"), Str(r, "RESPONSIBLE_AREA"));
@@ -115,7 +122,7 @@ public sealed partial class OracleAlertStore : IAlertAcknowledgementStore
         _db.InTransaction((c, tx) =>
         {
             using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_ALERTS")}
-                (PALLET_RETURN_ID, ALERT_TYPE, SEVERITY, MESSAGE, RESPONSIBLE_AREA, HANDLED_BY, HANDLED_AT, HANDLED_COMMENT)
+                (PALLET_ID, ALERT_TYPE, SEVERITY, MESSAGE, RESPONSIBLE_AREA, HANDLED_BY, HANDLED_AT, HANDLED_COMMENT)
                 VALUES (:id, :type, :sev, :msg, :area, :changedBy, SYSTIMESTAMP, :handledComment)", tx);
             cmd.Parameters.Add("id", ack.PalletId);
             cmd.Parameters.Add("type", Code(ack.Type));
@@ -339,7 +346,7 @@ public static class OracleCatalogs
     /// <summary>IB_PROCESS_FIELD_PERMISSIONS → area × PalletReturn property. Unknown areas or columns are ignored.</summary>
     public static IReadOnlyDictionary<RoleCode, IReadOnlyCollection<string>> LoadFieldPermissions(OracleDb db)
     {
-        var propertyOf = OraclePalletRepository.ColumnOfProperty.ToDictionary(kv => kv.Value, kv => kv.Key);
+        var propertyOf = OracleProcessRepository.ColumnOfProperty.ToDictionary(kv => kv.Value, kv => kv.Key);
         return db.Query($"SELECT AREA_CODE, FIELD_NAME FROM {db.T("IB_PROCESS_FIELD_PERMISSIONS")}",
                 r => (Area: FieldPermissions.AreaOfCode(Str(r, "AREA_CODE")), Field: Str(r, "FIELD_NAME")!.Trim()))
             .Where(x => x.Area is not null && propertyOf.ContainsKey(x.Field))

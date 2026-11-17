@@ -41,7 +41,7 @@ public sealed class OracleUserStore : IUserStoreBackend
             return new ProfileRequest(id, Str(r, "NT_USER")!, Str(r, "DEPARTMENT_CODE")!, requestVs[id].OrderBy(v => v).ToList(),
                 Utc(r, "REQUESTED_AT") ?? DateTime.UtcNow,
                 Enum.TryParse<RequestStatus>(Str(r, "STATUS"), true, out var s) ? s : RequestStatus.Pending,
-                Str(r, "DECIDED_BY"), Utc(r, "DECIDED_AT"), Str(r, "DECISION_COMMENT"));
+                Str(r, "DECIDED_BY"), Utc(r, "DECIDED_AT"), Str(r, "DECISION_COMMENT"), Str(r, "REQUEST_TYPE") == "REGISTRATION");
         });
         return new UserStoreSnapshot(users, access, requests);
     }
@@ -110,9 +110,10 @@ public sealed class OracleUserStore : IUserStoreBackend
         var ids = new Dictionary<int, int>();
         foreach (var r in changes.NewRequests)
         {
-            using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_PROFILE_REQUESTS")} (NT_USER, DEPARTMENT_CODE)
-                                              VALUES (:nt, :dept) RETURNING REQUEST_ID INTO :newId", tx);
+            using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_PROFILE_REQUESTS")} (NT_USER, REQUEST_TYPE, DEPARTMENT_CODE)
+                                              VALUES (:nt, :requestType, :dept) RETURNING REQUEST_ID INTO :newId", tx);
             cmd.Parameters.Add("nt", r.NtUser);
+            cmd.Parameters.Add("requestType", r.IsRegistration ? "REGISTRATION" : "CHANGE");
             cmd.Parameters.Add("dept", r.DepartmentCode);
             var id = cmd.Parameters.Add("newId", OracleDbType.Int32, System.Data.ParameterDirection.Output);
             cmd.ExecuteNonQuery();

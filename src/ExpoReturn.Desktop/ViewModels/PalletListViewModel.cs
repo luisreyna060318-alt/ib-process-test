@@ -11,40 +11,81 @@ using Microsoft.Win32;
 
 namespace ExpoReturn.Desktop.ViewModels;
 
-/// <summary>Renglón de la bandeja (proyección de lectura).</summary>
-public sealed class PalletRow
+/// <summary>Inbox row: one IB PROCESS (read projection), with its per-pallet breakdown.</summary>
+public sealed partial class ProcessRow : ObservableObject
 {
-    public PalletRow(PalletReturn p, DateTime today)
+    public ProcessRow(IbProcess p, DateTime today)
+    {
+        Process = p;
+        Pallets = p.Pallets.Select(x => new PalletLine(x, today)).ToList();
+        DaysInJuP1 = p.ImportDateElpJup1 is null ? null : (int)(today - p.ImportDateElpJup1.Value.Date).TotalDays;
+        DueDate = p.LegalDueDate;
+        DaysToLegalDue = DueDate is null || p.Status.IsClosed() ? null : (int)(DueDate.Value - today).TotalDays;
+        // Imported from the Excel: findings of the current rules (they go away as the record is homogenized).
+        OpenFindings = p.IsLegacy ? PalletValidator.ValidateProcess(p, today).Count : 0;
+    }
+    public IbProcess Process { get; }
+    public IReadOnlyList<PalletLine> Pallets { get; }
+    public int OpenFindings { get; }
+    public int Id => Process.Id;
+    public string FolioCode => Process.FolioCode;
+    public string ValueStream => $"VS{Process.ValueStreamId}";
+    public WorkflowStatus Status => Process.Status;
+    public string StatusName => Process.StatusName;
+    public int PalletCount => Process.PalletCount;
+    public string Material => Process.PartNumbersText;
+    public string PoNumbers => Process.PoNumbersText;
+    public int Qty => Process.QtyImported;
+    public decimal SapUsdTotal => Process.SapUsdTotal;
+    public decimal Balance => Process.BalanceGeneralUsd;
+    public int? DaysInJuP1 { get; }
+    public DateTime? DueDate { get; }
+    public int? DaysToLegalDue { get; }
+    public string? Qmm => Process.QmmResponsible;
+    public string? Requestor => Process.RequestorName;
+    public string? Department => Process.RequestingDepartment;
+    public string? Invoice => Process.ImportInvoice;
+    public string? Delivery => Process.DeliveryNumber;
+    public string DqText => string.Join("; ", Process.Pallets.SelectMany(x => x.DataQualityFlags).Distinct());
+    public bool IsDutyRisk => Process.IsDutyRisk;
+    /// <summary>The per-pallet breakdown is shown under the row.</summary>
+    [ObservableProperty] private bool _isExpanded;
+    public string PalletsText => PalletCount == 1 ? "1 pallet" : $"{PalletCount} pallets";
+    /// <summary>Default order: open processes closest to their due date first; closed ones last.</summary>
+    public int SortKey => Status.IsClosed() ? 100000 : DaysToLegalDue ?? 50000;
+
+    public bool Matches(string text)
+    {
+        bool Has(string? s) => s?.Contains(text, StringComparison.OrdinalIgnoreCase) == true;
+        return Has(FolioCode) || Has(Invoice) || Has(Qmm) || Has(Requestor) || Has(Delivery)
+               || Process.Pallets.Any(x => Has(x.ReturnedMaterial) || Has(x.OriginalHU) || Has(x.OriginalBatch) || Has(x.ReturnPONumber)
+                                           || Has(x.CustomsExportReference) || Has(x.FolioCode));
+    }
+}
+
+/// <summary>One pallet in the inbox breakdown.</summary>
+public sealed class PalletLine
+{
+    public PalletLine(PalletReturn p, DateTime today)
     {
         Pallet = p;
-        DaysInJuP1 = p.ImportDateElpJup1 is null ? null : p.DaysInJuP1(today);
         DaysToLegalDue = p.LegalDueDate is null || p.Status.IsClosed() ? null : (int)(p.LegalDueDate.Value - today).TotalDays;
         Category = Catalogs.FindCategory(p.StatusCategoryCode)?.Description ?? p.StatusCategoryCode;
-        // Imported from the Excel: findings of the current rules (they go away as the record is homogenized).
-        OpenFindings = p.IsLegacy ? PalletValidator.Validate(p, today).Count : 0;
     }
-    public int OpenFindings { get; }
     public PalletReturn Pallet { get; }
     public int Id => Pallet.Id;
+    public int LineNo => Pallet.LineNo;
     public string FolioCode => Pallet.FolioCode;
-    public string ValueStream => $"VS{Pallet.ValueStreamId}";
     public WorkflowStatus Status => Pallet.Status;
     public string StatusName => Pallet.StatusName;
     public string? Material => Pallet.ReturnedMaterial;
     public int Qty => Pallet.QtyImported;
-    public decimal SapUsdTotal => Pallet.SapUsdTotal;
+    public string HuOrBatch => Pallet.PalletIdText;
+    public string? Po => Pallet.ReturnPONumber;
     public decimal Balance => Pallet.Financials.BalanceGeneralUsd;
-    public int? DaysInJuP1 { get; }
     public int? DaysToLegalDue { get; }
-    public string? Qmm => Pallet.QmmResponsible;
     public string? Category { get; }
-    public string? Invoice => Pallet.ImportInvoice;
-    public string? HuOrBatch => Pallet.OriginalHU ?? Pallet.OriginalBatch;
-    public int DqCount => Pallet.DataQualityFlags.Count;
-    public string DqText => Pallet.DataQualityText;
-    public bool IsDutyRisk => Pallet.IsDutyRisk;
-    /// <summary>Orden por defecto: abiertos más próximos a vencer primero; cerrados al final.</summary>
-    public int SortKey => Status.IsClosed() ? 100000 : DaysToLegalDue ?? 50000;
+    public string? CustomsExport => Pallet.CustomsExportReference;
 }
 
 /// <summary>One button of the pager: a page number, or "…" (Number = null).</summary>
@@ -78,7 +119,7 @@ public sealed record ListFilter(int? ValueStreamId = null, WorkflowStatus? Statu
 public sealed partial class PalletListViewModel : PageViewModel
 {
     private readonly Action<int> _open;
-    private readonly ObservableCollection<PalletRow> _rows = new();
+    private readonly ObservableCollection<ProcessRow> _rows = new();
     private bool _loadingFilters;
 
     public PalletListViewModel(AppServices services, UserContext user, Action<int> open, ListFilter? initial = null) : base(services, user)
@@ -99,17 +140,17 @@ public sealed partial class PalletListViewModel : PageViewModel
         if (initial is null && IsTableShown) GoToPage(page);      // back from a record: same page as before
     }
 
-    public override string Title => "Returns inbox";
+    public override string Title => "IB PROCESS inbox";
     // ---------- Table: shown on demand, 50 records per page ----------
     public const int PageSize = 50;
     private static bool s_tableShown;          // remembered while the application is open
     private static int s_page = 1;
-    private List<PalletRow> _filtered = new();
+    private List<ProcessRow> _filtered = new();
     private string? _sortMember;
     private bool _sortDescending;
 
     /// <summary>Records of the current page (what the grid shows).</summary>
-    public ObservableCollection<PalletRow> PageRows { get; } = new();
+    public ObservableCollection<ProcessRow> PageRows { get; } = new();
     public ObservableCollection<PageButton> PageButtons { get; } = new();
     [ObservableProperty] private bool _isTableShown;
     [ObservableProperty] private int _page = 1;
@@ -161,7 +202,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     public IReadOnlyList<LookupItem> ValueStreamOptions { get; }
     public IReadOnlyList<LookupItem> StatusOptions { get; }
     /// <summary>La columna "Calidad de datos" sólo se muestra si hay registros históricos (UX-B07).</summary>
-    public bool HasLegacy => _rows.Any(r => r.Pallet.IsLegacy);
+    public bool HasLegacy => _rows.Any(r => r.Process.IsLegacy);
 
     [ObservableProperty] private LookupItem _selectedValueStream;
     [ObservableProperty] private LookupItem _selectedStatus;
@@ -169,7 +210,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     [ObservableProperty] private bool _onlyDutyRisk;
     /// <summary>Homogenization: only records imported from the Excel that still break a validation rule.</summary>
     [ObservableProperty] private bool _onlyDataFindings;
-    [ObservableProperty] private PalletRow? _selectedRow;
+    [ObservableProperty] private ProcessRow? _selectedRow;
     [ObservableProperty] private string? _message;
 
     [ObservableProperty] private int _kpiCount;
@@ -194,7 +235,7 @@ public sealed partial class PalletListViewModel : PageViewModel
         _rows.Clear();
         var today = Services.Clock.Today;
         // Orden por defecto en los datos (no en SortDescriptions: el DataGrid las limpia al recrear la vista).
-        foreach (var r in Services.Repository.GetAll().Select(p => new PalletRow(p, today))
+        foreach (var r in Services.Repository.GetAll().Select(p => new ProcessRow(p, today))
                      .OrderBy(r => r.SortKey).ThenBy(r => r.FolioCode))
             _rows.Add(r);
         OnPropertyChanged(nameof(HasLegacy));
@@ -244,8 +285,8 @@ public sealed partial class PalletListViewModel : PageViewModel
 
     private void ApplyFilter()
     {
-        IEnumerable<PalletRow> rows = _rows.Where(r => Filter(r));
-        if (_sortMember is not null && typeof(PalletRow).GetProperty(_sortMember) is { } prop)
+        IEnumerable<ProcessRow> rows = _rows.Where(r => Filter(r));
+        if (_sortMember is not null && typeof(ProcessRow).GetProperty(_sortMember) is { } prop)
             rows = _sortDescending ? rows.OrderByDescending(r => prop.GetValue(r)) : rows.OrderBy(r => prop.GetValue(r));
         var visible = _filtered = rows.ToList();
         Page = 1;                                                   // a new filter or order starts at the first page
@@ -259,8 +300,8 @@ public sealed partial class PalletListViewModel : PageViewModel
 
     private bool Filter(object o)
     {
-        if (o is not PalletRow r) return false;
-        if (SelectedValueStream?.Value is int vs && r.Pallet.ValueStreamId != vs) return false;
+        if (o is not ProcessRow r) return false;
+        if (SelectedValueStream?.Value is int vs && r.Process.ValueStreamId != vs) return false;
         switch (SelectedStatus?.Value)
         {
             case "open" when r.Status.IsClosed(): return false;
@@ -268,13 +309,7 @@ public sealed partial class PalletListViewModel : PageViewModel
         }
         if (OnlyDutyRisk && !r.IsDutyRisk) return false;
         if (OnlyDataFindings && r.OpenFindings == 0) return false;
-        if (!string.IsNullOrWhiteSpace(SearchText))
-        {
-            var t = SearchText.Trim();
-            bool Has(string? s) => s?.Contains(t, StringComparison.OrdinalIgnoreCase) == true;
-            if (!(Has(r.FolioCode) || Has(r.Material) || Has(r.HuOrBatch) || Has(r.Invoice) || Has(r.Qmm) || Has(r.Pallet.CustomsExportReference)))
-                return false;
-        }
+        if (!string.IsNullOrWhiteSpace(SearchText) && !r.Matches(SearchText.Trim())) return false;
         return true;
     }
 
@@ -284,7 +319,7 @@ public sealed partial class PalletListViewModel : PageViewModel
         (OnlyDutyRisk ? " · duty risk only" : "");
 
     [RelayCommand]
-    private void Open(PalletRow? row)
+    private void Open(ProcessRow? row)
     {
         row ??= SelectedRow;
         if (row is not null) _open(row.Id);
@@ -308,14 +343,14 @@ public sealed partial class PalletListViewModel : PageViewModel
         {
             Title = "Export inbox (read-only)",
             Filter = "Excel (*.xlsx)|*.xlsx",
-            FileName = $"Returns_inbox_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
+            FileName = $"IB_PROCESS_inbox_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
         };
         if (dlg.ShowDialog() != true) return;
         try
         {
-            var visible = _filtered.Select(r => r.Pallet).ToList();      // every record of the filter, not only the page
+            var visible = _filtered.SelectMany(r => r.Process.Pallets).ToList();      // every pallet of the filter, not only the page
             ExcelExporter.ExportPallets(visible, dlg.FileName, Services.Clock.Today, FilterDescription);
-            Message = $"{visible.Count} records exported to {System.IO.Path.GetFileName(dlg.FileName)} (protected, read-only sheet).";
+            Message = $"{_filtered.Count} IB processes ({visible.Count} pallets) exported to {System.IO.Path.GetFileName(dlg.FileName)} (protected, read-only sheet).";
         }
         catch (Exception ex)
         {

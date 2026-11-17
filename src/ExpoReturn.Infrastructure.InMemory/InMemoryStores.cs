@@ -4,52 +4,44 @@ using ExpoReturn.Domain;
 namespace ExpoReturn.Infrastructure.InMemory;
 
 /// <summary>
-/// In-memory repository (draft without database). Reset when the application closes. Same rules as Oracle: no delete,
-/// optimistic concurrency with RowVersion.
+/// In-memory IB processes (tests). Same rules as Oracle: header and pallets saved together, optimistic concurrency with
+/// RowVersion, pallets missing from a saved process are deleted, processes can be deleted.
 /// </summary>
-public sealed class InMemoryPalletRepository : IPalletReturnRepository
+public sealed class InMemoryProcessRepository : IProcessRepository
 {
-    private readonly List<PalletReturn> _items = new();
+    private readonly List<IbProcess> _items = new();
     private readonly object _gate = new();
-    private int _nextId = 1;
+    private int _nextId = 1, _nextPalletId = 1;
     public event EventHandler? Changed;
 
-    public IReadOnlyList<PalletReturn> GetAll() { lock (_gate) return _items.ToList(); }
-    public PalletReturn? Get(int id) { lock (_gate) return _items.FirstOrDefault(p => p.Id == id); }
+    public IReadOnlyList<IbProcess> GetAll() { lock (_gate) return _items.ToList(); }
+    public IbProcess? Get(int id) { lock (_gate) return _items.FirstOrDefault(p => p.Id == id); }
+    public IReadOnlyList<PalletReturn> AllPallets() { lock (_gate) return _items.SelectMany(p => p.Pallets).ToList(); }
+    public PalletReturn? GetPallet(int palletId) { lock (_gate) return _items.SelectMany(p => p.Pallets).FirstOrDefault(p => p.Id == palletId); }
 
-    public void Save(PalletReturn pallet)
+    public void Save(IbProcess process)
     {
         lock (_gate)
         {
-            if (pallet.Id == 0) pallet.Id = _nextId++;
-            var idx = _items.FindIndex(p => p.Id == pallet.Id);
+            if (process.Id == 0) process.Id = _nextId++;
+            var idx = _items.FindIndex(p => p.Id == process.Id);
             if (idx >= 0)
             {
-                if (_items[idx].RowVersion != pallet.RowVersion)
-                    throw new ConcurrencyException($"{pallet.FolioCode} was changed by someone else. Reload it and apply your changes again.");
-                pallet.RowVersion++;
-                _items[idx] = pallet;
+                if (_items[idx].RowVersion != process.RowVersion)
+                    throw new ConcurrencyException($"{process.FolioCode} was changed by someone else. Reload it and apply your changes again.");
+                process.RowVersion++;
+                _items[idx] = process;
             }
-            else _items.Add(pallet);
+            else _items.Add(process);
+            foreach (var p in process.Pallets.Where(p => p.Id == 0)) p.Id = _nextPalletId++;
         }
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Refresh() => Changed?.Invoke(this, EventArgs.Empty);
-
-    public LegacyAppendResult AppendLegacy(IEnumerable<PalletReturn> pallets)
+    public void Delete(int processId)
     {
-        int added = 0, existing = 0;
-        lock (_gate)
-            foreach (var p in pallets)
-            {
-                if (p.LegacySource is not null && _items.Any(i => i.LegacySource == p.LegacySource)) { existing++; continue; }
-                p.Id = _nextId++;
-                _items.Add(p);
-                added++;
-            }
+        lock (_gate) _items.RemoveAll(p => p.Id == processId);
         Changed?.Invoke(this, EventArgs.Empty);
-        return new LegacyAppendResult(added, existing, Array.Empty<string>());
     }
 
     public int NextFolio(int valueStreamId)
@@ -58,16 +50,39 @@ public sealed class InMemoryPalletRepository : IPalletReturnRepository
         lock (_gate) return _items.Where(p => p.ValueStreamId == valueStreamId && p.FolioNumber < 900000).Select(p => p.FolioNumber).DefaultIfEmpty(0).Max() + 1;
     }
 
-    /// <summary>Demo only (synthetic data / in-memory Excel view). Not available with the database.</summary>
-    public void ReplaceAll(IEnumerable<PalletReturn> pallets)
+    public void Refresh() => Changed?.Invoke(this, EventArgs.Empty);
+
+    public LegacyAppendResult AppendLegacy(IEnumerable<IbProcess> processes)
+    {
+        int added = 0, existing = 0;
+        lock (_gate)
+            foreach (var p in processes)
+            {
+                if (p.LegacySource is not null && _items.Any(i => i.LegacySource == p.LegacySource)) { existing++; continue; }
+                Assign(p);
+                _items.Add(p);
+                added++;
+            }
+        Changed?.Invoke(this, EventArgs.Empty);
+        return new LegacyAppendResult(added, existing, Array.Empty<string>());
+    }
+
+    /// <summary>Tests and samples: replaces everything.</summary>
+    public void ReplaceAll(IEnumerable<IbProcess> processes)
     {
         lock (_gate)
         {
             _items.Clear();
-            _nextId = 1;
-            foreach (var p in pallets) { p.Id = _nextId++; _items.Add(p); }
+            _nextId = 1; _nextPalletId = 1;
+            foreach (var p in processes) { Assign(p); _items.Add(p); }
         }
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void Assign(IbProcess p)
+    {
+        p.Id = _nextId++;
+        foreach (var pallet in p.Pallets) pallet.Id = _nextPalletId++;
     }
 }
 
@@ -76,7 +91,7 @@ public sealed class InMemoryAuditTrail : IAuditTrail
     private readonly List<AuditEntry> _entries = new();
     private readonly object _gate = new();
     public void Record(IEnumerable<AuditEntry> entries) { lock (_gate) _entries.AddRange(entries); }
-    public IReadOnlyList<AuditEntry> For(int palletId) { lock (_gate) return _entries.Where(e => e.PalletId == palletId).OrderByDescending(e => e.ChangedAtUtc).ToList(); }
+    public IReadOnlyList<AuditEntry> For(int processId) { lock (_gate) return _entries.Where(e => e.ProcessId == processId).OrderByDescending(e => e.ChangedAtUtc).ToList(); }
     public IReadOnlyList<AuditEntry> All() { lock (_gate) return _entries.OrderByDescending(e => e.ChangedAtUtc).ToList(); }
     /// <summary>Demo only (memory). The Oracle audit log is append-only.</summary>
     public void Clear() { lock (_gate) _entries.Clear(); }

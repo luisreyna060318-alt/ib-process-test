@@ -27,7 +27,7 @@ public class CostAndCalculationTests
         Assert.Equal(WorkflowStatus.Draft, e.Status);                              // other required request fields missing
 
         // Rest of the request → Requested
-        p.QmmResponsible = "Ivonne Castillo"; p.RequestingDepartment = "MFQ4"; p.RequestorName = "Montaño, Sofía";
+        p.QmmResponsible = "Ivonne Castillo"; p.RequestingDepartment = "MFQ"; p.RequestorName = "Montaño, Sofía";
         p.ReasonId = 6; p.OriginalHU = "2104891847";
         Assert.Equal(WorkflowStatus.Requested, PalletEvaluator.Evaluate(p, CalcParameters.Default, Today).Status);
 
@@ -85,14 +85,14 @@ public class CostAndCalculationTests
     [Fact]
     public void Mm60_import_completes_the_cost_of_records_saved_without_it()
     {
-        var repo = new InMemoryPalletRepository();
+        var repo = new InMemoryProcessRepository();
         var audit = new InMemoryAuditTrail();
         var pending = new PalletReturn
         {
             ValueStreamId = 1, FolioNumber = 1, ReturnedMaterial = "0285.500.708-24W", QtyImported = 100, UnitCostSource = "PENDING",
             ImportDate = new DateTime(2026, 10, 1), ImportDateElpJup1 = new DateTime(2026, 10, 1), ImportInvoice = "MPS26000001",
         };
-        repo.Save(pending);
+        repo.Save(pending.Process);
         var path = Path.Combine(Path.GetTempPath(), $"mm60_{Guid.NewGuid():N}.xlsx");
         try
         {
@@ -106,7 +106,7 @@ public class CostAndCalculationTests
             var catalog = new InMemoryMaterialCostCatalog();
             var summary = Mm60Import.Run(path, catalog, repo, audit, new SystemClock(), CalcParameters.Default, "BOSCH\\OWNER");
             Assert.Equal(1, summary.RecordsUpdated);
-            var saved = repo.GetAll().Single();
+            var saved = repo.AllPallets().Single();
             Assert.Equal("MM60", saved.UnitCostSource);
             Assert.Equal(126.77m, saved.SapUsdTotal);
             Assert.Equal(126.77m, saved.Financials.BalanceGeneralUsd);              // recalculated

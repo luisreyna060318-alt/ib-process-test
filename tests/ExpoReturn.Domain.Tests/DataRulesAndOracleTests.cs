@@ -10,13 +10,13 @@ namespace ExpoReturn.Domain.Tests;
 /// <summary>v0.3.0: nothing is deleted, filled fields are never emptied, new department list, Oracle mapping.</summary>
 public class DataRulesAndOracleTests
 {
-    private static (InMemoryPalletRepository Repo, InMemoryAuditTrail Audit, PalletReturnService Svc) Seeded()
+    private static (InMemoryProcessRepository Repo, InMemoryAuditTrail Audit, ProcessService Svc) Seeded()
     {
-        var repo = new InMemoryPalletRepository();
+        var repo = new InMemoryProcessRepository();
         var audit = new InMemoryAuditTrail();
         var clock = new SystemClock();
         SampleData.Seed(repo, audit, new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), clock);
-        return (repo, audit, new PalletReturnService(repo, audit, clock));
+        return (repo, audit, new ProcessService(repo, audit, clock));
     }
 
     private static readonly UserContext Owner = new("BOSCH\\OWNER", "Owner", null, true, Array.Empty<AccessGrant>());
@@ -61,15 +61,15 @@ public class DataRulesAndOracleTests
         try
         {
             var dir = new UserDirectory(path, new[] { "BOSCH\\OWNER" }, includeDemoUsers: false);
-            dir.Register("BOSCH\\U2", "User Two", "MFO1", new[] { 1, 4 });
-            dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\U2", "MFO1", 1, UserFunction.Champion) }, "BOSCH\\OWNER");
-            var first = dir.RequestChange("BOSCH\\U2", "MFO1", new[] { 1, 5 });
-            dir.RequestChange("BOSCH\\U2", "MFO12", new[] { 1 });
+            dir.Register("BOSCH\\U2", "User Two", "MFO", new[] { 1, 4 });
+            dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\U2", "MFO", 1, UserFunction.Champion) }, "BOSCH\\OWNER");
+            var first = dir.RequestChange("BOSCH\\U2", "MFO", new[] { 1, 5 });
+            dir.RequestChange("BOSCH\\U2", "LOP", new[] { 1 });
 
             var json = File.ReadAllText(path);
             Assert.Contains("\"AccessHistory\"", json);
             Assert.Contains("BOSCH\\\\OWNER", json);                                 // who ended the VS4 viewer row and the VS1 viewer row
-            Assert.Equal(2, dir.Requests(pendingOnly: false).Count);                 // the first request is still there…
+            Assert.Equal(3, dir.Requests(pendingOnly: false).Count);                 // registration + the first request are still there…
             Assert.Equal(RequestStatus.Rejected, dir.Requests(false).Single(r => r.Id == first.Id).Status);   // …marked as replaced
             Assert.Throws<DataRuleException>(() => dir.UpdateDisplayName("BOSCH\\U2", " "));
             Assert.Throws<DataRuleException>(() => dir.RequestChange("BOSCH\\U2", "", new[] { 1 }));
@@ -88,35 +88,37 @@ public class DataRulesAndOracleTests
     }
 
     [Theory]
-    [InlineData("MFQ8", RoleCode.Requestor)]
-    [InlineData("MFE5", RoleCode.Requestor)]
-    [InlineData("TEF6", RoleCode.Requestor)]
-    [InlineData("QMM1", RoleCode.Qmm)]
-    [InlineData("MFO1-US", RoleCode.Mfo)]
-    [InlineData("LOP2", RoleCode.Lop)]
+    [InlineData("QMM", RoleCode.Qmm)]
+    [InlineData("MFQ", RoleCode.Requestor)]
+    [InlineData("PUQ", RoleCode.Requestor)]
+    [InlineData("MFO", RoleCode.Mfo)]
+    [InlineData("LOP", RoleCode.Lop)]
+    [InlineData("OSD", RoleCode.Gs)]                  // customs (formerly GS/OSD43)
     [InlineData("LOW", RoleCode.Low)]
-    [InlineData("GS/OSD43", RoleCode.Gs)]
     [InlineData("HSE", RoleCode.Hse)]
-    [InlineData("CTG3", RoleCode.Viewer)]
-    [InlineData("QMM-L2", RoleCode.Viewer)]
-    [InlineData("DBE", RoleCode.Viewer)]
-    [InlineData("MFQ4", RoleCode.Requestor)]          // Excel 2.0 list, active again
-    [InlineData("LOW2", RoleCode.Low)]
-    [InlineData("MFQ", RoleCode.Requestor)]           // old code: inactive, still valid for history
+    [InlineData("MFQ4", RoleCode.Viewer)]             // old codes are no longer departments
+    [InlineData("GS/OSD43", RoleCode.Viewer)]
     public void Department_list_maps_to_the_permission_area(string code, RoleCode area) =>
         Assert.Equal(area, RoleInfo.AreaOfDepartment(code));
 
     [Fact]
-    public void Only_the_new_department_list_is_offered()
+    public void Only_the_eight_departments_are_offered_and_all_can_request()
     {
-        var offered = Catalogs.Departments.Select(d => d.Code).ToList();
-        Assert.Equal(new[] { "MFQ8", "MFO1", "MFO12", "MFO1-US", "MFE5", "QMM1", "QMM2", "LOP1", "LOP2", "LOW", "CTG3", "TEF6",
-                             "GS/OSD43", "HSE", "MFQ1", "MFQ4", "MFQ5", "MFQ7", "MFQ9", "QMM-C1", "QMM-C2", "PUQ", "LOW2",
-                             "QMM-L2", "DBE", "TEF1" }, offered);
-        Assert.DoesNotContain("MFQ", offered);
-        Assert.Contains(Catalogs.BuiltInDepartments, d => d.Code == "MFQ" && !d.IsActive);
-        Assert.Equal(37, Catalogs.BuiltInDepartments.Count);
+        Assert.Equal(new[] { "QMM", "MFQ", "PUQ", "MFO", "LOP", "OSD", "LOW", "HSE" }, Catalogs.Departments.Select(d => d.Code));
+        Assert.All(Catalogs.Departments, d => Assert.True(d.CanRequest && d.IsActive, d.Code));
+        Assert.Equal(8, Catalogs.BuiltInDepartments.Count);
     }
+
+    [Theory]
+    [InlineData("MFQ4", "MFQ")]
+    [InlineData("MFO5", "MFO")]
+    [InlineData("LOW2", "LOW")]
+    [InlineData("GS/OSD43", "OSD")]
+    [InlineData("QMM-C1", "QMM")]
+    [InlineData("PUQ", "PUQ")]
+    [InlineData("CTG3", null)]
+    public void Historical_excel_codes_map_by_prefix(string code, string? expected) =>
+        Assert.Equal(expected, Catalogs.MapLegacyDepartment(code));
 
     // ------------------------------------------------------------------ SharedServersAccess
 
@@ -163,20 +165,24 @@ public class DataRulesAndOracleTests
     public void Every_mapped_column_exists_and_every_editable_field_is_mapped()
     {
         var ddl = Sql("01_create_tables.sql");
-        var table = Regex.Match(ddl, @"CREATE TABLE IB_PROCESS_PALLET_RETURNS \((.*?)\n\);", RegexOptions.Singleline).Groups[1].Value;
-        foreach (var col in OraclePalletRepository.ColumnOfProperty.Values)
+        var table = Regex.Match(ddl, @"CREATE TABLE IB_PROCESS_PROCESSES \((.*?)\n\);", RegexOptions.Singleline).Groups[1].Value
+                  + Regex.Match(ddl, @"CREATE TABLE IB_PROCESS_PALLETS \((.*?)\n\);", RegexOptions.Singleline).Groups[1].Value;
+        foreach (var col in OracleProcessRepository.ColumnOfProperty.Values)
             Assert.Matches(new Regex($@"^\s+{col}\s", RegexOptions.Multiline), table);
-        foreach (var f in Fields.All) Assert.True(OraclePalletRepository.ColumnOfProperty.ContainsKey(f), f);
+        foreach (var f in Fields.All) Assert.True(OracleProcessRepository.ColumnOfProperty.ContainsKey(f), f);
     }
 
     [Fact]
-    public void Every_table_refuses_delete_and_alert_codes_match_the_check()
+    public void Deletes_are_allowed_now_filled_fields_still_cannot_be_emptied_and_alert_codes_match_the_check()
     {
         var ddl = Sql("01_create_tables.sql");
         var rules = Sql("04_integrity_rules.sql") + Sql("03_comments_and_triggers.sql");
-        foreach (Match m in Regex.Matches(ddl, @"CREATE TABLE (IB_PROCESS_\w+)"))
-            Assert.Matches(new Regex($@"BEFORE (UPDATE OR )?DELETE ON {m.Groups[1].Value}\b"), rules);
-        Assert.Contains("IB_PR_NO_EMPTY", rules);
+        // D = real delete (v0.5.0): only the audit log stays append-only
+        Assert.Equal(new[] { "IB_PROCESS_AUDIT_LOG" }, Regex.Matches(rules, @"BEFORE (?:UPDATE OR )?DELETE ON (\w+)").Select(m => m.Groups[1].Value).Distinct());
+        Assert.DoesNotContain("IB_PROCESS_NO_DROP", rules);
+        Assert.Contains("ON DELETE CASCADE", ddl);                               // pallets go with their process
+        Assert.Contains("IB_PRC_NO_EMPTY", rules);
+        Assert.Contains("IB_PAL_NO_EMPTY", rules);
         var check = Regex.Match(ddl, @"IB_ALERT_CK_TYPE CHECK \(ALERT_TYPE IN \(([^)]*)\)").Groups[1].Value;
         foreach (var t in Enum.GetValues<AlertType>()) Assert.Contains($"'{OracleAlertStore.Code(t)}'", check);
     }
@@ -195,7 +201,7 @@ public class DataRulesAndOracleTests
     [InlineData("VS7!row 120", "VS7", 120)]
     [InlineData("VS1!fila 9", "VS1", 9)]
     public void Legacy_source_splits_into_sheet_and_row(string source, string sheet, int row) =>
-        Assert.Equal((sheet, (int?)row), OraclePalletRepository.SplitLegacy(source));
+        Assert.Equal((sheet, (int?)row), OracleProcessRepository.SplitLegacy(source));
 }
 
 /// <summary>
@@ -234,9 +240,9 @@ public class OracleScriptCoherenceTests
     private static Dictionary<string, string> ColumnsOf(string table) => Tables().Single(t => t.Table == table).Columns;
 
     [Fact]
-    public void There_are_19_tables_and_every_name_fits_30_characters()
+    public void There_are_20_tables_and_every_name_fits_30_characters()
     {
-        Assert.Equal(19, Tables().Count);
+        Assert.Equal(20, Tables().Count);
         var all = Read("database", "oracle", "IB_PROCESS_install.sql");
         var names = Regex.Matches(all, @"(?:TABLE|CONSTRAINT|INDEX|TRIGGER)\s+(IB_\w+)").Select(m => m.Groups[1].Value)
             .Concat(Tables().SelectMany(t => t.Columns.Keys));
@@ -262,7 +268,7 @@ public class OracleScriptCoherenceTests
             .Concat(Regex.Matches(code, @",\s*\(""([a-z]\w*)"",").Select(m => m.Groups[1].Value))   // Query(sql, map, ("name", value))
             .Distinct().ToList();
         var used = Regex.Matches(code, @"[\s(,=]:([A-Za-z]\w*)").Select(m => m.Groups[1].Value)
-            .Where(b => b != "p").Distinct().ToList();                // :p0..:pN = the pallet columns, added in a loop
+            .Where(b => b is not "p" and not "h").Distinct().ToList();  // :h0..:hN / :p0..:pN = header / pallet columns, added in a loop
         Assert.True(added.Count > 40 && used.Count > 40);
         Assert.All(added.Concat(used), b => Assert.False(Reserved.Contains(b.ToUpperInvariant()), $":{b} is an Oracle reserved word (ORA-01745)"));
         Assert.All(added, b => Assert.Contains(b, used));            // every parameter given is used in a statement
@@ -317,29 +323,37 @@ public class OracleScriptCoherenceTests
     public void Field_permission_seed_is_the_same_matrix_the_application_uses()
     {
         var seed = Read("database", "oracle", "02_seed_data.sql");
-        var rows = Regex.Matches(seed, @"INSERT INTO IB_PROCESS_FIELD_PERMISSIONS \(AREA_CODE, FIELD_NAME, STAGE_NO\) VALUES \('(\w+)', '(\w+)'")
-            .Select(m => (m.Groups[1].Value, m.Groups[2].Value)).ToHashSet();
+        var matches = Regex.Matches(seed, @"INSERT INTO IB_PROCESS_FIELD_PERMISSIONS \(AREA_CODE, FIELD_NAME, FIELD_LEVEL, STAGE_NO\) VALUES \('(\w+)', '(\w+)', '(\w+)'");
+        var rows = matches.Select(m => (m.Groups[1].Value, m.Groups[2].Value)).ToHashSet();
+        foreach (Match m in matches)                                             // PROCESS level = column of the header table
+            Assert.Equal(ColumnsOf("IB_PROCESS_PROCESSES").ContainsKey(m.Groups[2].Value) ? "PROCESS" : "PALLET", m.Groups[3].Value);
         var areas = new Dictionary<RoleCode, string>
         {
-            [RoleCode.Qmm] = "QMM", [RoleCode.Requestor] = "REQUESTOR", [RoleCode.Gs] = "GS", [RoleCode.Lop] = "LOP",
+            [RoleCode.Qmm] = "QMM", [RoleCode.Requestor] = "REQUESTOR", [RoleCode.Gs] = "OSD", [RoleCode.Lop] = "LOP",
             [RoleCode.Mfo] = "MFO", [RoleCode.Low] = "LOW", [RoleCode.Hse] = "HSE",
         };
         var app = areas.SelectMany(a => FieldPermissions.EditableFields(a.Key)
-            .Select(f => (a.Value, OraclePalletRepository.ColumnOfProperty[f]))).ToHashSet();
+            .Select(f => (a.Value, OracleProcessRepository.ColumnOfProperty[f]))).ToHashSet();
         Assert.Equal(app.OrderBy(x => x).ToList(), rows.OrderBy(x => x).ToList());
-        Assert.All(rows, r => Assert.True(ColumnsOf("IB_PROCESS_PALLET_RETURNS").ContainsKey(r.Item2)));
+        Assert.All(rows, r => Assert.True(ColumnsOf("IB_PROCESS_PALLETS").ContainsKey(r.Item2) || ColumnsOf("IB_PROCESS_PROCESSES").ContainsKey(r.Item2), r.Item2));
     }
 
     [Fact]
     public void Columns_written_by_the_application_exist_with_the_same_text_length()
     {
-        var pallets = ColumnsOf("IB_PROCESS_PALLET_RETURNS");
-        Assert.All(OraclePalletRepository.WrittenColumns, c => Assert.True(pallets.ContainsKey(c), c));
-        foreach (var (col, max) in OraclePalletRepository.MaxLengths)
+        var processes = ColumnsOf("IB_PROCESS_PROCESSES");
+        var pallets = ColumnsOf("IB_PROCESS_PALLETS");
+        Assert.All(OracleProcessRepository.WrittenProcessColumns, c => Assert.True(processes.ContainsKey(c), c));
+        Assert.All(OracleProcessRepository.WrittenPalletColumns, c => Assert.True(pallets.ContainsKey(c), c));
+        foreach (var (col, max) in OracleProcessRepository.ProcessMaxLengths)
+            Assert.Equal(max.ToString(), Regex.Match(processes[col], @"^N?VARCHAR2\((\d+)(?: CHAR)?\)$").Groups[1].Value);
+        foreach (var (col, max) in OracleProcessRepository.PalletMaxLengths)
             Assert.Equal(max.ToString(), Regex.Match(pallets[col], @"^N?VARCHAR2\((\d+)(?: CHAR)?\)$").Groups[1].Value);
         // Virtual / identity columns are never written
-        Assert.DoesNotContain("FOLIO_CODE", OraclePalletRepository.WrittenColumns);
-        Assert.DoesNotContain("SAP_TOTAL_USD", OraclePalletRepository.WrittenColumns);
+        Assert.DoesNotContain("FOLIO_CODE", OracleProcessRepository.WrittenProcessColumns);
+        Assert.DoesNotContain("PROCESS_ID", OracleProcessRepository.WrittenProcessColumns);
+        Assert.DoesNotContain("SAP_TOTAL_USD", OracleProcessRepository.WrittenPalletColumns);
+        Assert.Contains("PROCESS_ID", OracleProcessRepository.WrittenPalletColumns);
     }
 
     [Fact]
@@ -377,20 +391,13 @@ public class OracleScriptCoherenceTests
     }
 
     [Fact]
-    public void Department_change_of_2026_11_12_matches_the_catalog()
+    public void The_install_seeds_exactly_the_eight_departments()
     {
-        var change = Read("database", "oracle", "changes", "2026-11-12_departments_excel_list.sql");
-        foreach (var code in new[] { "MFQ1", "MFQ4", "MFQ5", "MFQ7", "MFQ9", "QMM-C1", "QMM-C2", "PUQ" })
-        {
-            Assert.Contains($"'{code}'", change);
-            Assert.True(Catalogs.FindDepartment(code) is { IsActive: true, CanRequest: true }, code);
-        }
-        var low2 = Catalogs.FindDepartment("LOW2")!;
-        Assert.Contains($"SELECT 'LOW2', '{low2.Area}', 'Y', '{low2.Group}', 'Y' FROM DUAL", change);
-        Assert.Equal(26, Catalogs.Departments.Count);
-        Assert.Contains("ACTIVE_26", change);
-        Assert.DoesNotContain(change, c => c > 127 || c == '&');
-        Assert.DoesNotMatch(@"\bDELETE\b", NoComments(change));
+        var seed = Read("database", "oracle", "02_seed_data.sql");
+        foreach (var d in Catalogs.BuiltInDepartments)
+            Assert.Contains($"'{d.Code}'", seed);
+        Assert.DoesNotContain("'GS/OSD43'", seed);
+        Assert.DoesNotContain("'MFQ4'", seed);
     }
 
     [Fact]
@@ -449,19 +456,19 @@ public class ImportedRecordTests
         OldMaterialDeliveredQty = 8, ScrapQty = 5, ScrapDate = new DateTime(2026, 2, 1),   // 8 + 5 > 10: the Excel had it wrong
     };
 
-    private static (InMemoryPalletRepository, InMemoryAuditTrail, PalletReturnService, PalletReturn) Setup()
+    private static (InMemoryProcessRepository, InMemoryAuditTrail, ProcessService, PalletReturn) Setup()
     {
-        var repo = new InMemoryPalletRepository();
+        var repo = new InMemoryProcessRepository();
         var audit = new InMemoryAuditTrail();
-        var svc = new PalletReturnService(repo, audit, new SystemClock());
+        var svc = new ProcessService(repo, audit, new SystemClock());
         var p = Imported(15, 20);
         PalletEvaluator.Apply(p, svc.Parameters, DateTime.Today);
-        repo.AppendLegacy(new[] { p });
-        return (repo, audit, svc, repo.GetAll().Single());
+        repo.AppendLegacy(new[] { p.Process });
+        return (repo, audit, svc, repo.AllPallets().Single());
     }
 
-    private static readonly UserContext Mfo4 = new("BOSCH\\MFO4", "MFO champion", "MFO1", false,
-        new[] { new AccessGrant("MFO1", 4, UserFunction.Champion) });
+    private static readonly UserContext Mfo4 = new("BOSCH\\MFO4", "MFO champion", "MFO", false,
+        new[] { new AccessGrant("MFO", 4, UserFunction.Champion) });
 
     [Fact]
     public void Imported_records_are_editable_with_the_normal_permissions()
@@ -478,22 +485,22 @@ public class ImportedRecordTests
         var (repo, audit, svc, p) = Setup();
         var fix = p.Clone();
         fix.NewHU = "1234567890";                       // unrelated change, the balance error is still there
-        var shown = svc.Evaluate(fix);
+        var shown = svc.Evaluate(fix.Process);
         Assert.Contains(shown.Issues, i => i.Code == "VAL-033" && i.Severity == Severity.Warning && i.FromExcel);
-        var ok = svc.Save(fix, Mfo4);
+        var ok = svc.Save(fix.Process, Mfo4);
         Assert.True(ok.Success, ok.Summary);
-        Assert.Contains(audit.For(p.Id), a => a.Field == nameof(PalletReturn.NewHU));
+        Assert.Contains(audit.For(p.Process.Id), a => a.Field == nameof(PalletReturn.NewHU));
 
-        var worse = repo.Get(p.Id)!.Clone();
+        var worse = repo.GetPallet(p.Id)!.Clone();
         worse.ScrapDate = new DateTime(2026, 1, 1);    // before the crossing: a NEW error
-        var refused = svc.Save(worse, Mfo4);
+        var refused = svc.Save(worse.Process, Mfo4);
         Assert.False(refused.Success);
         Assert.Contains(refused.Issues, i => i.Code == "VAL-035" && i.Severity == Severity.Error);
 
-        var homogenized = repo.Get(p.Id)!.Clone();
+        var homogenized = repo.GetPallet(p.Id)!.Clone();
         homogenized.ScrapQty = 2;                       // 8 + 2 = 10: the Excel error is corrected
-        Assert.True(svc.Save(homogenized, Mfo4).Success);
-        Assert.DoesNotContain(PalletValidator.Validate(repo.Get(p.Id)!, DateTime.Today), i => i.Code == "VAL-033");
+        Assert.True(svc.Save(homogenized.Process, Mfo4).Success);
+        Assert.DoesNotContain(PalletValidator.Validate(repo.GetPallet(p.Id)!, DateTime.Today), i => i.Code == "VAL-033");
     }
 
     [Fact]
@@ -501,11 +508,11 @@ public class ImportedRecordTests
     {
         var (repo, _, svc, p) = Setup();
         var e = p.Clone(); e.NewHU = "1234567890";
-        Assert.True(svc.Save(e, Mfo4).Success);
-        var again = repo.AppendLegacy(new[] { Imported(15, 20) });
+        Assert.True(svc.Save(e.Process, Mfo4).Success);
+        var again = repo.AppendLegacy(new[] { Imported(15, 20).Process });
         Assert.Equal(0, again.Added);
         Assert.Equal(1, again.AlreadyLoaded);
-        Assert.Equal("1234567890", repo.Get(p.Id)!.NewHU);
+        Assert.Equal("1234567890", repo.GetPallet(p.Id)!.NewHU);
     }
 
     [Fact]
@@ -513,10 +520,10 @@ public class ImportedRecordTests
     {
         var p = Imported(45, 51);
         p.DeliveryNumber = "Scrap entregado para validaciones de MFE, CAMBIO DE REGIMEN CONFIRMADO POR RAMON";
-        Assert.Equal(new[] { "DELIVERY_NUMBER" }, OraclePalletRepository.KeepTooLongInFindings(p));
+        Assert.Equal(new[] { "DELIVERY_NUMBER" }, OracleProcessRepository.KeepTooLongInFindings(p));
         Assert.Null(p.DeliveryNumber);
         Assert.Contains("DQ-TOO-LONG:DELIVERY_NUMBER=Scrap entregado para validaciones de MFE, CAMBIO DE REGIMEN CONFIRMADO POR RAMON", p.DataQualityFlags);
-        Assert.Empty(OraclePalletRepository.KeepTooLongInFindings(p));       // nothing left too long
+        Assert.Empty(OracleProcessRepository.KeepTooLongInFindings(p));       // nothing left too long
     }
 
     /// <summary>Runs only when EXPORETURN_LEGACY_XLSX points to the real Excel (not versioned).</summary>
@@ -525,14 +532,14 @@ public class ImportedRecordTests
     {
         var path = Environment.GetEnvironmentVariable("EXPORETURN_LEGACY_XLSX");
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
-        var rows = LegacyExcelImporter.Import(path, DateTime.Today).Pallets;
+        var rows = LegacyExcelImporter.Import(path, DateTime.Today).Processes.SelectMany(x => x.Pallets).ToList();
         foreach (var p in rows)
         {
-            OraclePalletRepository.KeepTooLongInFindings(p);
-            foreach (var (col, max) in OraclePalletRepository.MaxLengths)
+            OracleProcessRepository.KeepTooLongInFindings(p);
+            foreach (var (col, max) in OracleProcessRepository.ProcessMaxLengths.Concat(OracleProcessRepository.PalletMaxLengths))
             {
-                var prop = OraclePalletRepository.ColumnOfProperty.FirstOrDefault(kv => kv.Value == col).Key;
-                if (prop is not null && typeof(PalletReturn).GetProperty(prop)!.GetValue(p) is string v)
+                var prop = OracleProcessRepository.ColumnOfProperty.FirstOrDefault(kv => kv.Value == col).Key;
+                if (prop is not null && typeof(PalletReturn).GetProperty(prop)?.GetValue(p) is string v)
                     Assert.True(v.Trim().Length <= max, $"{p.LegacySource} {col}");
             }
             Assert.True(p.DataQualityText.Length <= 400, $"{p.LegacySource} findings {p.DataQualityText.Length}");
@@ -547,15 +554,15 @@ public class ImportedRecordTests
         var costs = new InMemoryMaterialCostCatalog();
         costs.Replace(new[] { new MaterialCost("0203.306.644-250", "PN", 25, 10, "USD") }, "MM60");
         Assert.Equal(1, Mm60Import.CompletePendingCosts(costs, repo, audit, new SystemClock(), svc.Parameters, "test"));
-        Assert.Equal(2.5m, repo.Get(p.Id)!.UnitCostUsd);
-        Assert.Equal("MM60", repo.Get(p.Id)!.UnitCostSource);
+        Assert.Equal(2.5m, repo.GetPallet(p.Id)!.UnitCostUsd);
+        Assert.Equal("MM60", repo.GetPallet(p.Id)!.UnitCostSource);
     }
 
     [Fact]
     public void New_folios_continue_after_the_imported_ones_and_skip_the_reserved_range()
     {
         var (repo, _, _, _) = Setup();
-        repo.AppendLegacy(new[] { Imported(900033, 33) });
+        repo.AppendLegacy(new[] { Imported(900033, 33).Process });
         Assert.Equal(16, repo.NextFolio(4));            // after folio 15 of the Excel, not after 900033
     }
 }
@@ -574,22 +581,22 @@ public class DepartmentsFromDatabaseTests
         {
             Catalogs.UseDepartments(new[]
             {
-                OracleCatalogs.ToDepartment("MFQ4", "MFQ", "Y", "PROCESS", "Y"),
+                OracleCatalogs.ToDepartment("MFQ", "MFQ", "Y", "PROCESS", "Y"),
                 OracleCatalogs.ToDepartment("NEW1 ", "LOW", "Y", "PROCESS", "Y"),        // added in the database only
-                OracleCatalogs.ToDepartment("QMM1", "QMM", "Y", "PROCESS", "N"),         // deactivated in the database
-                OracleCatalogs.ToDepartment("DBE", "DBE", "N", "CROSS_FUNCTIONAL", "Y"),
+                OracleCatalogs.ToDepartment("QMM", "QMM", "Y", "PROCESS", "N"),          // deactivated in the database
+                OracleCatalogs.ToDepartment("HSE", "HSE", "N", "CROSS_FUNCTIONAL", "Y"),
             });
-            Assert.Equal(new[] { "MFQ4", "NEW1", "DBE" }, Catalogs.Departments.Select(d => d.Code));
-            Assert.Equal(new[] { "MFQ4", "NEW1" }, Catalogs.Departments.Where(d => d.CanRequest).Select(d => d.Code));
+            Assert.Equal(new[] { "MFQ", "NEW1", "HSE" }, Catalogs.Departments.Select(d => d.Code));
+            Assert.Equal(new[] { "MFQ", "NEW1" }, Catalogs.Departments.Where(d => d.CanRequest).Select(d => d.Code));
             Assert.Equal(RoleCode.Low, RoleInfo.AreaOfDepartment("NEW1"));
-            Assert.Equal(RoleCode.Qmm, RoleInfo.AreaOfDepartment("QMM1"));       // inactive: still valid for its records
-            Assert.Equal(Department.CrossFunctional, Catalogs.FindDepartment("DBE")!.Group);
+            Assert.Equal(RoleCode.Qmm, RoleInfo.AreaOfDepartment("QMM"));        // inactive: still valid for its records
+            Assert.Equal(Department.CrossFunctional, Catalogs.FindDepartment("HSE")!.Group);
 
             Catalogs.UseDepartments(Array.Empty<Department>());                   // an empty answer never empties the list
             Assert.Equal(3, Catalogs.Departments.Count);
         }
         finally { Catalogs.UseBuiltIn(); }
-        Assert.Equal(26, Catalogs.Departments.Count);
+        Assert.Equal(8, Catalogs.Departments.Count);
     }
 }
 
@@ -672,7 +679,7 @@ public class CatalogsFromDatabaseTests
                         new Reason(3, "R03", "To change FG P/N with reflash", "REFLASH", true, IsActive: false) },
                 new[] { new StatusCategory("EXPORT", "EXPORT", "OUTCOME", null, false, true),
                         new StatusCategory("SCRAP", "SCRAP", "OUTCOME", null, false, true),
-                        new StatusCategory("ENVIO NACIONAL", "ENVIO NACIONAL", "OUTCOME", "GS", false, false, IsActive: false) },
+                        new StatusCategory("ENVIO NACIONAL", "ENVIO NACIONAL", "OUTCOME", "OSD", false, false, IsActive: false) },
                 new Dictionary<int, IReadOnlyList<string>> { [1] = new[] { "SCRAP", "EXPORT", "ENVIO NACIONAL" } },
                 Array.Empty<Department>(),
                 new Dictionary<WorkflowStatus, string> { [WorkflowStatus.Exported] = "Exported (closed)" }));
@@ -688,7 +695,7 @@ public class CatalogsFromDatabaseTests
             Assert.Contains("ENVIO NACIONAL", Catalogs.CommentsOptions(1, "ENVIO NACIONAL"));        // a record keeps its value
             Assert.Equal("Exported (closed)", WorkflowStatus.Exported.DisplayName());
             Assert.Equal("Draft", WorkflowStatus.Draft.DisplayName());                                // not in the database: built-in name
-            var lop = new UserContext("T\\LOP", "LOP", "LOP1", false, new[] { new AccessGrant("LOP1", 1, UserFunction.Champion) });
+            var lop = new UserContext("T\\LOP", "LOP", "LOP", false, new[] { new AccessGrant("LOP", 1, UserFunction.Champion) });
             var p = new PalletReturn { ValueStreamId = 1, Status = WorkflowStatus.Imported };
             Assert.True(FieldPermissions.CanEdit(lop, p, nameof(PalletReturn.ImportInvoice)));
         }
@@ -706,7 +713,7 @@ public class DepartmentAdminTests
 {
     [Theory]
     [InlineData("MFQ3", "MFQ", "PROCESS", true)]
-    [InlineData("gs/osd44", "GS", "PROCESS", true)]
+    [InlineData("osd44", "OSD", "PROCESS", true)]
     [InlineData("", "MFQ", "PROCESS", false)]
     [InlineData("MFQ 3", "MFQ", "PROCESS", false)]
     [InlineData("MFQ3", "XYZ", "PROCESS", false)]          // area the database would refuse

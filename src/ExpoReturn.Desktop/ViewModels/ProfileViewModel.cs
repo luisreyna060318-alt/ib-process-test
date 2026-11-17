@@ -16,7 +16,7 @@ public sealed partial class SelectableValueStream : ObservableObject
 
 /// <summary>
 /// Start-up profile: the Windows user is read automatically; the user chooses department and Value Stream(s).
-/// First run registers the profile with the Viewer function. Later, a change of department or VS becomes a request
+/// First run registers the profile as Viewer with a registration request for the Owner (approved = Member). Later, a change of department or VS becomes a request
 /// that the Owner approves on the Users &amp; Access screen. The function is never chosen here.
 /// </summary>
 public sealed partial class ProfileViewModel : ObservableObject
@@ -48,7 +48,7 @@ public sealed partial class ProfileViewModel : ObservableObject
     public bool IsOwner { get; }
     public string WindowTitle => IsFirstRun ? "Welcome to Expo & Return FG Follow Up" : "My profile";
     public string Intro => IsFirstRun
-        ? "This is the first time you open the application. Tell us your department and the Value Stream(s) you work in. You start as Viewer (read-only); the Owner assigns the Champion or Proxy function."
+        ? "This is the first time you open the application. Tell us your department and the Value Stream(s) you work in. You start as Viewer (read-only) until the Owner approves your registration in Requests; then you are Member and capture the IB processes of your department and VS (Champion and Proxy are assigned by the Owner)."
         : IsOwner
             ? "As Owner, department and Value Stream do not limit your access. Changes are applied directly."
             : "Changes to department or Value Stream are sent to the Owner for approval. Your current access stays as it is until then.";

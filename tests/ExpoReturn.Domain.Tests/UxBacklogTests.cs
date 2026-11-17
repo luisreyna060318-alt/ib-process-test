@@ -17,7 +17,8 @@ public class UxBacklogTests
         var pending = issues.Where(i => i.IsRequiredPending).ToList();
         Assert.True(pending.Count >= 6);
         Assert.All(pending, i => Assert.Equal(Severity.Warning, i.Severity));
-        Assert.DoesNotContain(issues, i => i.Severity == Severity.Error);     // un borrador vacío se puede guardar
+        // Every pallet needs its PO and its HU or batch (v0.5.0): the only errors of an empty pallet
+        Assert.Equal(new[] { "VAL-050", "VAL-051" }, issues.Where(i => i.Severity == Severity.Error).Select(i => i.Code).OrderBy(c => c));
     }
 
     [Fact]
@@ -62,17 +63,17 @@ public class UxBacklogTests
     [Fact]
     public void Inbox_export_writes_a_protected_workbook()
     {
-        var repo = new InMemoryPalletRepository();
+        var repo = new InMemoryProcessRepository();
         SampleData.Seed(repo, new InMemoryAuditTrail(), new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: true), new SystemClock());
         var path = Path.Combine(Path.GetTempPath(), $"export_{Guid.NewGuid():N}.xlsx");
         try
         {
-            ExcelExporter.ExportPallets(repo.GetAll(), path, DateTime.Today, "Todos los VS · Todos");
+            ExcelExporter.ExportPallets(repo.AllPallets(), path, DateTime.Today, "Todos los VS · Todos");
             using var wb = new XLWorkbook(path);
             var ws = wb.Worksheet("Returns");
             Assert.True(ws.IsProtected);
             Assert.Equal("Folio", ws.Cell(3, 1).GetString());
-            Assert.Equal(repo.GetAll().Count, ws.LastRowUsed()!.RowNumber() - 3);
+            Assert.Equal(repo.AllPallets().Count, ws.LastRowUsed()!.RowNumber() - 3);
         }
         finally { File.Delete(path); }
     }

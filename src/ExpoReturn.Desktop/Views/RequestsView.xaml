@@ -1,0 +1,67 @@
+<UserControl x:Class="ExpoReturn.Desktop.Views.RequestsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="Requests" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}" TextWrapping="Wrap"
+                       Text="New users register as Viewer (read-only) until you approve them: approving makes them Member (capture) in the department and Value Streams they chose. Profile changes (department or VS) apply only when approved. Every decision goes to the audit log." />
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding ReloadCommand}" Style="{StaticResource SecondaryButton}" Margin="0" />
+                        <TextBlock Text="{Binding PendingText}" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="Only the Owner decides requests (read-only for you)." Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"
+                               Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
+                    <DataGrid ItemsSource="{Binding Pending}" RowHeight="36" Visibility="{Binding HasPending, Converter={StaticResource BoolToVis}}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110" />
+                            <DataGridTextColumn Header="User" Binding="{Binding DisplayName}" Width="*" />
+                            <DataGridTextColumn Header="Windows user" Binding="{Binding NtUser}" Width="*" />
+                            <DataGridTextColumn Header="Current dept." Binding="{Binding CurrentDepartment}" Width="90" />
+                            <DataGridTextColumn Header="Current VS" Binding="{Binding CurrentValueStreams}" Width="120" />
+                            <DataGridTextColumn Header="Requested dept." Binding="{Binding RequestedDepartment}" Width="105" />
+                            <DataGridTextColumn Header="Requested VS" Binding="{Binding RequestedValueStreams}" Width="120" />
+                            <DataGridTemplateColumn Width="170">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" IsEnabled="{Binding DataContext.CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                            <Button Content="Approve" Style="{StaticResource LinkButton}"
+                                                    Command="{Binding DataContext.ApproveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Content="Reject" Style="{StaticResource LinkButton}"
+                                                    Command="{Binding DataContext.RejectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="{Binding Message}" Foreground="{StaticResource Accent}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Visibility="{Binding Message, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Decided (last 200)" Style="{StaticResource SectionTitle}" />
+                    <DataGrid ItemsSource="{Binding History}" MaxHeight="420">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110" />
+                            <DataGridTextColumn Header="User" Binding="{Binding DisplayName}" Width="*" />
+                            <DataGridTextColumn Header="Dept." Binding="{Binding RequestedDepartment}" Width="70" />
+                            <DataGridTextColumn Header="VS" Binding="{Binding RequestedValueStreams}" Width="110" />
+                            <DataGridTextColumn Header="Decision" Binding="{Binding StatusText}" Width="90" />
+                            <DataGridTextColumn Header="By" Binding="{Binding DecidedBy}" Width="120" />
+                            <DataGridTextColumn Header="On" Binding="{Binding DecidedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
+                            <DataGridTextColumn Header="Comment" Binding="{Binding Comment}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

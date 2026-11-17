@@ -1,39 +1,67 @@
 namespace ExpoReturn.Domain;
 
 /// <summary>
-/// A pallet returned from El Paso WHS to JuP1 (one row of the Excel Matrix 2.0).
+/// One pallet of an IB PROCESS (IB_PROCESS_PALLETS): its part number, quantity, HU or batch, PO and execution.
+/// The request, customs entry and delivery number are read from (and written to) its <see cref="Process"/>, so the
+/// rules that use them per pallet keep working. A pallet created alone gets its own process (historical rows, tests).
 /// Excel 2.0 columns only; the "LOW export" column, which held two values, is split into number and date.
 /// Property names map to IB_PROCESS_PALLET_RETURNS columns (see the field dictionary).
 /// </summary>
 public sealed class PalletReturn : NotifyBase
 {
-    // ---------- Identidad ----------
+    // ---------- Identity ----------
     private int _id; public int Id { get => _id; set => Set(ref _id, value); }
-    private int _valueStreamId; public int ValueStreamId { get => _valueStreamId; set { if (Set(ref _valueStreamId, value)) Raise(nameof(FolioCode)); } }
-    private int _folioNumber; public int FolioNumber { get => _folioNumber; set { if (Set(ref _folioNumber, value)) Raise(nameof(FolioCode)); } }
-    public string FolioCode => $"VS{ValueStreamId}-{FolioNumber:00000}";
+    private int _lineNo; public int LineNo { get => _lineNo; set { if (Set(ref _lineNo, value)) Raise(nameof(FolioCode)); } }
+    public IbProcess Process { get; private set; }
 
-    // ---------- Etapa 1 · Solicitud (QMM / solicitante) ----------
-    private string? _qmmResponsible; public string? QmmResponsible { get => _qmmResponsible; set => Set(ref _qmmResponsible, value); }
-    private string? _requestingDepartment; public string? RequestingDepartment { get => _requestingDepartment; set => Set(ref _requestingDepartment, value); }
-    private string? _requestorName; public string? RequestorName { get => _requestorName; set => Set(ref _requestorName, value); }
-    private int? _reasonId; public int? ReasonId { get => _reasonId; set => Set(ref _reasonId, value); }
-    private string? _returnReasonDetail; public string? ReturnReasonDetail { get => _returnReasonDetail; set => Set(ref _returnReasonDetail, value); }
+    public PalletReturn()
+    {
+        Process = new IbProcess();
+        Process.Pallets.Add(this);
+        _lineNo = 1;
+    }
+
+    internal void AttachTo(IbProcess process)
+    {
+        if (ReferenceEquals(Process, process)) return;
+        Process.Pallets.Remove(this);
+        Process = process;
+    }
+
+    internal void RaiseFolio() => Raise(nameof(FolioCode));
+
+    /// <summary>VS7-00012-01 (pallet 1 of process VS7-00012).</summary>
+    public string FolioCode => $"{Process.FolioCode}-{LineNo:00}";
+
+    // ---------- From the process (header) ----------
+    public int ValueStreamId { get => Process.ValueStreamId; set { Process.ValueStreamId = value; Raise(); Raise(nameof(FolioCode)); } }
+    public int FolioNumber { get => Process.FolioNumber; set { Process.FolioNumber = value; Raise(); Raise(nameof(FolioCode)); } }
+    public string? QmmResponsible { get => Process.QmmResponsible; set { Process.QmmResponsible = value; Raise(); } }
+    public string? RequestingDepartment { get => Process.RequestingDepartment; set { Process.RequestingDepartment = value; Raise(); } }
+    public string? RequestorName { get => Process.RequestorName; set { Process.RequestorName = value; Raise(); } }
+    public int? ReasonId { get => Process.ReasonId; set { Process.ReasonId = value; Raise(); } }
+    public string? ReturnReasonDetail { get => Process.ReturnReasonDetail; set { Process.ReturnReasonDetail = value; Raise(); } }
+    public DateTime? ImportDate { get => Process.ImportDate; set { Process.ImportDate = value; Raise(); } }
+    public string? ImportInvoice { get => Process.ImportInvoice; set { Process.ImportInvoice = value; Raise(); } }
+    public DateTime? ImportDateElpJup1 { get => Process.ImportDateElpJup1; set { Process.ImportDateElpJup1 = value; Raise(); } }
+    public string? DeliveryNumber { get => Process.DeliveryNumber; set { Process.DeliveryNumber = value; Raise(); } }
+    public bool IsLegacy { get => Process.IsLegacy; set { Process.IsLegacy = value; Raise(); } }
+    public string? LegacySource { get => Process.LegacySource; set { Process.LegacySource = value; Raise(); } }
+
+    // ---------- Original pallet in El Paso (QMM / requestor) ----------
     private string? _returnedMaterial; public string? ReturnedMaterial { get => _returnedMaterial; set => Set(ref _returnedMaterial, value); }
     private decimal? _unitCostUsd; public decimal? UnitCostUsd { get => _unitCostUsd; set { if (Set(ref _unitCostUsd, value)) Raise(nameof(SapUsdTotal)); } }
     private string _unitCostSource = "PENDING"; public string UnitCostSource { get => _unitCostSource; set => Set(ref _unitCostSource, value); }
     private int _qtyImported; public int QtyImported { get => _qtyImported; set { if (Set(ref _qtyImported, value)) Raise(nameof(SapUsdTotal)); } }
-    private string? _originalHU; public string? OriginalHU { get => _originalHU; set => Set(ref _originalHU, value); }
-    private string? _originalBatch; public string? OriginalBatch { get => _originalBatch; set => Set(ref _originalBatch, value); }
+    private string? _originalHU; public string? OriginalHU { get => _originalHU; set { if (Set(ref _originalHU, value)) Raise(nameof(PalletIdText)); } }
+    private string? _originalBatch; public string? OriginalBatch { get => _originalBatch; set { if (Set(ref _originalBatch, value)) Raise(nameof(PalletIdText)); } }
+    /// <summary>What identifies the pallet: the original HU, else the original batch.</summary>
+    public string PalletIdText => !string.IsNullOrWhiteSpace(OriginalHU) ? OriginalHU! : !string.IsNullOrWhiteSpace(OriginalBatch) ? OriginalBatch! : "—";
     public decimal SapUsdTotal => Math.Round(QtyImported * (UnitCostUsd ?? 0m), 2, MidpointRounding.AwayFromZero);
 
     // ---------- Etapa 2 · Aduana y logística de entrada (GS/OSD43, QMM, LOP) ----------
     private DateTime? _dateReturnedToWhs; public DateTime? DateReturnedToWhs { get => _dateReturnedToWhs; set => Set(ref _dateReturnedToWhs, value); }
-    private DateTime? _importDate; public DateTime? ImportDate { get => _importDate; set => Set(ref _importDate, value); }
-    private string? _importInvoice; public string? ImportInvoice { get => _importInvoice; set => Set(ref _importInvoice, value); }
-    private DateTime? _importDateElpJup1; public DateTime? ImportDateElpJup1 { get => _importDateElpJup1; set => Set(ref _importDateElpJup1, value); }
     private string? _returnPONumber; public string? ReturnPONumber { get => _returnPONumber; set => Set(ref _returnPONumber, value); }
-    private string? _deliveryNumber; public string? DeliveryNumber { get => _deliveryNumber; set => Set(ref _deliveryNumber, value); }
 
     // ---------- Etapa 3 · Ejecución en planta (MFO / LOW) ----------
     private int? _physicalDeliveredQty; public int? PhysicalDeliveredQty { get => _physicalDeliveredQty; set => Set(ref _physicalDeliveredQty, value); }
@@ -66,8 +94,6 @@ public sealed class PalletReturn : NotifyBase
     private DateTime? _legalDueDate; public DateTime? LegalDueDate { get => _legalDueDate; set => Set(ref _legalDueDate, value); }
 
     // ---------- Control / histórico ----------
-    private bool _isLegacy; public bool IsLegacy { get => _isLegacy; set => Set(ref _isLegacy, value); }
-    private string? _legacySource; public string? LegacySource { get => _legacySource; set => Set(ref _legacySource, value); }
     public List<string> DataQualityFlags { get; set; } = new();
     public string DataQualityText => string.Join("; ", DataQualityFlags);
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -84,12 +110,19 @@ public sealed class PalletReturn : NotifyBase
         ImportDateElpJup1 is null ? null
         : (int)(((Status.IsClosed() ? DateSentBack ?? HseConfirmationDate : null) ?? today).Date - ImportDateElpJup1.Value.Date).TotalDays;
 
-    /// <summary>Copia superficial: el editor trabaja sobre una copia y sólo se guarda al confirmar.</summary>
-    public PalletReturn Clone()
+    /// <summary>
+    /// Copy for the editor: the whole process is copied (header and every pallet) and the copy of this pallet is
+    /// returned, so its header values are the copy's too.
+    /// </summary>
+    public PalletReturn Clone() => Process.Clone().Pallets[Process.Pallets.IndexOf(this)];
+
+    /// <summary>Copy of this pallet inside another (copied) process.</summary>
+    internal PalletReturn CopyFor(IbProcess process)
     {
         var c = (PalletReturn)MemberwiseClone();
         c.DataQualityFlags = new List<string>(DataQualityFlags);
         c.ClearSubscribers();
+        c.Process = process;
         return c;
     }
 }

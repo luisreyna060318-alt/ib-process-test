@@ -4,14 +4,23 @@ public sealed record DutyRiskAssessment(bool IsAtRisk, string? Reason, DateTime?
 
 public static class StageGuards
 {
+    /// <summary>Request of the process filled in (header only).</summary>
+    public static bool HeaderComplete(IbProcess h) =>
+        h.ValueStreamId > 0
+        && !string.IsNullOrWhiteSpace(h.QmmResponsible)
+        && !string.IsNullOrWhiteSpace(h.RequestingDepartment)
+        && !string.IsNullOrWhiteSpace(h.RequestorName)
+        && h.ReasonId is not null;
+
+    /// <summary>A pallet is requested when the request of its process and its own part number and quantity are filled in.</summary>
     public static bool Stage1Complete(PalletReturn p) =>
-        p.ValueStreamId > 0
-        && !string.IsNullOrWhiteSpace(p.QmmResponsible)
-        && !string.IsNullOrWhiteSpace(p.RequestingDepartment)
-        && !string.IsNullOrWhiteSpace(p.RequestorName)
-        && p.ReasonId is not null
+        HeaderComplete(p.Process)
         && !string.IsNullOrWhiteSpace(p.ReturnedMaterial)
         && p.QtyImported > 0;
+
+    /// <summary>The process is requested when its header and every pallet are (and it has at least one).</summary>
+    public static bool Stage1Complete(IbProcess h) =>
+        HeaderComplete(h) && h.Pallets.Count > 0 && h.Pallets.All(Stage1Complete);
 
     public static bool Stage3Started(PalletReturn p) =>
         !string.IsNullOrWhiteSpace(p.NewMaterial) || !string.IsNullOrWhiteSpace(p.NewHU)

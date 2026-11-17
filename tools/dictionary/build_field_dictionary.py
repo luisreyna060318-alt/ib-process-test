@@ -18,22 +18,10 @@ from openpyxl.utils import get_column_letter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Department list (code, area, can request, group, active): same as Catalogs.AllDepartments and 02_seed_data.sql.
-DEPARTMENTS = [
-    ("MFQ8", "MFQ", "Y", "PROCESS", "Y"), ("MFO1", "MFO", "Y", "PROCESS", "Y"), ("MFO12", "MFO", "Y", "PROCESS", "Y"),
-    ("MFO1-US", "MFO", "Y", "PROCESS", "Y"), ("MFE5", "MFE", "Y", "PROCESS", "Y"), ("QMM1", "QMM", "Y", "PROCESS", "Y"),
-    ("QMM2", "QMM", "Y", "PROCESS", "Y"), ("LOP1", "LOP", "Y", "PROCESS", "Y"), ("LOP2", "LOP", "Y", "PROCESS", "Y"),
-    ("LOW", "LOW", "N", "PROCESS", "Y"), ("CTG3", "CTG", "N", "PROCESS", "Y"), ("TEF6", "TEF", "Y", "PROCESS", "Y"),
-    ("GS/OSD43", "GS", "N", "PROCESS", "Y"), ("HSE", "HSE", "N", "PROCESS", "Y"),
-    # requesting departments of the Excel 2.0 list (sheet "Sheet1") and LOW2, found in the Excel rows
-    ("MFQ1", "MFQ", "Y", "PROCESS", "Y"), ("MFQ4", "MFQ", "Y", "PROCESS", "Y"), ("MFQ5", "MFQ", "Y", "PROCESS", "Y"),
-    ("MFQ7", "MFQ", "Y", "PROCESS", "Y"), ("MFQ9", "MFQ", "Y", "PROCESS", "Y"), ("QMM-C1", "QMM", "Y", "PROCESS", "Y"),
-    ("QMM-C2", "QMM", "Y", "PROCESS", "Y"), ("PUQ", "PUQ", "Y", "PROCESS", "Y"), ("LOW2", "LOW", "Y", "PROCESS", "Y"),
-    ("QMM-L2", "QMM-L", "N", "CROSS_FUNCTIONAL", "Y"), ("DBE", "DBE", "N", "CROSS_FUNCTIONAL", "Y"),
-    ("TEF1", "TEF", "N", "CROSS_FUNCTIONAL", "Y"),
-    # old codes: inactive, kept for historical records
-    ("QMM", "QMM", "Y", "PROCESS", "N"), ("MFQ", "MFQ", "Y", "PROCESS", "N")] + [(f"MFQ{i}", "MFQ", "Y", "PROCESS", "N") for i in (2, 3, 6)] + [
-    ("MFO", "MFO", "Y", "PROCESS", "N")] + [(f"MFO{i}", "MFO", "Y", "PROCESS", "N") for i in (4, 5, 7, 9)] + [
-    ("LOP", "LOP", "Y", "PROCESS", "N")]
+DEPARTMENTS = [  # code, area, can request, group, active -- every department can request
+    ("QMM", "QMM", "Y", "PROCESS", "Y"), ("MFQ", "MFQ", "Y", "PROCESS", "Y"), ("PUQ", "PUQ", "Y", "PROCESS", "Y"),
+    ("MFO", "MFO", "Y", "PROCESS", "Y"), ("LOP", "LOP", "Y", "PROCESS", "Y"), ("OSD", "OSD", "Y", "PROCESS", "Y"),
+    ("LOW", "LOW", "Y", "PROCESS", "Y"), ("HSE", "HSE", "Y", "PROCESS", "Y")]
 OUT = os.path.join(ROOT, "entregables", "Diccionario_Campos_ExpoReturn.xlsx")
 
 FONT = "Arial"
@@ -77,7 +65,8 @@ COMMENTS_BY_VS = {
 }
 
 TABLES = [
-    ("IB_PROCESS_PALLET_RETURNS", "One row per returned pallet: every field of the 'Dictionary' sheet.", "One row of a VS sheet"),
+    ("IB_PROCESS_PROCESSES", "IB PROCESS: request, customs entry and delivery number, shared by its pallets.", "Rows of a VS sheet with the same request / invoice"),
+    ("IB_PROCESS_PALLETS", "Pallets of an IB PROCESS: part number, quantity, HU or batch, PO and the whole execution.", "One row of a VS sheet"),
     ("IB_PROCESS_FOLIO_COUNTERS", "Last folio per Value Stream.", "Column #"),
     ("IB_PROCESS_STATUS_HISTORY", "Calculated status changes (time in each stage).", "Not in the Excel"),
     ("IB_PROCESS_ALERTS", "Alerts (IMMEX term, missing pieces, internal deadlines) and how they were handled.", "Not in the Excel"),
@@ -240,9 +229,8 @@ def main():
     sys.path.insert(0, os.path.join(ROOT, "tools", "database"))
     ws4 = wb.create_sheet("Departments")
     title(ws4, "Departments (IB_PROCESS_DEPARTMENTS)", "AREA decides the fields a Champion / Proxy edits. Inactive codes are only kept for historical records.")
-    permission = {"QMM": "QMM", "MFQ": "Requestor", "PUQ": "Requestor", "MFE": "Requestor [VALIDATE]", "TEF": "Requestor [VALIDATE]",
-                  "GS": "GS / OSD43", "LOP": "LOP", "MFO": "MFO", "LOW": "LOW", "HSE": "HSE",
-                  "CTG": "Read only [VALIDATE]", "DBE": "Read only [VALIDATE]", "QMM-L": "Read only [VALIDATE]"}
+    permission = {"QMM": "QMM", "MFQ": "Requestor", "PUQ": "Requestor", "OSD": "Customs (OSD)", "LOP": "LOP", "MFO": "MFO",
+                  "LOW": "LOW", "HSE": "HSE"}
     groups = {"PROCESS": "Process", "CROSS_FUNCTIONAL": "Digitalization / cross-functional projects"}
     h4 = ["Department", "AREA", "Edits the fields of", "Can request a return", "Group", "Active"]
     for i, h in enumerate(h4, 1):

@@ -15,6 +15,7 @@
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><v:DashboardView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AlertsViewModel}"><v:AlertsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:UsersViewModel}"><v:UsersView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RequestsViewModel}"><v:RequestsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AuditViewModel}"><v:AuditView /></DataTemplate>
     </Window.Resources>
 
