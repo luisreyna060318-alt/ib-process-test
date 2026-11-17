@@ -46,6 +46,8 @@ for m in re.finditer(r"CREATE TABLE (IB_PROCESS_\w+) \((.*?)\n\);", ddl, re.S):
 for m in re.finditer(r"CREATE (UNIQUE )?INDEX (\w+) ON (\w+)", ddl):
     indexes.append((m.group(3), m.group(2), ("UNIQUE" if m.group(1) else "NONUNIQUE") + " VALID"))
 
+views = re.findall(r"CREATE OR REPLACE VIEW (IB_PROCESS_\w+)", nocomments(read("05_views.sql")))
+
 triggers = []
 for m in re.finditer(r"CREATE OR REPLACE TRIGGER (\w+)\s+BEFORE [A-Z ]+? ON (\w+)", read("03_comments_and_triggers.sql") + read("04_integrity_rules.sql")):
     triggers.append((m.group(1), m.group(2), f"{m.group(2)} ENABLED VALID"))
@@ -66,7 +68,7 @@ L = ["/* =====================================================================",
      "   Run with Run Script (F5). Sections 1 to 4 list ONLY differences between the database and the scripts:",
      "   'no rows selected' in all four = the schema is exactly what the scripts define.",
      f"   Expected: {len(tables)} tables, {len(columns)} columns, {len(constraints)} named constraints, "
-     f"{len(indexes)} indexes, {len(triggers)} triggers.",
+     f"{len(indexes)} indexes, {len(triggers)} triggers, {len(views)} views.",
      "   ===================================================================== */", "",
      "SET DEFINE OFF", "",
      f"PROMPT 1. Columns (type, length in characters C / bytes B, nullable Y/N) - only differences",
@@ -77,7 +79,7 @@ L = ["/* =====================================================================",
      "                WHEN DATA_TYPE IN ('NVARCHAR2', 'CHAR') THEN DATA_TYPE || '(' || CHAR_LENGTH || ')'",
      "                WHEN DATA_TYPE = 'NUMBER' AND DATA_PRECISION IS NOT NULL THEN 'NUMBER(' || DATA_PRECISION || ',' || NVL(DATA_SCALE, 0) || ')'",
      "                ELSE DATA_TYPE END || ' ' || NULLABLE AS DESCRIPTOR",
-     f"      FROM USER_TAB_COLUMNS WHERE TABLE_NAME {LIKE}",
+     f"      FROM USER_TAB_COLUMNS WHERE TABLE_NAME {LIKE} AND TABLE_NAME IN (SELECT TABLE_NAME FROM USER_TABLES)",
      ")",
      "SELECT NVL(e.TABLE_NAME, a.TABLE_NAME) AS TABLE_NAME, NVL(e.COLUMN_NAME, a.COLUMN_NAME) AS COLUMN_NAME,",
      "       e.DESCRIPTOR AS EXPECTED, a.DESCRIPTOR AS IN_DATABASE",
@@ -118,6 +120,18 @@ L = ["/* =====================================================================",
      "  FROM expected e FULL OUTER JOIN actual a ON a.TRIGGER_NAME = e.TRIGGER_NAME",
      " WHERE e.DESCRIPTOR IS NULL OR a.DESCRIPTOR IS NULL OR e.DESCRIPTOR <> a.DESCRIPTOR",
      " ORDER BY 1;", "",
+     "PROMPT 4b. Views (exist and compile without errors) - only differences",
+     "WITH " + values([(v, "VALID") for v in views], ["VIEW_NAME", "DESCRIPTOR"]) + ",",
+     "actual AS (",
+     "    SELECT OBJECT_NAME AS VIEW_NAME, STATUS AS DESCRIPTOR FROM USER_OBJECTS",
+     f"     WHERE OBJECT_TYPE = 'VIEW' AND OBJECT_NAME {LIKE}",
+     ")",
+     "SELECT NVL(e.VIEW_NAME, a.VIEW_NAME) AS VIEW_NAME, e.DESCRIPTOR AS EXPECTED, a.DESCRIPTOR AS IN_DATABASE",
+     "  FROM expected e FULL OUTER JOIN actual a ON a.VIEW_NAME = e.VIEW_NAME",
+     " WHERE e.DESCRIPTOR IS NULL OR a.DESCRIPTOR IS NULL OR e.DESCRIPTOR <> a.DESCRIPTOR",
+     " ORDER BY 1;", "",
+     "PROMPT 4c. Views answer (rows of each view; an error here means a view does not work)",
+     " UNION ALL\n".join(f"SELECT {q(v)} AS VIEW_NAME, (SELECT COUNT(*) FROM {v}) AS ROWS_NOW FROM DUAL" for v in views) + ";", "",
      "PROMPT 5. Rows per table (information: right after the install the two columns are equal; later the app adds rows)",
      " UNION ALL\n".join(f"SELECT {q(t)} AS TABLE_NAME, {counts[t]} AS ROWS_AT_INSTALL, (SELECT COUNT(*) FROM {t}) AS ROWS_NOW FROM DUAL"
                          for t in tables) + ";", "",
@@ -127,8 +141,9 @@ L = ["/* =====================================================================",
      f"       (SELECT COUNT(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME {LIKE} AND CONSTRAINT_NAME NOT LIKE 'SYS\\_%' ESCAPE '\\') AS CONSTRAINTS_{len(constraints)},",
      f"       (SELECT COUNT(*) FROM USER_INDEXES WHERE TABLE_NAME {LIKE} AND INDEX_NAME NOT LIKE 'SYS\\_%' ESCAPE '\\') AS INDEXES_{len(indexes)},",
      f"       (SELECT COUNT(*) FROM USER_TRIGGERS WHERE TRIGGER_NAME LIKE 'IB\\_%' ESCAPE '\\' AND STATUS = 'ENABLED') AS TRIGGERS_{len(triggers)},",
+     f"       (SELECT COUNT(*) FROM USER_VIEWS WHERE VIEW_NAME {LIKE}) AS VIEWS_{len(views)},",
      "       (SELECT COUNT(*) FROM USER_OBJECTS WHERE OBJECT_NAME LIKE 'IB\\_%' ESCAPE '\\' AND STATUS <> 'VALID') AS INVALID_0",
      "  FROM DUAL;", ""]
 open(OUT, "w", encoding="ascii", newline="\n").write("\n".join(L))
 print(f"OK -> {os.path.relpath(OUT, ROOT)} ({len(tables)} tables, {len(columns)} columns, {len(constraints)} constraints, "
-      f"{len(indexes)} indexes, {len(triggers)} triggers)")
+      f"{len(indexes)} indexes, {len(triggers)} triggers, {len(views)} views)")

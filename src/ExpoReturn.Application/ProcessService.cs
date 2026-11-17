@@ -107,10 +107,8 @@ public sealed class ProcessService
     {
         var mine = p.Pallets.Select(x => x.ReturnPONumber?.Trim()).Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
         if (mine.Count == 0) return Array.Empty<PoInOtherProcess>();
-        var others = _repo.GetAll().Where(o => p.Id == 0 || o.Id != p.Id).ToList();
-        return mine.Select(po => new PoInOtherProcess(po!, others
-                .Where(o => o.Pallets.Any(x => string.Equals(x.ReturnPONumber?.Trim(), po, StringComparison.OrdinalIgnoreCase)))
-                .Select(o => o.FolioCode).ToList()))
+        var used = _repo.FoliosUsingPo(mine!, p.Id);
+        return mine.Select(po => new PoInOtherProcess(po!, used.TryGetValue(po!, out var f) ? f : Array.Empty<string>()))
             .Where(x => x.Folios.Count > 0).ToList();
     }
 

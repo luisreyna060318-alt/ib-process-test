@@ -118,7 +118,7 @@ public static class Mm60Import
     {
         var now = clock.UtcNow;
         var updated = 0;
-        foreach (var process in repo.GetAll().Where(x => x.Pallets.Any(p => p.UnitCostSource == "PENDING")))
+        foreach (var process in repo.WithPendingCost())
         {
             var edit = process.Clone();
             var done = new List<Domain.PalletReturn>();

@@ -191,7 +191,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!ConfirmLeave()) return;
         var pallet = _services.Repository.GetPallet(palletId);
         if (pallet is null) return;
-        var process = _services.Repository.Get(pallet.Process.Id) ?? pallet.Process;
+        var process = pallet.Process;                                   // read whole, fresh from the database
         CurrentPage = new PalletDetailViewModel(_services, CurrentUser, process, Back, palletId);
     }
 

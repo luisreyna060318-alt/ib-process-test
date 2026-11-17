@@ -34,6 +34,8 @@ public sealed class IbProcess : NotifyBase
     // ---------- Control ----------
     private bool _isLegacy; public bool IsLegacy { get => _isLegacy; set => Set(ref _isLegacy, value); }
     private string? _legacySource; public string? LegacySource { get => _legacySource; set => Set(ref _legacySource, value); }
+    /// <summary>Calculated: validations an Excel 2.0 process still breaks (inbox filter "To homogenize"); 0 for new ones.</summary>
+    public int OpenFindings { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public string CreatedBy { get; set; } = "";
     public string? ModifiedBy { get; set; }

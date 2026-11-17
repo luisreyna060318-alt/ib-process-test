@@ -7,8 +7,10 @@ using static ExpoReturn.Infrastructure.Oracle.OracleDb;
 namespace ExpoReturn.Infrastructure.Oracle;
 
 /// <summary>
-/// IB_PROCESS_PROCESSES (header) + IB_PROCESS_PALLETS. Read once and kept in memory (Refresh reloads it); every save
-/// goes to Oracle in one transaction: the header only if it changed, each pallet only if it changed, each with its own
+/// IB_PROCESS_PROCESSES (header) + IB_PROCESS_PALLETS. Nothing is kept in memory: every read goes to the database (the
+/// inbox reads page by page through <see cref="OracleProcessQueries"/>; a process is read whole when it is opened), so
+/// what other users saved is always what is shown. Every save goes to Oracle in one transaction, compared with the
+/// version in the database at that moment: the header only if it changed, each pallet only if it changed, each with its own
 /// ROW_VERSION (two areas can work on the same process at the same time). Pallets that are no longer in the process are
 /// deleted; deleting a process deletes its pallets, status history and alerts (ON DELETE CASCADE).
 /// </summary>
@@ -20,8 +22,6 @@ public sealed partial class OracleProcessRepository : IProcessRepository
     private readonly OracleDb _db;
     private readonly CalcParameters _parameters;
     private readonly Func<DateTime> _today;
-    private readonly object _gate = new();
-    private List<IbProcess> _items = new();
     private Dictionary<string, int> _categoryIds = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<int, string> _categoryCodes = new();
     private HashSet<string> _departments = new(StringComparer.OrdinalIgnoreCase);
@@ -76,6 +76,8 @@ public sealed partial class OracleProcessRepository : IProcessRepository
         new("IMPORT_INVOICE", p => p.ImportInvoice, (p, r) => p.ImportInvoice = Str(r, "IMPORT_INVOICE"), 20),
         new("ELP_JUP1_CROSSING_DATE", p => p.ImportDateElpJup1, (p, r) => p.ImportDateElpJup1 = Date(r, "ELP_JUP1_CROSSING_DATE")),
         new("DELIVERY_NUMBER", p => p.DeliveryNumber, (p, r) => p.DeliveryNumber = Str(r, "DELIVERY_NUMBER"), 20),
+        // Calculated by the application (inbox filter To homogenize).
+        new("OPEN_FINDINGS", p => p.OpenFindings, (p, r) => p.OpenFindings = Int(r, "OPEN_FINDINGS") ?? 0),
     };
 
     /// <summary>Columns of IB_PROCESS_PALLETS written by INSERT / UPDATE.</summary>
@@ -146,9 +148,28 @@ public sealed partial class OracleProcessRepository : IProcessRepository
 
     // ------------------------------------------------------------------ queries
 
-    public IReadOnlyList<IbProcess> GetAll() { lock (_gate) return _items.ToList(); }
-    public IbProcess? Get(int id) { lock (_gate) return _items.FirstOrDefault(p => p.Id == id); }
+    public IReadOnlyList<IbProcess> GetAll() => LoadWhere("1 = 1");
+    public IbProcess? Get(int id) => LoadWhere("prc.PROCESS_ID = :id", ("id", id)).FirstOrDefault();
 
+    public PalletReturn? GetPallet(int palletId) =>
+        LoadWhere($"prc.PROCESS_ID = (SELECT x.PROCESS_ID FROM {_db.T("IB_PROCESS_PALLETS")} x WHERE x.PALLET_ID = :palletId)", ("palletId", palletId))
+            .SelectMany(p => p.Pallets).FirstOrDefault(p => p.Id == palletId);
+
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> FoliosUsingPo(IReadOnlyCollection<string> poNumbers, int excludeProcessId)
+    {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var po in poNumbers.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase))
+            result[po] = _db.Query($@"SELECT DISTINCT prc.FOLIO_CODE FROM {_db.T("IB_PROCESS_PALLETS")} pal
+                                        JOIN {_db.T("IB_PROCESS_PROCESSES")} prc ON prc.PROCESS_ID = pal.PROCESS_ID
+                                       WHERE UPPER(TRIM(pal.PO_NUMBER)) = UPPER(TRIM(:po)) AND prc.PROCESS_ID <> :exclude
+                                       ORDER BY prc.FOLIO_CODE", r => Str(r, "FOLIO_CODE")!, ("po", po.Trim()), ("exclude", excludeProcessId));
+        return result;
+    }
+
+    public IReadOnlyList<IbProcess> WithPendingCost() =>
+        LoadWhere($"EXISTS (SELECT 1 FROM {_db.T("IB_PROCESS_PALLETS")} x WHERE x.PROCESS_ID = prc.PROCESS_ID AND x.UNIT_COST_SOURCE = 'PENDING')");
+
+    /// <summary>Catalogs used to translate ids (status categories, departments); the data itself is never cached.</summary>
     public void Refresh()
     {
         var cats = _db.Query($"SELECT STATUS_CATEGORY_ID, CODE FROM {_db.T("IB_PROCESS_STATUS_CATEGORIES")}",
@@ -157,9 +178,18 @@ public sealed partial class OracleProcessRepository : IProcessRepository
         _categoryCodes = cats.ToDictionary(c => c.Id, c => c.Code);
         _departments = _db.Query($"SELECT DEPARTMENT_CODE FROM {_db.T("IB_PROCESS_DEPARTMENTS")}", r => Str(r, "DEPARTMENT_CODE")!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
+    /// <summary>
+    /// Whole processes (header + pallets) whose header matches <paramref name="where"/> (alias <c>prc</c>). Financials,
+    /// status and duty risk are recalculated with today's date, like the views; OPEN_FINDINGS keeps the stored value so a
+    /// save can tell whether it changed.
+    /// </summary>
+    internal List<IbProcess> LoadWhere(string where, params (string Name, object? Value)[] args)
+    {
         var header = HeaderColumns();
-        var processes = _db.Query($"SELECT * FROM {_db.T("IB_PROCESS_PROCESSES")} ORDER BY VALUE_STREAM_ID, FOLIO_NUMBER", r =>
+        var processes = _db.Query($"SELECT prc.* FROM {_db.T("IB_PROCESS_PROCESSES")} prc WHERE {where} ORDER BY prc.VALUE_STREAM_ID, prc.FOLIO_NUMBER", r =>
         {
             var p = new IbProcess { Id = Int(r, "PROCESS_ID")!.Value };
             foreach (var c in header) c.Set(p, r);
@@ -172,10 +202,14 @@ public sealed partial class OracleProcessRepository : IProcessRepository
             p.ModifiedAtUtc = Utc(r, "MODIFIED_AT");
             p.RowVersion = Int(r, "ROW_VERSION") ?? 0;
             return p;
-        }).ToDictionary(p => p.Id);
+        }, args);
+        if (processes.Count == 0) return processes;
+        var byId = processes.ToDictionary(p => p.Id);
 
         var cols = PalletColumns();
-        foreach (var (processId, pallet) in _db.Query($"SELECT * FROM {_db.T("IB_PROCESS_PALLETS")} ORDER BY PROCESS_ID, LINE_NO", r =>
+        foreach (var (processId, pallet) in _db.Query($@"SELECT pal.* FROM {_db.T("IB_PROCESS_PALLETS")} pal
+                     WHERE pal.PROCESS_ID IN (SELECT prc.PROCESS_ID FROM {_db.T("IB_PROCESS_PROCESSES")} prc WHERE {where})
+                     ORDER BY pal.PROCESS_ID, pal.LINE_NO", r =>
                  {
                      var p = new PalletReturn { Id = Int(r, "PALLET_ID")!.Value };
                      foreach (var c in cols) c.Set(p, r);
@@ -185,14 +219,16 @@ public sealed partial class OracleProcessRepository : IProcessRepository
                      p.ModifiedAtUtc = Utc(r, "MODIFIED_AT");
                      p.RowVersion = Int(r, "ROW_VERSION") ?? 0;
                      return (Int(r, "PROCESS_ID")!.Value, p);
-                 }))
-            if (processes.TryGetValue(processId, out var process)) process.AddPallet(pallet);
+                 }, args))
+            if (byId.TryGetValue(processId, out var process)) process.AddPallet(pallet);
 
-        // Financials and status depend on today (aging, duty risk): recalculated on load like the Excel formulas.
         var today = _today();
-        foreach (var p in processes.Values) PalletEvaluator.Apply(p, _parameters, today);
-        lock (_gate) _items = processes.Values.OrderBy(p => p.ValueStreamId).ThenBy(p => p.FolioNumber).ToList();
-        Changed?.Invoke(this, EventArgs.Empty);
+        foreach (var p in processes)
+        {
+            foreach (var pallet in p.Pallets) PalletEvaluator.Apply(pallet, _parameters, today);
+            p.RaiseTotals();
+        }
+        return processes;
     }
 
     /// <summary>
@@ -216,9 +252,8 @@ public sealed partial class OracleProcessRepository : IProcessRepository
 
     public void Save(IbProcess process)
     {
-        IbProcess? before;
-        lock (_gate) before = _items.FirstOrDefault(p => p.Id == process.Id);
-        if (process.Id != 0 && before is null) throw new ConcurrencyException("The IB process is not in the list any more. Reload and try again.");
+        var before = process.Id == 0 ? null : Get(process.Id);              // the version in the database right now
+        if (process.Id != 0 && before is null) throw new ConcurrencyException("The IB process was deleted by someone else. Reload the list.");
         var tooLong = TooLong(process);
         if (tooLong.Count > 0) throw new DataRuleException("Too long for the database: " + string.Join(", ", tooLong));
 
@@ -229,7 +264,7 @@ public sealed partial class OracleProcessRepository : IProcessRepository
             _db.InTransaction((c, tx) =>
             {
                 if (process.Id == 0) InsertHeader(c, tx, process);
-                else if (ProcessService.DiffHeader(before, process).Any()) UpdateHeader(c, tx, process);
+                else if (ProcessService.DiffHeader(before, process).Any() || before!.OpenFindings != process.OpenFindings) UpdateHeader(c, tx, process);
 
                 foreach (var gone in before?.Pallets.Where(o => process.Pallets.All(p => p.Id != o.Id)) ?? Enumerable.Empty<PalletReturn>())
                 {
@@ -257,11 +292,6 @@ public sealed partial class OracleProcessRepository : IProcessRepository
             else foreach (var p in process.Pallets.Where(p => before.Pallets.All(o => o.Id != p.Id))) p.Id = 0;
             throw;
         }
-        lock (_gate)
-        {
-            var i = _items.FindIndex(p => p.Id == process.Id);
-            if (i >= 0) _items[i] = process; else _items.Add(process);
-        }
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -273,7 +303,6 @@ public sealed partial class OracleProcessRepository : IProcessRepository
             cmd.Parameters.Add("id", processId);
             if (cmd.ExecuteNonQuery() == 0) throw new ConcurrencyException("The IB process was already deleted. Reload the list.");
         });
-        lock (_gate) _items.RemoveAll(p => p.Id == processId);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -373,13 +402,11 @@ public sealed partial class OracleProcessRepository : IProcessRepository
     /// </summary>
     public LegacyAppendResult AppendLegacy(IEnumerable<IbProcess> processes)
     {
-        HashSet<string> loaded;
-        HashSet<(int, int)> folios;
-        lock (_gate)
-        {
-            loaded = _items.Where(p => p.LegacySource is not null).Select(p => Key(p.LegacySource!)).ToHashSet();
-            folios = _items.Select(p => (p.ValueStreamId, p.FolioNumber)).ToHashSet();
-        }
+        var loaded = _db.Query($"SELECT LEGACY_SHEET, LEGACY_ROW FROM {_db.T("IB_PROCESS_PROCESSES")} WHERE LEGACY_SHEET IS NOT NULL",
+            r => Key($"{Str(r, "LEGACY_SHEET")}!row {Int(r, "LEGACY_ROW")}")).ToHashSet();
+        var folios = _db.Query($"SELECT VALUE_STREAM_ID, FOLIO_NUMBER FROM {_db.T("IB_PROCESS_PROCESSES")}",
+            r => (Int(r, "VALUE_STREAM_ID")!.Value, Int(r, "FOLIO_NUMBER")!.Value)).ToHashSet();
+        var today = _today();
         int added = 0, existing = 0;
         var failed = new List<string>();
         using var c = _db.Open();
@@ -387,6 +414,7 @@ public sealed partial class OracleProcessRepository : IProcessRepository
         {
             if (process.LegacySource is null || loaded.Contains(Key(process.LegacySource))) { existing++; continue; }
             FitLegacy(process, folios);
+            process.OpenFindings = PalletValidator.ValidateProcess(process, today).Count;
             var tooLong = TooLong(process);
             if (tooLong.Count > 0) { failed.Add($"{process.LegacySource}: too long for {string.Join(", ", tooLong)}"); continue; }
             using var tx = c.BeginTransaction();
@@ -411,7 +439,7 @@ public sealed partial class OracleProcessRepository : IProcessRepository
                 failed.Add($"{process.LegacySource}: {Translate(ex).Message}");
             }
         }
-        Refresh();
+        Changed?.Invoke(this, EventArgs.Empty);
         return new LegacyAppendResult(added, existing, failed);
     }
 

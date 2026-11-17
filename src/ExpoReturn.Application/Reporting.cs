@@ -30,52 +30,32 @@ public sealed record Alert(AlertType Type, Severity Severity, int PalletId, stri
     public string SeverityText => Severity switch { Severity.Error => "CRITICAL", Severity.Warning => "WARNING", _ => "INFO" };
 }
 
-/// <summary>Balance by VS / fiscal year and alert rules (SRS chapter 03).</summary>
+/// <summary>
+/// Balance by VS / fiscal year and alert rules (SRS chapter 03). Totals are calculated by the store (SQL on the views with
+/// Oracle); the alerts look only at open pallets.
+/// </summary>
 public sealed class ReportingService
 {
-    private readonly IProcessRepository _repo;
+    private readonly IProcessQueries _queries;
     private readonly IClock _clock;
-    private readonly CalcParameters _prm = CalcParameters.Default;
+    private readonly CalcParameters _prm;
 
-    public ReportingService(IProcessRepository repo, IClock clock) { _repo = repo; _clock = clock; }
-
-    public IReadOnlyList<BalanceRow> BalanceByValueStream(int? fiscalYear = null)
+    public ReportingService(IProcessQueries queries, IClock clock, CalcParameters? parameters = null)
     {
-        var rows = _repo.AllPallets()
-            .Where(p => p.ImportDateElpJup1 is not null)
-            .Where(p => fiscalYear is null || p.ImportDateElpJup1!.Value.Year == fiscalYear)
-            .GroupBy(p => p.ValueStreamId)
-            .OrderBy(g => g.Key)
-            .Select(g => Row($"VS{g.Key}", g.ToList()))
-            .ToList();
-        if (rows.Count > 0)
-            rows.Add(Row("Total", _repo.AllPallets().Where(p => p.ImportDateElpJup1 is not null
-                                                       && (fiscalYear is null || p.ImportDateElpJup1!.Value.Year == fiscalYear)).ToList()));
-        return rows;
+        _queries = queries; _clock = clock; _prm = parameters ?? CalcParameters.Default;
     }
 
-    private static BalanceRow Row(string vs, List<PalletReturn> list)
-    {
-        var total = list.Sum(p => p.SapUsdTotal);
-        var inv = list.Sum(p => p.Financials.MfoInventoryUsd);
-        var hse = list.Sum(p => p.Financials.HseScrapUsd);
-        var fail = list.Sum(p => p.Financials.MfoLowFailureUsd);
-        return new BalanceRow(vs, list.Count, list.Count(p => !p.Status.IsClosed()), list.Count(p => p.IsDutyRisk),
-            total, inv, hse, fail, total - inv - hse - fail, inv + hse + fail,
-            list.Sum(p => p.Financials.DutiesToPayUsd));
-    }
+    public IReadOnlyList<BalanceRow> BalanceByValueStream(int? fiscalYear = null) => _queries.Balance(fiscalYear);
 
-    public IReadOnlyList<StatusCount> StatusDistribution() =>
-        _repo.AllPallets().GroupBy(p => p.Status).OrderBy(g => g.Key).Select(g => new StatusCount(g.Key, g.Count())).ToList();
+    public IReadOnlyList<StatusCount> StatusDistribution() => _queries.StatusDistribution();
 
-    public IReadOnlyList<int> FiscalYears() =>
-        _repo.AllPallets().Where(p => p.ImportDateElpJup1 is not null).Select(p => p.ImportDateElpJup1!.Value.Year).Distinct().OrderBy(y => y).ToList();
+    public IReadOnlyList<int> FiscalYears() => _queries.FiscalYears();
 
     public IReadOnlyList<Alert> Alerts()
     {
         var today = _clock.Today;
         var list = new List<Alert>();
-        foreach (var p in _repo.AllPallets().Where(p => !p.Status.IsClosed()))
+        foreach (var p in _queries.OpenPallets().Where(p => !p.Status.IsClosed()))
         {
             var vs = $"VS{p.ValueStreamId}";
             var f = p.Financials;
@@ -94,7 +74,7 @@ public sealed class ReportingService
                 list.Add(new(AlertType.ReworkSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyOpenFloor} pcs on the MFO floor for {days} days.", "MFO"));
             var deliveredOn = p.DateSentBack;
             if (f.QtyPendingExport > 0 && deliveredOn is not null && (today - deliveredOn.Value.Date).Days > _prm.SlaExportDays)
-                list.Add(new(AlertType.ExportSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingExport} pcs in LOW without export pedimento for {(today - deliveredOn.Value.Date).Days} days.", "LOW + GS"));
+                list.Add(new(AlertType.ExportSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingExport} pcs in LOW without export pedimento for {(today - deliveredOn.Value.Date).Days} days.", "LOW + OSD"));
             if (f.QtyPendingHse > 0 && p.ScrapDate is not null && (today - p.ScrapDate.Value.Date).Days > _prm.SlaHseDays)
                 list.Add(new(AlertType.HseSla, Severity.Warning, p.Id, p.FolioCode, vs, $"{f.QtyPendingHse} {(f.QtyPendingHse == 1 ? "pc" : "pcs")} of scrap without HSE confirmation.", "HSE + MFO"));
             if (f.QtyMissing > 0)

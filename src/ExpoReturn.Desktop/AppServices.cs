@@ -16,6 +16,8 @@ public sealed class AppServices
 {
     public required AppConfig Config { get; init; }
     public required IProcessRepository Repository { get; init; }
+    /// <summary>Inbox, Balance and Alerts read page by page from the database (views of 05_views.sql).</summary>
+    public required IProcessQueries Queries { get; init; }
     public required IAuditTrail Audit { get; init; }
     public required IUserDirectory Users { get; init; }
     public required IClock Clock { get; init; }
@@ -46,13 +48,14 @@ public sealed class AppServices
         var clock = new SystemClock();
         var parameters = OracleParameters.Load(db);
         var repo = new OracleProcessRepository(db, parameters, () => clock.Today);
+        var queries = new OracleProcessQueries(db, repo);
         var audit = new OracleAuditTrail(db, AppConfig.Version);
         var users = new UserDirectory(new OracleUserStore(db), config.Owners, includeDemoUsers: false);
         return new AppServices
         {
-            Config = config, Repository = repo, Audit = audit, Users = users, Clock = clock,
+            Config = config, Repository = repo, Queries = queries, Audit = audit, Users = users, Clock = clock,
             Processes = new ProcessService(repo, audit, clock, parameters),
-            Reporting = new ReportingService(repo, clock),
+            Reporting = new ReportingService(queries, clock, parameters),
             AlertAcks = new OracleAlertStore(db),
             MaterialCosts = new OracleMaterialCostCatalog(db),
             Feedback = new OracleFeedbackStore(db),

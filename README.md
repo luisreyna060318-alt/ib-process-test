@@ -30,7 +30,7 @@ Los archivos de `docs/` son la copia de trabajo **derivada** del Word (`python3 
 
 Copia derivada en [`docs/ux/`](docs/ux/). Capturas por versión en `docs/ux/capturas/` y marcadores en `tools/ux/`.
 
-## 3. Aplicación (.NET 8 / WPF) · v0.5.0
+## 3. Aplicación (.NET 8 / WPF) · v0.5.1
 
 Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.0 (la columna "LOW export", que tenía dos datos, se dividió en número y fecha de expo).
 
@@ -39,6 +39,8 @@ Solución `ExpoReturn.sln`. **Interfaz en inglés**, con los campos del Excel 2.
 * **Estatus del proceso:** Draft sin pallets; Duty risk si algún pallet lo está; si no, el pallet abierto menos avanzado; con todos cerrados: Closed (duty paid) si alguno lo está, si no Exported si alguno lo está, si no Scrap confirmed.
 * **Permisos:** **Owner** todo (también cerrados). **Champion / Proxy** en el VS: en los procesos de su departamento crean, editan la solicitud y los campos de su área y borran; en los demás procesos del VS, los campos de su área; también modifican cerrados. **Member** en el VS: en los procesos que creó, solicita o de los que es QMM Responsible, la solicitud y los campos de su área; los Members de áreas de soporte (OSD, LOP, MFO, LOW, HSE) capturan los campos de su área en cualquier proceso del VS; no modifican cerrados ni borran. **Viewer** (o registro pendiente): consulta su VS.
 * **Borrado:** D significa borrar de verdad procesos y pallets (con permiso y motivo); la bitácora guarda una copia completa (`SNAPSHOT`) y sigue siendo sólo de inserción. Un campo con valor se puede cambiar pero no dejar vacío (app y triggers). Quitar un acceso lo cierra con fecha.
+* **Paginación en la base (v0.5.1):** la app ya no carga todos los procesos. La bandeja pide a Oracle **una página de 50** (`OFFSET … FETCH`) y, aparte, los indicadores del filtro completo (`COUNT` / `SUM`). Filtros, búsqueda y orden se resuelven en SQL; el desglose ▸ trae sólo los pallets de esa página. *Balance / Duties* se calcula con `GROUP BY`, *Alerts* lee sólo los procesos con pallets abiertos y la pregunta del PO repetido es una consulta por PO. Al abrir un proceso se lee completo y al guardar se compara con la versión que hay en la base en ese momento (`ROW_VERSION`).
+* **Datos siempre al día:** lo que depende de la fecha (vencimiento IMMEX, riesgo arancelario, estatus, aranceles con la tasa vigente) lo calculan las vistas con la fecha de hoy y los parámetros vigentes; no se toma de un valor guardado hace días. *Reload* vuelve a pedir la página.
 * **Usuario real:** al abrir, la app lee el usuario de Windows. La primera vez pide nombre, Department y Value Stream(s); queda como **Viewer** con una solicitud de registro. El Owner la aprueba en la pantalla nueva **Requests** y el usuario pasa a **Member**. Al crear un proceso, si el usuario es de QMM queda como QMM Responsible; si no, como solicitante con su departamento (ambos se pueden cambiar eligiendo entre los usuarios registrados).
 * **Departamentos:** sólo QMM, MFQ, PUQ, MFO, LOP, OSD (aduana, antes GS/OSD43), LOW y HSE; todos pueden solicitar.
 * **Users & Access:** tabla User / Department / Value Stream / Function (Viewer, Member, Proxy, Champion, Owner). Sólo el **Owner** (`US\RLN8JU`) la modifica; *My profile* genera solicitudes que el Owner aprueba en **Requests**.
@@ -60,7 +62,7 @@ dotnet test
 **Reinstalación v0.5.0 (borra las tablas de la versión anterior):** con la cuenta dueña del esquema, en este orden:
 
 1. [`00_drop_all.sql`](database/oracle/00_drop_all.sql): desactiva y borra el trigger `IB_PROCESS_NO_DROP` y después borra, una por una, **sólo** las tablas `IB_PROCESS_` que lista por nombre (las 19 de v0.4 y las 2 nuevas, si existieran), con sus datos. Ignora las que no existan. Termina con una consulta que debe devolver *no rows selected*.
-2. [`IB_PROCESS_install.sql`](database/oracle/IB_PROCESS_install.sql) (abajo).
+2. [`IB_PROCESS_install.sql`](database/oracle/IB_PROCESS_install.sql) (abajo; incluye las vistas).
 3. [`90_verify_install.sql`](database/oracle/90_verify_install.sql): secciones 1 a 4 sin filas.
 4. Reemplazar el exe por el de v0.5.0 y, como Owner, **Import Excel 2.0…** con la MATRIZ DE RASTREO.
 
@@ -70,6 +72,7 @@ dotnet test
 2. [`02_seed_data.sql`](database/oracle/02_seed_data.sql): VS, departamentos, motivos, estatus, categorías de estatus y su lista por VS, permisos por campo, parámetros, contadores de folio y el primer Owner (`US\RLN8JU`).
 3. [`03_comments_and_triggers.sql`](database/oracle/03_comments_and_triggers.sql): comentarios de tablas y columnas (nombre en la app y columna del Excel) y el trigger que impide modificar la bitácora.
 4. [`04_integrity_rules.sql`](database/oracle/04_integrity_rules.sql): triggers que rechazan **vaciar un campo con valor**. Ya no hay triggers contra DELETE ni contra DROP (v0.5.0); sólo la bitácora sigue protegida contra cambios y borrado.
+5. [`05_views.sql`](database/oracle/05_views.sql): las vistas que lee la app (no guardan datos). `IB_PROCESS_PARAMS_V` (parámetros vigentes), `IB_PROCESS_PALLETS_V` (un renglón por pallet con su proceso, vencimiento, riesgo y estatus calculados hoy) e `IB_PROCESS_INBOX_V` (un renglón por proceso con los totales de sus pallets y el estatus del proceso). Mismas reglas que la app.
 
 Cómo encajan con la app:
 
@@ -82,7 +85,9 @@ Cómo encajan con la app:
 
 **Verificar la instalación (en cualquier momento):** [`90_verify_install.sql`](database/oracle/90_verify_install.sql) compara lo que de verdad hay en el esquema (diccionario de Oracle) con lo que definen los scripts: columnas con tipo, largo y nulos; constraints; índices y triggers. Sólo muestra **diferencias**: si las secciones 1 a 4 dicen *no rows selected*, el esquema es idéntico. También muestra las filas por tabla y los totales. Sólo hace `SELECT`.
 
-Los scripts 02, 03, 04, el archivo único y el 90 se regeneran con `python3 tools/database/build_all.py`; el 01 se edita a mano.
+Los scripts 02, 03, 04, el archivo único y el 90 se regeneran con `python3 tools/database/build_all.py`; el 01 y el 05 se editan a mano. El 90 también revisa que las tres vistas existan, compilen y respondan.
+
+**Las vistas dan lo mismo que la app:** [`tools/database/check_views_parity.py`](tools/database/check_views_parity.py) ejecuta el SQL de `05_views.sql` y de `OracleProcessQueries` (traducido a DuckDB con sqlglot) sobre los datos que escribe la prueba `SqlParityDump`. Los valores se guardan en una fecha y se consultan meses después, y el resultado se compara con lo que calcula la app: renglones de la bandeja, pallets, filtros con orden, totales, balance y estatus. Con el Excel real: 658 procesos y 664 pallets idénticos, incluidos 20 pallets que pasaron a *Duty risk* sólo por el paso del tiempo.
 
 Nombres de máximo 30 caracteres (compatibles con cualquier versión de Oracle); requiere Oracle 12c o superior por las columnas `IDENTITY`.
 

@@ -239,6 +239,65 @@ public class OracleScriptCoherenceTests
 
     private static Dictionary<string, string> ColumnsOf(string table) => Tables().Single(t => t.Table == table).Columns;
 
+    /// <summary>Views of 05_views.sql with their column list (CREATE OR REPLACE VIEW name (COL, …) AS).</summary>
+    private static Dictionary<string, HashSet<string>> Views() =>
+        Regex.Matches(NoComments(Read("database", "oracle", "05_views.sql")), @"CREATE OR REPLACE VIEW (IB_PROCESS_\w+) \(([^)]*)\) AS", RegexOptions.Singleline)
+            .ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value.Split(',').Select(c => c.Trim()).ToHashSet());
+
+    [Fact]
+    public void Views_read_only_existing_columns_and_the_queries_only_existing_view_columns()
+    {
+        var views = Views();
+        Assert.Equal(new[] { "IB_PROCESS_INBOX_V", "IB_PROCESS_PALLETS_V", "IB_PROCESS_PARAMS_V" }, views.Keys.OrderBy(k => k));
+        var sql = NoComments(Read("database", "oracle", "05_views.sql"));
+        // pal. / prc. / scat. / prm. columns used by the views exist in their table or view
+        var sources = new Dictionary<string, ICollection<string>>
+        {
+            ["pal"] = ColumnsOf("IB_PROCESS_PALLETS").Keys, ["prc"] = ColumnsOf("IB_PROCESS_PROCESSES").Keys,
+            ["scat"] = ColumnsOf("IB_PROCESS_STATUS_CATEGORIES").Keys, ["prm"] = views["IB_PROCESS_PARAMS_V"],
+            ["v"] = views["IB_PROCESS_PALLETS_V"],
+        };
+        foreach (Match m in Regex.Matches(sql, @"\b(pal|prc|scat|prm|v)\.([A-Z][A-Z0-9_]*)"))
+            Assert.True(sources[m.Groups[1].Value].Contains(m.Groups[2].Value), m.Value);
+        foreach (Match m in Regex.Matches(sql, @"PARAM_KEY = '(\w+)'"))
+            Assert.Contains($"('{m.Groups[1].Value}', ", Read("database", "oracle", "02_seed_data.sql"));
+
+        // i. = inbox view, v. = pallet view in the application queries; every column read by name exists
+        var code = File.ReadAllText(Path.Combine(Root(), "src", "ExpoReturn.Infrastructure.Oracle", "OracleProcessQueries.cs"));
+        foreach (Match m in Regex.Matches(code, @"\bi\.([A-Z][A-Z0-9_]*)\b"))
+            Assert.True(views["IB_PROCESS_INBOX_V"].Contains(m.Groups[1].Value), m.Value);
+        foreach (Match m in Regex.Matches(code, @"\bv\.([A-Z][A-Z0-9_]*)\b"))
+            Assert.True(views["IB_PROCESS_PALLETS_V"].Contains(m.Groups[1].Value), m.Value);
+        foreach (Match m in Regex.Matches(code, @"\bx\.([A-Z][A-Z0-9_]*)\b"))
+            Assert.True(ColumnsOf("IB_PROCESS_PALLETS").ContainsKey(m.Groups[1].Value), m.Value);
+        var read = Regex.Matches(code, @"(?:Int|Str|Dec|Date|Flag)\(r, ""(\w+)""\)").Select(m => m.Groups[1].Value).ToHashSet();
+        var aliases = Regex.Matches(code, @" AS ([A-Z_]+)").Select(m => m.Groups[1].Value).ToHashSet();
+        Assert.All(read, c => Assert.True(aliases.Contains(c) || views.Values.Any(v => v.Contains(c)), c));
+    }
+
+    [Fact]
+    public void The_inbox_can_be_sorted_by_every_column_of_the_application_and_by_nothing_else()
+    {
+        foreach (var member in ProcessSort.Members)
+            Assert.DoesNotContain("'", OracleProcessQueries.OrderBy(new ProcessSort(member, true)));
+        Assert.Equal(OracleProcessQueries.OrderBy(ProcessSort.Default), OracleProcessQueries.OrderBy(new ProcessSort("1; DROP TABLE X", false)));
+        Assert.EndsWith("i.VALUE_STREAM_ID, i.FOLIO_NUMBER, i.PROCESS_ID", OracleProcessQueries.OrderBy(new ProcessSort("Balance", true)));
+        Assert.Equal(@"%50\%\_A\\B%", OracleProcessQueries.Like(" 50%_a\\b "));
+    }
+
+    [Fact]
+    public void Install_creates_the_views_after_the_tables_and_the_drop_script_removes_them()
+    {
+        var all = Read("database", "oracle", "IB_PROCESS_install.sql");
+        Assert.True(all.IndexOf("CREATE OR REPLACE VIEW IB_PROCESS_PARAMS_V", StringComparison.Ordinal)
+                    > all.LastIndexOf("CREATE TABLE ", StringComparison.Ordinal));
+        Assert.True(all.IndexOf("VIEW IB_PROCESS_PARAMS_V", StringComparison.Ordinal) < all.IndexOf("VIEW IB_PROCESS_PALLETS_V", StringComparison.Ordinal));
+        Assert.True(all.IndexOf("VIEW IB_PROCESS_PALLETS_V", StringComparison.Ordinal) < all.IndexOf("VIEW IB_PROCESS_INBOX_V", StringComparison.Ordinal));
+        var drop = Read("database", "oracle", "00_drop_all.sql");
+        foreach (var v in Views().Keys) Assert.Contains($"'{v}'", drop);
+        Assert.Contains("TABLE_NAME IN (SELECT TABLE_NAME FROM USER_TABLES)", Read("database", "oracle", "90_verify_install.sql"));
+    }
+
     [Fact]
     public void There_are_20_tables_and_every_name_fits_30_characters()
     {
@@ -362,6 +421,7 @@ public class OracleScriptCoherenceTests
         var dir = Path.Combine(Root(), "src", "ExpoReturn.Infrastructure.Oracle");
         var code = string.Join("\n", Directory.GetFiles(dir, "*.cs").Select(File.ReadAllText));
         var tables = Tables().ToDictionary(t => t.Table, t => t.Columns);
+        foreach (var (view, cols) in Views()) tables[view] = cols.ToDictionary(c => c, _ => "VIEW");
         var checkedCount = 0;
         void Check(string table, IEnumerable<string> cols)
         {

@@ -57,7 +57,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="60" />
                             <DataGridTextColumn Header="Pallets" Binding="{Binding Pallets}" Width="65" />
-                            <DataGridTextColumn Header="Open" Binding="{Binding OpenPallets}" Width="70" />
+                            <DataGridTextColumn Header="Open pallets" Binding="{Binding OpenPallets}" Width="80" />
                             <DataGridTextColumn Header="Total imported" Binding="{Binding TotalImportedUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="MFO inventory" Binding="{Binding MfoInventoryUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="Scrap HSE" Binding="{Binding HseScrapUsd, StringFormat={}{0:N2}}" Width="*" />
@@ -65,7 +65,7 @@
                             <DataGridTextColumn Header="Exported / reconciled" Binding="{Binding ExportedUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="General balance" Binding="{Binding BalanceGeneralUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="Duties to pay" Binding="{Binding DutiesToPayUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="At risk" Binding="{Binding DutyRiskPallets}" Width="75" />
+                            <DataGridTextColumn Header="Pallets at risk" Binding="{Binding DutyRiskPallets}" Width="90" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>
@@ -94,12 +94,12 @@
                 </Border>
                 <Border Grid.Column="1" Style="{StaticResource Card}" Margin="6,0,0,0">
                     <StackPanel>
-                        <TextBlock Text="Pallets by status (all years)" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="IB processes by status (all years)" Style="{StaticResource SectionTitle}" />
                         <ItemsControl ItemsSource="{Binding StatusBars}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource BarButton}" Command="{Binding DataContext.OpenBarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" ToolTip="See the records with this status" HorizontalAlignment="Left">
+                                            CommandParameter="{Binding}" ToolTip="See the IB processes with this status in the inbox" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal" Margin="0,1">
                                             <TextBlock Text="{Binding Label}" Width="190" VerticalAlignment="Center" />
                                             <Border Background="{StaticResource Primary}" Height="16" Width="{Binding Width}" CornerRadius="2" />

@@ -23,6 +23,7 @@ public static class PalletEvaluator
     public static void Apply(IbProcess process, CalcParameters prm, DateTime today)
     {
         foreach (var p in process.Pallets) Apply(p, prm, today);
+        process.OpenFindings = process.IsLegacy ? PalletValidator.ValidateProcess(process, today).Count : 0;
         process.RaiseTotals();
     }
 

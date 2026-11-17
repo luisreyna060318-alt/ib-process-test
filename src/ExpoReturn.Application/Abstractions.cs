@@ -16,11 +16,22 @@ public sealed class SystemClock : IClock
 /// </summary>
 public interface IProcessRepository
 {
+    /// <summary>Every process. Only for small stores and tests: the screens use <see cref="IProcessQueries"/> page by page.</summary>
     IReadOnlyList<IbProcess> GetAll();
     IbProcess? Get(int processId);
-    /// <summary>Every pallet of every process (balance, alerts, reports work per pallet).</summary>
-    IReadOnlyList<PalletReturn> AllPallets() => GetAll().SelectMany(p => p.Pallets).ToList();
+    /// <summary>The pallet with its whole process (alerts open a pallet).</summary>
     PalletReturn? GetPallet(int palletId) => GetAll().SelectMany(p => p.Pallets).FirstOrDefault(p => p.Id == palletId);
+    /// <summary>
+    /// Folios of the OTHER processes that use each PO (<paramref name="excludeProcessId"/> = the process being saved, 0 = none).
+    /// Oracle answers with one query; it never loads every process.
+    /// </summary>
+    IReadOnlyDictionary<string, IReadOnlyList<string>> FoliosUsingPo(IReadOnlyCollection<string> poNumbers, int excludeProcessId) =>
+        poNumbers.ToDictionary(po => po, po => (IReadOnlyList<string>)GetAll()
+            .Where(o => o.Id != excludeProcessId
+                        && o.Pallets.Any(x => string.Equals(x.ReturnPONumber?.Trim(), po, StringComparison.OrdinalIgnoreCase)))
+            .Select(o => o.FolioCode).ToList(), StringComparer.OrdinalIgnoreCase);
+    /// <summary>Processes with a pallet still without MM60 cost (UNIT_COST_SOURCE = PENDING).</summary>
+    IReadOnlyList<IbProcess> WithPendingCost() => GetAll().Where(x => x.Pallets.Any(p => p.UnitCostSource == "PENDING")).ToList();
     /// <summary>
     /// Insert (Id = 0) or update the header and every pallet; pallets missing from <paramref name="process"/> are deleted.
     /// Throws <see cref="ConcurrencyException"/> if someone else saved the header or a pallet first.

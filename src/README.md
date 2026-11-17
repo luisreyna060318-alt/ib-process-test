@@ -1,4 +1,4 @@
-# Aplicación (v0.5.0): Expo & Return FG Follow Up
+# Aplicación (v0.5.1): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -6,7 +6,7 @@ Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura d
 
 Los catálogos también se leen de la base: Value Streams, motivos, categorías de estatus y su lista por VS, departamentos, nombres de estatus, permisos por campo y parámetros. Se administran ahí, sin publicar un exe nuevo.
 
-**IB PROCESS (v0.5.0):** cada registro es un proceso (encabezado) con uno o más pallets; ver el README principal para campos, estatus y permisos.
+**IB PROCESS (v0.5.1):** cada registro es un proceso (encabezado) con uno o más pallets; ver el README principal para campos, estatus y permisos.
 
 **Reglas de datos:** procesos y pallets se pueden **borrar** (Owner; Champion / Proxy del departamento solicitante), con motivo; la bitácora guarda la copia completa. Un campo que ya tiene valor se puede modificar, pero no dejar vacío, para todos (app y triggers de `04_integrity_rules.sql`).
 
@@ -56,6 +56,7 @@ dotnet test
 
 | Operación | Tablas |
 |---|---|
+| Bandeja: página de 50, indicadores del filtro, desglose por pallet, exportar; *Balance / Duties*; *Alerts* (sólo procesos con pallets abiertos) | Vistas `IB_PROCESS_INBOX_V`, `IB_PROCESS_PALLETS_V`, `IB_PROCESS_PARAMS_V` (`OracleProcessQueries`) |
 | Alta, edición y borrado de IB PROCESS y pallets (permisos → validación → `ROW_VERSION` del encabezado y de cada pallet), en una transacción | `IB_PROCESS_PROCESSES`, `IB_PROCESS_PALLETS`, `IB_PROCESS_FOLIO_COUNTERS`, `IB_PROCESS_STATUS_HISTORY` |
 | Bitácora (sólo inserción; los borrados con `ACTION = 'D'` y copia en `SNAPSHOT`) | `IB_PROCESS_AUDIT_LOG` |
 | Primera ejecución, *My profile*, *Users & Access*, *Requests* (registro y cambios de perfil) | `IB_PROCESS_USERS`, `IB_PROCESS_USER_ACCESS`, `IB_PROCESS_PROFILE_REQUESTS`, `IB_PROCESS_REQUEST_VS` |
@@ -73,7 +74,7 @@ Qué se conserva:
 * Un precio MM60 nuevo cierra el anterior. Los materiales que no vienen en el archivo conservan su último precio.
 * Un proceso o pallet borrado queda completo en la bitácora (quién, cuándo, motivo y todos sus campos).
 * Si dos personas editan el mismo IB PROCESS, el segundo guardado se rechaza (`ROW_VERSION`) y se pide recargar; nadie sobrescribe a nadie.
-* El botón **Reload** vuelve a leer lo que guardaron otras personas.
+* La app no guarda copias de los procesos en memoria: cada página, cada proceso abierto y cada guardado van a la base. El botón **Reload** vuelve a pedir la página.
 
 ## Configuración (en el código, sin archivos)
 
@@ -122,7 +123,7 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 |---|---|
 | **Primera ejecución / My profile** | Lee el usuario de Windows automáticamente y pide nombre, Department y Value Stream(s). Empieza como **Viewer** con una solicitud de registro; aprobada, pasa a **Member**. Después, cambiar Department o VS queda como **solicitud** para el Owner; el nombre se cambia directo. La función nunca se elige aquí |
 | **Barra superior** | *Connected to Oracle IFACTJUP - cuenta*, usuario de Windows, department, VS y función. Sólo el Owner ve las solicitudes pendientes y el selector **View as** (sigue visible mientras lo usa; aparece el aviso "PREVIEW") |
-| **IB PROCESS inbox** | Un renglón por proceso (pallets, piezas, balance, vencimiento IMMEX más próximo, estatus) con **▸** para ver el desglose por pallet. Filtros por VS, estatus, texto, riesgo arancelario y *To homogenize*. Los indicadores (registros, abiertos, en riesgo, balance) siguen los filtros siempre. La tabla se muestra hasta presionar **Show N records**, con **50 registros por página** y paginador; una vez visible, los filtros se aplican en vivo y regresan a la página 1. Ordenar por una columna ordena todos los registros del filtro. Exportar a Excel incluye todo el filtro, no sólo la página. Al volver de un registro se conserva la página |
+| **IB PROCESS inbox** | Un renglón por proceso (pallets, piezas, balance, vencimiento IMMEX más próximo, estatus) con **▸** para ver el desglose por pallet. Filtros por VS, estatus, texto, riesgo arancelario y *To homogenize*. Los indicadores (registros, abiertos, en riesgo, balance) siguen los filtros siempre. La tabla se muestra hasta presionar **Show N records**, con **50 registros por página leídos directamente de Oracle** y paginador; una vez visible, los filtros se aplican en vivo y regresan a la página 1. Ordenar por una columna ordena todos los registros del filtro (lo hace la base). La búsqueda espera a que se deje de escribir. Exportar a Excel incluye todo el filtro, no sólo la página. Al volver de un registro se conserva la página |
 | **IB PROCESS detail / New IB PROCESS** | Pestaña *IB PROCESS* (encabezado; QMM Responsible y Requestor se eligen entre usuarios registrados) y lista de pallets a la izquierda con **+ Add pallet** / **Remove**; las pestañas *Pallet*, *MFO*, *Exit / HSE* y *Balance* son del pallet seleccionado. Antes de guardar avisa si un PO ya está en otro IB PROCESS. **Delete IB PROCESS** (con motivo) para quien tiene permiso. Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función, el departamento y el área del usuario en el VS del proceso |
 | **Balance / Duties** | Sustituto de la hoja BALANCE, por VS y año fiscal; clic en un VS o estatus abre la bandeja filtrada |
 | **Alerts** | Agrupadas por área responsable; "Mark as handled" con comentario |
@@ -162,7 +163,8 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 ## Limitaciones actuales
 
 * La conexión a Oracle **no se pudo probar** contra `IFACTJUP` desde el entorno de desarrollo: las pruebas automáticas cubren las reglas, el manejo de credenciales del DLL y que el código coincida con los scripts SQL. La primera prueba real es abrir la app en la red de planta con el DLL y la clave.
-* La lista de procesos se lee al abrir y con **Reload**; no se actualiza sola mientras otra persona guarda.
+* La página de la bandeja se lee al cambiar filtro, orden o página y con **Reload**; no se actualiza sola mientras otra persona guarda.
+* Las vistas no se pudieron ejecutar en un Oracle desde el entorno de desarrollo: su SQL se comprobó en DuckDB contra los cálculos de la app (`tools/database/check_views_parity.py`). `90_verify_install.sql` confirma en la base que compilan y responden.
 * Las alertas se ven en pantalla; el envío por correo o Teams es de la fase de producción.
 * **Sin integración con SAP** (fuera de alcance).
 * Parámetros provisionales [VALIDATE OSD]: tasa de aranceles 0.19 y plazo IMMEX de 540 días.
@@ -174,6 +176,6 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 | `ExpoReturn.Domain` | `IbProcess` (encabezado + pallets, totales y estatus del proceso), `PalletReturn`, catálogos, `Identifiers` (P/N, HU, lote, factura), `FinancialCalculator`, `DutyRisk`, `StatusResolver`, `PalletValidator`, `PalletEvaluator` |
 | `ExpoReturn.Application` | Usuario actual y accesos (`UserContext`, `AccessGrant`, `UserFunction`), `IUserDirectory`, matriz de permisos por área (`FieldPermissions`), `ProcessService` (alta, guardado y borrado: permisos → validación → recálculo → auditoría; PO repetido), `ReportingService` |
 | `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `UserDirectory` (reglas de usuarios, accesos y solicitudes; guarda cambios incrementales, sin borrar) con `JsonUserStore`, `SampleData` (sintético), `LegacyExcelImporter` (ClosedXML) |
-| `ExpoReturn.Infrastructure.Oracle` | `SharedServersCredentials` (DLL incrustado, cargado desde memoria), `OracleCatalogs` (catálogos de la base), `OracleDb` (alias TNS, transacciones, errores de los triggers), `OracleProcessRepository`, `OracleAuditTrail`, `OracleUserStore`, `OracleMaterialCostCatalog`, `OracleAlertStore`, `OracleFeedbackStore`, `OracleParameters` (ODP.NET administrado) |
+| `ExpoReturn.Infrastructure.Oracle` | `SharedServersCredentials` (DLL incrustado, cargado desde memoria), `OracleCatalogs` (catálogos de la base), `OracleDb` (alias TNS, transacciones, errores de los triggers), `OracleProcessRepository`, `OracleProcessQueries` (bandeja, balance y alertas en SQL, página por página), `OracleAuditTrail`, `OracleUserStore`, `OracleMaterialCostCatalog`, `OracleAlertStore`, `OracleFeedbackStore`, `OracleParameters` (ODP.NET administrado) |
 | `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `AppConfig` (valores fijos), `ConnectionWindow` (reintentos), `ProfileWindow`, `ShellViewModel`, `UsersViewModel`, `RequestsViewModel`, vistas y `Themes/Theme.xaml` |
-| `tests/ExpoReturn.Domain.Tests` | 134 pruebas: IB PROCESS (permisos por función, departamento y área; pallets, PO repetido, borrado, estatus del proceso, registro como Member), reintentos de conexión, catálogos de la base, DLL incrustado, no vaciar campos ni borrar, concurrencia, departamentos, credenciales del DLL, código ↔ scripts Oracle, casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |
+| `tests/ExpoReturn.Domain.Tests` | 146 pruebas: paginación (páginas estables, orden, filtros, totales, estatus calculado con la fecha de consulta), vistas ↔ código, IB PROCESS (permisos por función, departamento y área; pallets, PO repetido, borrado, estatus del proceso, registro como Member), reintentos de conexión, catálogos de la base, DLL incrustado, no vaciar campos ni borrar, concurrencia, departamentos, credenciales del DLL, código ↔ scripts Oracle, casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |
