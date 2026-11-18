@@ -50,6 +50,21 @@ public interface IProcessRepository
     event EventHandler? Changed;
 }
 
+/// <summary>A comment on an IB PROCESS (Comments tab). Never edited; deleted only with its process.</summary>
+public sealed record ProcessComment(int Id, int ProcessId, string Text, string NtUser, string? DepartmentCode, DateTime CreatedAtUtc)
+{
+    public DateTime CreatedAtLocal => CreatedAtUtc.ToLocalTime();
+    public string Author => DepartmentCode is null ? NtUser : $"{NtUser} · {DepartmentCode}";
+}
+
+/// <summary>IB_PROCESS_COMMENTS.</summary>
+public interface IProcessComments
+{
+    /// <summary>Comments of the process, oldest first.</summary>
+    IReadOnlyList<ProcessComment> For(int processId);
+    ProcessComment Add(int processId, string text, string ntUser, string? departmentCode);
+}
+
 public sealed record LegacyAppendResult(int Added, int AlreadyLoaded, IReadOnlyList<string> Failed);
 
 /// <summary>The record was changed by another user after it was opened.</summary>

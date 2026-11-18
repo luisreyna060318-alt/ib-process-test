@@ -39,12 +39,39 @@ public sealed class ProcessService
     private readonly IProcessRepository _repo;
     private readonly IAuditTrail _audit;
     private readonly IClock _clock;
+    private readonly IProcessComments? _comments;
     public CalcParameters Parameters { get; }
 
-    public ProcessService(IProcessRepository repo, IAuditTrail audit, IClock clock, CalcParameters? parameters = null)
+    public ProcessService(IProcessRepository repo, IAuditTrail audit, IClock clock, CalcParameters? parameters = null,
+                          IProcessComments? comments = null)
     {
-        _repo = repo; _audit = audit; _clock = clock;
+        _repo = repo; _audit = audit; _clock = clock; _comments = comments;
         Parameters = parameters ?? CalcParameters.Default;
+    }
+
+    // ------------------------------------------------------------------ comments
+
+    public const int CommentMaxLength = 1000;
+
+    public IReadOnlyList<ProcessComment> Comments(IbProcess process) =>
+        process.Id == 0 || _comments is null ? Array.Empty<ProcessComment>() : _comments.For(process.Id);
+
+    /// <summary>Adds a comment (Owner and the users of the six areas of the form in the VS; the process must be saved).</summary>
+    public (bool Success, string Message) AddComment(IbProcess process, UserContext user, string? text)
+    {
+        if (_comments is null) return (false, "Comments are not available.");
+        if (process.Id == 0) return (false, "Save the IB PROCESS first, then add comments.");
+        if (!FieldPermissions.CanComment(user, process))
+            return (false, "Only the areas of the form (QMM, OSD, LOP, MFO, LOW, HSE) of this VS write comments.");
+        var t = text?.Trim();
+        if (string.IsNullOrEmpty(t)) return (false, "Write the comment.");
+        if (t.Length > CommentMaxLength) return (false, $"A comment has at most {CommentMaxLength} characters ({t.Length} now).");
+        var dept = user.IsOwner ? null
+            : user.Grants.Where(g => g.ValueStreamId == process.ValueStreamId && g.Function.CanCapture() && FieldPermissions.IsFormArea(g.Area))
+                  .Select(g => g.DepartmentCode).FirstOrDefault() ?? user.DepartmentCode;
+        try { _comments.Add(process.Id, t, user.NtUser, dept); }
+        catch (Exception ex) when (ex is ConcurrencyException or DataRuleException) { return (false, ex.Message); }
+        return (true, "Comment added.");
     }
 
     // ------------------------------------------------------------------ evaluation
@@ -76,27 +103,16 @@ public sealed class ProcessService
     // ------------------------------------------------------------------ create
 
     /// <summary>
-    /// New IB PROCESS with one empty pallet. Whoever creates it is QMM Responsible if their department is of the QMM
-    /// area; otherwise they are the requestor, with their department as requesting department. Both stay editable.
+    /// New IB PROCESS with one empty pallet. The request is always made by QMM: whoever creates it (QMM) is set as QMM
+    /// Responsible; requesting department and requestor are filled in by QMM. The Owner creates it without defaults.
     /// </summary>
     public IbProcess NewDraft(int valueStreamId, UserContext user)
     {
         var p = new IbProcess { ValueStreamId = valueStreamId, FolioNumber = 0, CreatedBy = user.NtUser };
-        var dept = user.Grants.Where(g => g.ValueStreamId == valueStreamId && g.Function.CanCapture()).Select(g => g.DepartmentCode).FirstOrDefault()
-                   ?? user.DepartmentCode;
-        if (!string.IsNullOrWhiteSpace(dept))
+        if (user.Grants.Any(g => g.ValueStreamId == valueStreamId && g.Function.CanCapture() && g.Area == RoleCode.Qmm))
         {
-            if (RoleInfo.AreaOfDepartment(dept) == RoleCode.Qmm)
-            {
-                p.QmmResponsible = user.DisplayName;
-                p.QmmResponsibleNtUser = user.NtUser;
-            }
-            else
-            {
-                p.RequestorName = user.DisplayName;
-                p.RequestorNtUser = user.NtUser;
-                p.RequestingDepartment = dept;
-            }
+            p.QmmResponsible = user.DisplayName;
+            p.QmmResponsibleNtUser = user.NtUser;
         }
         p.NewPallet(user.NtUser);
         return p;
@@ -192,13 +208,14 @@ public sealed class ProcessService
             return new SaveResult(false, Array.Empty<ValidationIssue>(), new[] { $"delete {process.FolioCode}" }, null);
         if (string.IsNullOrWhiteSpace(reason))
             return new SaveResult(false, Array.Empty<ValidationIssue>(), Array.Empty<string>(), null, null, "Enter the reason for deleting.");
+        var comments = Comments(process);                       // they go with the process: kept in the copy
         try { _repo.Delete(process.Id); }
         catch (Exception ex) when (ex is ConcurrencyException or DataRuleException)
         {
             return new SaveResult(false, Array.Empty<ValidationIssue>(), Array.Empty<string>(), null, null, ex.Message);
         }
         _audit.Record(new[] { new AuditEntry(0, process.FolioCode, "IB PROCESS", $"{process.FolioCode} · {process.PalletCount} pallet(s)", null,
-            user.NtUser, _clock.UtcNow, reason.Trim(), process.Id, Deleted: true, Snapshot: Snapshot(process)) });
+            user.NtUser, _clock.UtcNow, reason.Trim(), process.Id, Deleted: true, Snapshot: Snapshot(process, comments)) });
         return new SaveResult(true, Array.Empty<ValidationIssue>(), Array.Empty<string>(), null);
     }
 
@@ -247,9 +264,10 @@ public sealed class ProcessService
     public static string Snapshot(PalletReturn p) => JsonSerializer.Serialize(
         new { p.FolioCode, Fields = Values(p, PalletProps), p.StatusName, Balance = p.Financials.BalanceGeneralUsd });
 
-    public static string Snapshot(IbProcess process) => JsonSerializer.Serialize(new
+    public static string Snapshot(IbProcess process, IReadOnlyList<ProcessComment>? comments = null) => JsonSerializer.Serialize(new
     {
         process.FolioCode, process.CreatedBy, Fields = Values(process, HeaderProps),
         Pallets = process.Pallets.Select(p => new { p.FolioCode, Fields = Values(p, PalletProps), p.StatusName }),
+        Comments = (comments ?? Array.Empty<ProcessComment>()).Select(c => new { c.NtUser, c.DepartmentCode, c.CreatedAtUtc, c.Text }),
     });
 }

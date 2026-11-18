@@ -72,15 +72,17 @@ head1 = ["QMM_RESPONSIBLE", "REQUESTING_DEPARTMENT", "REQUESTOR_NAME", "REASON_I
 pal1 = ["RETURNED_PART_NUMBER", "QTY_IMPORTED", "ORIGINAL_HU", "ORIGINAL_BATCH", "PO_DATE", "PO_NUMBER"]
 stage3 = ["NEW_PART_NUMBER", "PHYSICAL_DELIVERED_QTY", "NEW_HU", "REWORK_BATCH", "REINSERTION_QTY", "SENT_BACK_DATE",
           "OLD_MATERIAL_DELIVERED_QTY", "SCRAP_QTY", "SCRAP_DATE"]
-perms = [(a, f, "PROCESS", 1) for a in ("QMM", "REQUESTOR") for f in head1]
-perms += [(a, f, "PALLET", 1) for a in ("QMM", "REQUESTOR") for f in pal1]
-perms += [("QMM", "STATUS_CATEGORY_ID", "PALLET", 5)]
+# The request is always made by QMM (v0.5.2); the requesting departments (MFQ, PUQ) only read.
+perms = [("QMM", f, "PROCESS", 1) for f in head1]
+perms += [("QMM", f, "PALLET", 1) for f in pal1]
+# Status Category (Excel column COMMENTS): every area of the form.
+perms += [(a, "STATUS_CATEGORY_ID", "PALLET", 5) for a in ("QMM", "OSD", "LOP", "MFO", "LOW", "HSE")]
 perms += [("OSD", f, "PROCESS", 2) for f in ("IMPORT_DATE", "IMPORT_INVOICE", "ELP_JUP1_CROSSING_DATE")] + [("OSD", "CUSTOMS_EXPORT", "PALLET", 4)]
 perms += [("LOP", "DELIVERY_NUMBER", "PROCESS", 2)]
 perms += [("MFO", f, "PALLET", 3) for f in stage3] + [("MFO", "GR_NUMBER", "PALLET", 4)]
 perms += [("LOW", "LOW_EXPORT_NUMBER", "PALLET", 4), ("LOW", "LOW_EXPORT_DATE", "PALLET", 4)]
 perms += [("HSE", "HSE_SCRAP_KG", "PALLET", 4), ("HSE", "HSE_CONFIRMATION_DATE", "PALLET", 4)]
-L.append("-- Fields each area edits. REQUESTOR = the requesting side of a process (its department, creator or requestor).")
+L.append("-- Fields each area edits (Excel 2.0 columns of each area). MFQ / PUQ (requesting departments) only read.")
 L.append("-- OWNER edits everything and needs no rows.")
 ins("IB_PROCESS_FIELD_PERMISSIONS", ["AREA_CODE", "FIELD_NAME", "FIELD_LEVEL", "STAGE_NO"], perms)
 

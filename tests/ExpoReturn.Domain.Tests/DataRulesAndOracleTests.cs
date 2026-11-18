@@ -286,6 +286,32 @@ public class OracleScriptCoherenceTests
     }
 
     [Fact]
+    public void Change_of_2026_11_18_brings_an_installed_database_to_the_same_state_as_a_new_install()
+    {
+        var change = Read("database", "oracle", "changes", "2026-11-18_qmm_requests_and_comments.sql");
+        var ddl = Read("database", "oracle", "01_create_tables.sql");
+        var table = Regex.Match(ddl, @"CREATE TABLE IB_PROCESS_COMMENTS \(.*?\n\);\nCREATE INDEX [^\n]*", RegexOptions.Singleline).Value;
+        Assert.Contains(table, change);                                                   // same table as a new install
+        var trigger = Regex.Match(Read("database", "oracle", "03_comments_and_triggers.sql"),
+            @"CREATE OR REPLACE TRIGGER IB_PROCESS_COMMENTS_RO.*?\n/\n", RegexOptions.Singleline).Value;
+        Assert.Contains(trigger, change);
+        // Permissions: v0.5.1 seed - REQUESTOR rows + Status Category for the five other areas = the seed of now
+        var seed = Read("database", "oracle", "02_seed_data.sql");
+        var now = Regex.Matches(seed, @"VALUES \('(\w+)', '(\w+)', '\w+', \d\);").Select(m => (m.Groups[1].Value, m.Groups[2].Value)).ToHashSet();
+        Assert.DoesNotContain(now, r => r.Item1 == "REQUESTOR");
+        Assert.Equal(new[] { "HSE", "LOP", "LOW", "MFO", "OSD", "QMM" }, now.Where(r => r.Item2 == "STATUS_CATEGORY_ID").Select(r => r.Item1).OrderBy(a => a));
+        Assert.Contains("DELETE FROM IB_PROCESS_FIELD_PERMISSIONS WHERE AREA_CODE = 'REQUESTOR';", change);
+        foreach (var area in new[] { "OSD", "LOP", "MFO", "LOW", "HSE" }) Assert.Contains($"'{area}'", change);
+        Assert.Contains("PERMISSION_ROWS_" + now.Count, change);
+        // Who made the change: the user with its domain, never OS_USER
+        Assert.Contains("'US\\RLN8JU'", change);
+        Assert.DoesNotContain("OS_USER", change);
+        Assert.DoesNotContain(change, c => c > 127 || c == '&');
+        Assert.DoesNotMatch(@"\b(DROP|TRUNCATE)\b", NoComments(change));
+        Assert.Contains("'IB_PROCESS_COMMENTS'", Read("database", "oracle", "00_drop_all.sql"));
+    }
+
+    [Fact]
     public void Install_creates_the_views_after_the_tables_and_the_drop_script_removes_them()
     {
         var all = Read("database", "oracle", "IB_PROCESS_install.sql");
@@ -299,9 +325,9 @@ public class OracleScriptCoherenceTests
     }
 
     [Fact]
-    public void There_are_20_tables_and_every_name_fits_30_characters()
+    public void There_are_21_tables_and_every_name_fits_30_characters()
     {
-        Assert.Equal(20, Tables().Count);
+        Assert.Equal(21, Tables().Count);
         var all = Read("database", "oracle", "IB_PROCESS_install.sql");
         var names = Regex.Matches(all, @"(?:TABLE|CONSTRAINT|INDEX|TRIGGER)\s+(IB_\w+)").Select(m => m.Groups[1].Value)
             .Concat(Tables().SelectMany(t => t.Columns.Keys));

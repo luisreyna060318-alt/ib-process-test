@@ -110,3 +110,25 @@ public sealed class InMemoryAlertAcknowledgementStore : IAlertAcknowledgementSto
     public AlertAcknowledgement? Find(int palletId, AlertType type) { lock (_gate) return _items.GetValueOrDefault((palletId, type)); }
     public void Clear() { lock (_gate) _items.Clear(); }
 }
+
+/// <summary>Comments of the IB processes in memory (tests).</summary>
+public sealed class InMemoryProcessComments : IProcessComments
+{
+    private readonly List<ProcessComment> _items = new();
+    private readonly object _gate = new();
+
+    public IReadOnlyList<ProcessComment> For(int processId)
+    {
+        lock (_gate) return _items.Where(c => c.ProcessId == processId).OrderBy(c => c.CreatedAtUtc).ThenBy(c => c.Id).ToList();
+    }
+
+    public ProcessComment Add(int processId, string text, string ntUser, string? departmentCode)
+    {
+        lock (_gate)
+        {
+            var c = new ProcessComment(_items.Count + 1, processId, text, ntUser, departmentCode, DateTime.UtcNow);
+            _items.Add(c);
+            return c;
+        }
+    }
+}

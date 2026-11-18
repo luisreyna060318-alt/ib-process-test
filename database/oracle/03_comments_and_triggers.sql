@@ -23,6 +23,7 @@ COMMENT ON TABLE IB_PROCESS_STATUS_HISTORY IS 'Calculated status changes';
 COMMENT ON TABLE IB_PROCESS_ALERTS IS 'Alerts and how they were handled';
 COMMENT ON TABLE IB_PROCESS_AUDIT_LOG IS 'Field-level audit log (append-only); D rows keep a snapshot of what was deleted';
 COMMENT ON TABLE IB_PROCESS_FEEDBACK IS 'Reviewer feedback';
+COMMENT ON TABLE IB_PROCESS_COMMENTS IS 'Comments on an IB PROCESS (Comments tab); never edited, deleted with the process';
 
 COMMENT ON COLUMN IB_PROCESS_PROCESSES.VALUE_STREAM_ID IS 'Value Stream (VS) - Excel: (sheet name) - Capture by When the return is created';
 COMMENT ON COLUMN IB_PROCESS_PROCESSES.FOLIO_NUMBER IS 'Folio - Excel: # - System by System';
@@ -83,5 +84,13 @@ CREATE OR REPLACE TRIGGER IB_PROCESS_AUDIT_LOG_RO
 BEFORE UPDATE OR DELETE ON IB_PROCESS_AUDIT_LOG
 BEGIN
     RAISE_APPLICATION_ERROR(-20001, 'IB_PROCESS_AUDIT_LOG is append-only: UPDATE/DELETE not allowed.');
+END;
+/
+
+-- Comments are never edited (they are deleted only with their process, ON DELETE CASCADE).
+CREATE OR REPLACE TRIGGER IB_PROCESS_COMMENTS_RO
+BEFORE UPDATE ON IB_PROCESS_COMMENTS
+BEGIN
+    RAISE_APPLICATION_ERROR(-20001, 'IB_PROCESS_COMMENTS cannot be edited: add a new comment.');
 END;
 /

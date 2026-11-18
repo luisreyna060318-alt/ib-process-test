@@ -25,7 +25,8 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     {
         _back = back;
         _original = process;
-        var vs = user.EditGrants.Select(g => g.ValueStreamId).DefaultIfEmpty(1).First();
+        var vs = user.EditGrants.Where(g => g.Area == RoleCode.Qmm).Select(g => g.ValueStreamId)
+            .Concat(user.EditGrants.Select(g => g.ValueStreamId)).DefaultIfEmpty(1).First();
         _process = process?.Clone() ?? services.Processes.NewDraft(vs, user);
         if (process is null && _process.ValueStreamId == 0) _process.ValueStreamId = 1;
         _edit = _process.Pallets.FirstOrDefault(p => palletId is not null && p.Id == palletId) ?? _process.Pallets.FirstOrDefault() ?? _process.NewPallet(user.NtUser);
@@ -34,6 +35,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         Perm = new PermissionMap(CanEdit);
         Reevaluate();
         LoadAudit();
+        LoadComments();
     }
 
     public override string Title => IsNew ? "New IB PROCESS" : $"IB PROCESS {Process.FolioCode}";
@@ -105,6 +107,36 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     [ObservableProperty] private bool _pendingExpanded;
     public ObservableCollection<AuditEntry> AuditEntries { get; } = new();
 
+    // ---------- Comments (tab 9) ----------
+    public ObservableCollection<ProcessComment> ProcessComments { get; } = new();
+    [ObservableProperty] private string _newComment = "";
+    public string CommentsHeader => ProcessComments.Count == 0 ? "9 · Comments" : $"9 · Comments ({ProcessComments.Count})";
+    public bool CanComment => !IsNew && FieldPermissions.CanComment(User, Context);
+    public string CommentHint => IsNew ? "Save the IB PROCESS first; then comments can be added."
+        : CanComment ? $"{NewComment.Trim().Length} / {ProcessService.CommentMaxLength} characters"
+        : "Only the areas of the form (QMM, OSD, LOP, MFO, LOW, HSE) of this VS write comments; you can read them.";
+    partial void OnNewCommentChanged(string value) => OnPropertyChanged(nameof(CommentHint));
+
+    private void LoadComments()
+    {
+        ProcessComments.Clear();
+        if (_original is not null)
+            try { foreach (var c in Services.Processes.Comments(_original)) ProcessComments.Add(c); }
+            catch (Exception ex) { ShowMessage($"Could not read the comments: {ex.Message}", true); }
+        foreach (var n in new[] { nameof(CommentsHeader), nameof(CanComment), nameof(CommentHint) }) OnPropertyChanged(n);
+    }
+
+    [RelayCommand]
+    private void AddComment()
+    {
+        if (_original is null) { ShowMessage("Save the IB PROCESS first, then add comments.", true); return; }
+        var (ok, message) = Services.Processes.AddComment(_original, User, NewComment);
+        ShowMessage(message, !ok);
+        if (!ok) return;
+        NewComment = "";
+        LoadComments();
+    }
+
     public bool IsNew => _original is null;
     public bool IsLegacy => Process.IsLegacy;
     public bool IsReadOnlyRecord => !Fields.All.Any(CanEdit);
@@ -138,11 +170,15 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     {
         get
         {
+            if (IsNew && !FieldPermissions.CanCreate(User, Process.ValueStreamId))
+                return $"The request is always made by QMM: only QMM of VS{Process.ValueStreamId} (or the Owner) creates IB processes.";
             if (!User.IsOwner && !User.EditGrants.Any()) return "Your function is Viewer (read-only). The Owner approves your registration in Requests.";
+            if (!User.IsOwner && !User.EditGrants.Any(g => FieldPermissions.IsFormArea(g.Area)))
+                return "Your department is not an area of the form: you read the IB processes of your VS (read-only).";
             if (!User.CoversValueStream(Process.ValueStreamId)) return $"You do not capture in VS{Process.ValueStreamId}: read-only.";
             var n = Fields.All.Count(CanEdit);
             if (n == 0 && Edit.Status.IsClosed()) return "Closed pallet: only Owner, Champion and Proxy change it.";
-            return n == 0 ? "Your area does not edit fields of this process (read-only)." : $"You can edit {n} fields (highlighted in green). The rest belong to other areas.";
+            return n == 0 ? "Your area does not edit fields of this process (read-only)." : $"You can edit {n} fields (highlighted in green, in the tab of your area). The rest belong to other areas.";
         }
     }
 
@@ -396,6 +432,7 @@ public sealed partial class PalletDetailViewModel : PageViewModel
         RefreshPermissions();
         Reevaluate();
         LoadAudit();
+        LoadComments();
         foreach (var n in new[] { nameof(Title), nameof(IsNew), nameof(FolioDisplay), nameof(IsLegacy), nameof(QmmUserOptions), nameof(RequestorUserOptions) })
             OnPropertyChanged(n);
     }
@@ -438,17 +475,34 @@ public sealed partial class PalletDetailViewModel : PageViewModel
     {
         if (issue is null) return;
         if (issue.Pallet is { } line && Process.Pallets.FirstOrDefault(p => p.LineNo == line) is { } pallet) Edit = pallet;
-        SelectedTab = Fields.Process.Contains(issue.Field) || Fields.Linked.ContainsKey(issue.Field) ? 0
-            : Fields.Stage1.Contains(issue.Field) ? 1
-            : Fields.Stage3.Contains(issue.Field) ? 2
-            : Fields.Stage4.Contains(issue.Field) ? 3 : 4;
+        SelectedTab = TabOf(issue.Field);
     }
 
-    /// <summary>Ctrl+1…6 changes tab.</summary>
+    /// <summary>Tab of each field (the tab of the area that fills it, as in the Excel 2.0).</summary>
+    public static int TabOf(string field) => field switch
+    {
+        nameof(IbProcess.QmmResponsible) or nameof(IbProcess.QmmResponsibleNtUser) or nameof(IbProcess.RequestingDepartment)
+            or nameof(IbProcess.RequestorName) or nameof(IbProcess.RequestorNtUser) or nameof(IbProcess.ReasonId)
+            or nameof(IbProcess.ReturnReasonDetail) or nameof(IbProcess.ValueStreamId) => 0,
+        nameof(PalletReturn.ReturnedMaterial) or nameof(PalletReturn.UnitCostUsd) or nameof(PalletReturn.QtyImported)
+            or nameof(PalletReturn.OriginalHU) or nameof(PalletReturn.OriginalBatch) or nameof(PalletReturn.DateReturnedToWhs)
+            or nameof(PalletReturn.ReturnPONumber) => 1,
+        nameof(IbProcess.ImportDate) or nameof(IbProcess.ImportInvoice) or nameof(IbProcess.ImportDateElpJup1)
+            or nameof(PalletReturn.CustomsExportReference) => 2,
+        nameof(IbProcess.DeliveryNumber) => 3,
+        nameof(PalletReturn.ScrapGrNumber) => 4,
+        nameof(PalletReturn.LowExportNumber) or nameof(PalletReturn.LowExportDate) => 5,
+        nameof(PalletReturn.HseScrapKg) or nameof(PalletReturn.HseConfirmationDate) => 6,
+        nameof(PalletReturn.StatusCategoryCode) => 8,
+        _ when Fields.Stage3.Contains(field) => 4,
+        _ => 7,
+    };
+
+    /// <summary>Ctrl+1…9 and Ctrl+0 (Audit) change tab.</summary>
     [RelayCommand]
     private void GoToTab(string? index)
     {
-        if (int.TryParse(index, out var i) && i is >= 1 and <= 6) SelectedTab = i - 1;
+        if (int.TryParse(index, out var i) && i is >= 1 and <= 10) SelectedTab = i - 1;
     }
 
     private void ShowMessage(string text, bool isError)

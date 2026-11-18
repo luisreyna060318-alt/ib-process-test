@@ -75,7 +75,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="QMM" Binding="{Binding Qmm}" Width="*" ElementStyle="{StaticResource WrapCell}" />
-                            <DataGridTextColumn Header="MFQ / PUQ" Binding="{Binding Mfq}" Width="*" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTextColumn Header="MFQ / PUQ (read only)" Binding="{Binding Mfq}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="OSD" Binding="{Binding Gs}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="LOP" Binding="{Binding Lop}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="MFO" Binding="{Binding Mfo}" Width="*" ElementStyle="{StaticResource WrapCell}" />
@@ -88,7 +88,7 @@
 
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock TextWrapping="Wrap" Text="Fields each area can edit (in their Value Streams). Champion / Proxy: every process of the VS, plus create and delete for their department. Member: processes they created or request; OSD, LOP, MFO, LOW and HSE members also their area fields on any process of the VS." Style="{StaticResource SectionTitle}" />
+                    <TextBlock TextWrapping="Wrap" Text="Fields each area can edit (in their Value Streams). The request is always made by QMM: QMM creates the IB processes and fills the request (Champion / Proxy: every process of the VS and delete; Member: the processes they created or are QMM Responsible of). OSD, LOP, MFO, LOW and HSE fill only their fields, in every process of their VS. Every area of the form sets the Status Category and writes comments. MFQ and PUQ only read." Style="{StaticResource SectionTitle}" />
                     <ItemsControl ItemsSource="{Binding EditableByArea}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="12" /></DataTemplate>

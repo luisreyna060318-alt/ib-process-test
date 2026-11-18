@@ -151,7 +151,7 @@ public static class Fields
     /// <summary>Fields of each pallet.</summary>
     public static IEnumerable<string> Pallet => All.Where(f => !Process.Contains(f));
 
-    /// <summary>Request block: filled in by whoever requests the process (and by QMM).</summary>
+    /// <summary>The fields of the request (QMM): header and pallet identity. Adding / removing pallets belongs here too.</summary>
     public static IReadOnlyCollection<string> RequestBlock => Stage1;
 }
 
@@ -159,12 +159,13 @@ public static class Fields
 /// Who may do what on an IB PROCESS (fields: IB_PROCESS_FIELD_PERMISSIONS).
 /// <list type="bullet">
 /// <item>Owner: everything, every process and VS.</item>
-/// <item>Champion / Proxy (in the process VS): processes of their department → create, request block, their area's fields,
-/// delete; every other process of the VS → their area's fields (QMM and support areas; the request block of another department is not theirs). Closed processes too.</item>
-/// <item>Member (in the process VS): processes they created, request or are QMM Responsible of → request block and their area's fields; members of
-/// support areas (OSD, LOP, MFO, LOW, HSE) also capture their area's fields in any process of the VS. Not closed ones,
-/// no delete.</item>
-/// <item>Viewer (or registration pending): reads the processes of their VS.</item>
+/// <item>The request is always made by QMM: QMM (Member, Proxy, Champion) creates IB processes in its VS and fills the request
+/// (header and pallets). QMM Champion / Proxy: every process of the VS, delete too; QMM Member: the processes they created
+/// or are QMM Responsible of.</item>
+/// <item>OSD, LOP, MFO, LOW, HSE (Member, Proxy, Champion): only the fields of their area, in every process of their VS.</item>
+/// <item>Every area of the form sets the Status Category (Excel COMMENTS) and writes comments.</item>
+/// <item>Closed: only Owner, Champion and Proxy change them. Departments that are not part of the form (MFQ, PUQ) and
+/// Viewers (or registration pending) only read the processes of their VS.</item>
 /// </list>
 /// </summary>
 public static class FieldPermissions
@@ -194,37 +195,36 @@ public static class FieldPermissions
         "MFO" => RoleCode.Mfo, "LOW" => RoleCode.Low, "HSE" => RoleCode.Hse, _ => null,
     };
 
+    /// <summary>Status Category = Excel column COMMENTS: every area of the form sets it.</summary>
+    private const string Category = nameof(PalletReturn.StatusCategoryCode);
+
     private static readonly Dictionary<RoleCode, HashSet<string>> BuiltIn = new()
     {
         [RoleCode.Qmm] = new(Fields.Stage1.Append(nameof(PalletReturn.StatusCategoryCode))),
-        [RoleCode.Requestor] = new(Fields.Stage1),
+        [RoleCode.Requestor] = new(),                            // MFQ / PUQ: read only (the request is made by QMM)
         [RoleCode.Gs] = new(new[]
         {
             nameof(PalletReturn.ImportDate), nameof(PalletReturn.ImportInvoice), nameof(PalletReturn.ImportDateElpJup1),
-            nameof(PalletReturn.CustomsExportReference),
+            nameof(PalletReturn.CustomsExportReference), Category,
         }),
-        [RoleCode.Lop] = new(new[] { nameof(PalletReturn.DeliveryNumber) }),
-        [RoleCode.Mfo] = new(Fields.Stage3.Append(nameof(PalletReturn.ScrapGrNumber))),
-        [RoleCode.Low] = new(new[] { nameof(PalletReturn.LowExportNumber), nameof(PalletReturn.LowExportDate) }),
-        [RoleCode.Hse] = new(new[] { nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate) }),
+        [RoleCode.Lop] = new(new[] { nameof(PalletReturn.DeliveryNumber), Category }),
+        [RoleCode.Mfo] = new(Fields.Stage3.Append(nameof(PalletReturn.ScrapGrNumber)).Append(Category)),
+        [RoleCode.Low] = new(new[] { nameof(PalletReturn.LowExportNumber), nameof(PalletReturn.LowExportDate), Category }),
+        [RoleCode.Hse] = new(new[] { nameof(PalletReturn.HseScrapKg), nameof(PalletReturn.HseConfirmationDate), Category }),
         [RoleCode.Viewer] = new(),
     };
 
-    private static bool IsSupportArea(RoleCode area) => area is RoleCode.Gs or RoleCode.Lop or RoleCode.Mfo or RoleCode.Low or RoleCode.Hse;
+    /// <summary>Areas that fill the form (the requesting departments MFQ / PUQ and Viewer only read).</summary>
+    public static bool IsFormArea(RoleCode area) =>
+        area is RoleCode.Qmm or RoleCode.Gs or RoleCode.Lop or RoleCode.Mfo or RoleCode.Low or RoleCode.Hse;
 
     private static IEnumerable<AccessGrant> GrantsIn(UserContext user, IbProcess process) =>
-        user.Grants.Where(g => g.ValueStreamId == process.ValueStreamId && g.Function.CanCapture());
+        user.Grants.Where(g => g.ValueStreamId == process.ValueStreamId && g.Function.CanCapture() && IsFormArea(g.Area));
 
-    /// <summary>The user created the process, requests it or is its QMM Responsible.</summary>
+    /// <summary>The user created the process or is its QMM Responsible.</summary>
     private static bool IsMine(UserContext user, IbProcess process) =>
         string.Equals(process.CreatedBy, user.NtUser, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(process.RequestorNtUser, user.NtUser, StringComparison.OrdinalIgnoreCase)
         || string.Equals(process.QmmResponsibleNtUser, user.NtUser, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>The grant is on the requesting side of the process: its department (Champion / Proxy) or creator / requestor.</summary>
-    private static bool RequestSide(UserContext user, AccessGrant g, IbProcess process) =>
-        IsMine(user, process)
-        || (g.Function.Manages() && string.Equals(g.DepartmentCode, process.RequestingDepartment, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>May the user change <paramref name="field"/> of the process (header field) or of <paramref name="pallet"/>?</summary>
     public static bool CanEdit(UserContext user, IbProcess process, PalletReturn? pallet, string field)
@@ -235,11 +235,9 @@ public static class FieldPermissions
         foreach (var g in GrantsIn(user, process))
         {
             if (closed && !g.Function.Manages()) continue;          // closed: Owner, Champion and Proxy only
-            var requestSide = RequestSide(user, g, process);
-            if (requestSide && Fields.RequestBlock.Contains(field)) return true;
-            if (g.Area == RoleCode.Requestor && !requestSide) continue;     // another department's request is not theirs
             if (!Map.TryGetValue(g.Area, out var set) || !set.Contains(field)) continue;
-            if (g.Function.Manages() || IsSupportArea(g.Area) || requestSide) return true;
+            if (g.Area == RoleCode.Qmm && !g.Function.Manages() && !IsMine(user, process)) continue;   // QMM Member: own processes
+            return true;
         }
         return false;
     }
@@ -248,17 +246,15 @@ public static class FieldPermissions
     public static bool CanEdit(UserContext user, PalletReturn pallet, string field) =>
         CanEdit(user, pallet.Process, Fields.Process.Contains(field) ? null : pallet, field);
 
-    /// <summary>May create IB processes in the VS (Member, Proxy, Champion there; Owner).</summary>
+    /// <summary>Creates IB processes in the VS: QMM (Member, Proxy, Champion there) and the Owner.</summary>
     public static bool CanCreate(UserContext user, int valueStreamId) =>
-        user.IsOwner || user.Grants.Any(g => g.ValueStreamId == valueStreamId && g.Function.CanCapture());
+        user.IsOwner || user.Grants.Any(g => g.ValueStreamId == valueStreamId && g.Function.CanCapture() && g.Area == RoleCode.Qmm);
 
-    /// <summary>May delete the process (and its pallets): Owner; Champion / Proxy of the requesting department in the VS.</summary>
+    /// <summary>Deletes the process (and its pallets): Owner; QMM Champion / Proxy of the VS.</summary>
     public static bool CanDelete(UserContext user, IbProcess process) =>
-        user.IsOwner
-        || GrantsIn(user, process).Any(g => g.Function.Manages()
-            && (string.Equals(g.DepartmentCode, process.RequestingDepartment, StringComparison.OrdinalIgnoreCase) || IsMine(user, process)));
+        user.IsOwner || GrantsIn(user, process).Any(g => g.Area == RoleCode.Qmm && g.Function.Manages());
 
-    /// <summary>May add pallets (request block of the process).</summary>
+    /// <summary>Adds pallets: whoever fills the request of the process (QMM).</summary>
     public static bool CanAddPallet(UserContext user, IbProcess process) =>
         CanEdit(user, process, null, nameof(PalletReturn.ReturnedMaterial));
 
@@ -267,6 +263,9 @@ public static class FieldPermissions
         pallet.Id == 0 ? CanAddPallet(user, process) : CanDelete(user, process);
 
     public static bool CanRead(UserContext user, IbProcess process) => user.ReadsValueStream(process.ValueStreamId);
+
+    /// <summary>Writes comments: Owner and the users (Member, Proxy, Champion) of the six areas of the form in the VS.</summary>
+    public static bool CanComment(UserContext user, IbProcess process) => user.IsOwner || GrantsIn(user, process).Any();
 
     public static IReadOnlyCollection<string> EditableFields(RoleCode role) =>
         role == RoleCode.AdminQmmPe ? Fields.All.ToList() : Map.TryGetValue(role, out var set) ? set : Array.Empty<string>();

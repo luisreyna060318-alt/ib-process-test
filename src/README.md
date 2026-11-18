@@ -1,4 +1,4 @@
-# Aplicación (v0.5.1): Expo & Return FG Follow Up
+# Aplicación (v0.5.2): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -6,7 +6,7 @@ Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura d
 
 Los catálogos también se leen de la base: Value Streams, motivos, categorías de estatus y su lista por VS, departamentos, nombres de estatus, permisos por campo y parámetros. Se administran ahí, sin publicar un exe nuevo.
 
-**IB PROCESS (v0.5.1):** cada registro es un proceso (encabezado) con uno o más pallets; ver el README principal para campos, estatus y permisos.
+**IB PROCESS (v0.5.2):** cada registro es un proceso (encabezado) con uno o más pallets; ver el README principal para campos, estatus y permisos.
 
 **Reglas de datos:** procesos y pallets se pueden **borrar** (Owner; Champion / Proxy del departamento solicitante), con motivo; la bitácora guarda la copia completa. Un campo que ya tiene valor se puede modificar, pero no dejar vacío, para todos (app y triggers de `04_integrity_rules.sql`).
 
@@ -63,6 +63,7 @@ dotnet test
 | *Import MM60 file* / hoja MM60 del Excel | `IB_PROCESS_MM60_COSTS` (si un precio cambia se cierra la fila anterior con `VALID_TO`) |
 | *Mark as handled* | `IB_PROCESS_ALERTS` |
 | *Send feedback* | `IB_PROCESS_FEEDBACK` |
+| Pestaña *Comments* del proceso | `IB_PROCESS_COMMENTS` (sólo inserción; se borran con su proceso y quedan en la copia de la bitácora) |
 | Parámetros de cálculo (0.19, 540 días, umbrales) | `IB_PROCESS_PARAMETERS` (lectura) |
 | Catálogos (departamentos, categorías de estatus) | `IB_PROCESS_DEPARTMENTS`, `IB_PROCESS_STATUS_CATEGORIES` (lectura) |
 | *Import Excel 2.0* (Owner) | Guarda cada renglón del Excel como un **IB PROCESS editable con un pallet**, una sola vez por hoja y renglón (`LEGACY_SHEET`, `LEGACY_ROW`). Una segunda importación nunca sobrescribe lo que ya se corrigió. La hoja MM60 COST SAP va a `IB_PROCESS_MM60_COSTS` y completa el costo de los registros que no lo tenían |
@@ -124,7 +125,7 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 | **Primera ejecución / My profile** | Lee el usuario de Windows automáticamente y pide nombre, Department y Value Stream(s). Empieza como **Viewer** con una solicitud de registro; aprobada, pasa a **Member**. Después, cambiar Department o VS queda como **solicitud** para el Owner; el nombre se cambia directo. La función nunca se elige aquí |
 | **Barra superior** | *Connected to Oracle IFACTJUP - cuenta*, usuario de Windows, department, VS y función. Sólo el Owner ve las solicitudes pendientes y el selector **View as** (sigue visible mientras lo usa; aparece el aviso "PREVIEW") |
 | **IB PROCESS inbox** | Un renglón por proceso (pallets, piezas, balance, vencimiento IMMEX más próximo, estatus) con **▸** para ver el desglose por pallet. Filtros por VS, estatus, texto, riesgo arancelario y *To homogenize*. Los indicadores (registros, abiertos, en riesgo, balance) siguen los filtros siempre. La tabla se muestra hasta presionar **Show N records**, con **50 registros por página leídos directamente de Oracle** y paginador; una vez visible, los filtros se aplican en vivo y regresan a la página 1. Ordenar por una columna ordena todos los registros del filtro (lo hace la base). La búsqueda espera a que se deje de escribir. Exportar a Excel incluye todo el filtro, no sólo la página. Al volver de un registro se conserva la página |
-| **IB PROCESS detail / New IB PROCESS** | Pestaña *IB PROCESS* (encabezado; QMM Responsible y Requestor se eligen entre usuarios registrados) y lista de pallets a la izquierda con **+ Add pallet** / **Remove**; las pestañas *Pallet*, *MFO*, *Exit / HSE* y *Balance* son del pallet seleccionado. Antes de guardar avisa si un PO ya está en otro IB PROCESS. **Delete IB PROCESS** (con motivo) para quien tiene permiso. Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función, el departamento y el área del usuario en el VS del proceso |
+| **IB PROCESS detail / New IB PROCESS** | Una pestaña por área, con los campos que esa área llena en el Excel: *QMM Request* (encabezado; QMM Responsible y Requestor se eligen entre usuarios registrados), *QMM Pallets*, *OSD Customs*, *LOP Delivery*, *MFO Rework / Scrap*, *LOW Export*, *HSE Confirmation*; luego *Balance*, *Comments* (Status Category y comentarios de todas las áreas) y *Audit*. La lista de pallets queda a la izquierda con **+ Add pallet** / **Remove** (QMM); las pestañas de pallet trabajan sobre el pallet seleccionado. Sólo QMM (o el Owner) crea procesos. Antes de guardar avisa si un PO ya está en otro IB PROCESS. **Delete IB PROCESS** (con motivo) para quien tiene permiso. Campos del Excel 2.0 con nombres en inglés; al pasar el cursor, columna del Excel, regla y ejemplo. **LOW export number + date** divididos. Asterisco en obligatorios; pendientes agrupados; **Status Category** con la lista de su hoja VS. Campos editables en **verde ligero** según la función, el departamento y el área del usuario en el VS del proceso |
 | **Balance / Duties** | Sustituto de la hoja BALANCE, por VS y año fiscal; clic en un VS o estatus abre la bandeja filtrada |
 | **Alerts** | Agrupadas por área responsable; "Mark as handled" con comentario |
 | **Requests** (Owner) | Usuarios nuevos y cambios de perfil pendientes con **Approve / Reject**, e historial de decisiones |
@@ -139,12 +140,12 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 
 | Atajo | Dónde | Acción |
 |---|---|---|
-| Ctrl+N | Cualquier pantalla | Nuevo IB PROCESS |
+| Ctrl+N | Cualquier pantalla | Nuevo IB PROCESS (QMM / Owner) |
 | Ctrl+F | Bandeja | Ir a la búsqueda |
 | Enter | Bandeja | Abrir el renglón seleccionado |
 | Ctrl+E | Bandeja | Exportar a Excel (sólo lectura) |
 | Ctrl+S | Detalle | Guardar |
-| Ctrl+1 … Ctrl+6 | Detalle | Ir a la pestaña 1 a 6 |
+| Ctrl+1 … Ctrl+9, Ctrl+0 | Detalle | Ir a la pestaña 1 a 9; Ctrl+0 = Audit |
 | Esc | Detalle | Regresar a la bandeja (pregunta si hay cambios sin guardar) |
 
 ## Guion de revisión sugerido (10 minutos)
@@ -178,4 +179,4 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 | `ExpoReturn.Infrastructure.InMemory` | Repositorio y bitácora en memoria, `UserDirectory` (reglas de usuarios, accesos y solicitudes; guarda cambios incrementales, sin borrar) con `JsonUserStore`, `SampleData` (sintético), `LegacyExcelImporter` (ClosedXML) |
 | `ExpoReturn.Infrastructure.Oracle` | `SharedServersCredentials` (DLL incrustado, cargado desde memoria), `OracleCatalogs` (catálogos de la base), `OracleDb` (alias TNS, transacciones, errores de los triggers), `OracleProcessRepository`, `OracleProcessQueries` (bandeja, balance y alertas en SQL, página por página), `OracleAuditTrail`, `OracleUserStore`, `OracleMaterialCostCatalog`, `OracleAlertStore`, `OracleFeedbackStore`, `OracleParameters` (ODP.NET administrado) |
 | `ExpoReturn.Desktop` | WPF + MVVM (CommunityToolkit.Mvvm): `AppConfig` (valores fijos), `ConnectionWindow` (reintentos), `ProfileWindow`, `ShellViewModel`, `UsersViewModel`, `RequestsViewModel`, vistas y `Themes/Theme.xaml` |
-| `tests/ExpoReturn.Domain.Tests` | 146 pruebas: paginación (páginas estables, orden, filtros, totales, estatus calculado con la fecha de consulta), vistas ↔ código, IB PROCESS (permisos por función, departamento y área; pallets, PO repetido, borrado, estatus del proceso, registro como Member), reintentos de conexión, catálogos de la base, DLL incrustado, no vaciar campos ni borrar, concurrencia, departamentos, credenciales del DLL, código ↔ scripts Oracle, casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |
+| `tests/ExpoReturn.Domain.Tests` | 150 pruebas: requisición sólo de QMM, comentarios, script de cambio = instalación nueva, paginación (páginas estables, orden, filtros, totales, estatus calculado con la fecha de consulta), vistas ↔ código, IB PROCESS (permisos por función, departamento y área; pallets, PO repetido, borrado, estatus del proceso, registro como Member), reintentos de conexión, catálogos de la base, DLL incrustado, no vaciar campos ni borrar, concurrencia, departamentos, credenciales del DLL, código ↔ scripts Oracle, casos golden, invariante de balance, normalizadores, fechas heredadas, usuarios y accesos (registro, Owner, solicitudes, persistencia), permisos e importación del Excel real |

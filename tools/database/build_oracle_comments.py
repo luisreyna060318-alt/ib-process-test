@@ -30,6 +30,7 @@ TABLES = {
     "IB_PROCESS_ALERTS": "Alerts and how they were handled",
     "IB_PROCESS_AUDIT_LOG": "Field-level audit log (append-only); D rows keep a snapshot of what was deleted",
     "IB_PROCESS_FEEDBACK": "Reviewer feedback",
+    "IB_PROCESS_COMMENTS": "Comments on an IB PROCESS (Comments tab); never edited, deleted with the process",
 }
 
 def q(s): return "'" + s.replace("'", "''") + "'"
@@ -62,6 +63,13 @@ L += ["",
       "BEFORE UPDATE OR DELETE ON IB_PROCESS_AUDIT_LOG",
       "BEGIN",
       "    RAISE_APPLICATION_ERROR(-20001, 'IB_PROCESS_AUDIT_LOG is append-only: UPDATE/DELETE not allowed.');",
+      "END;",
+      "/", "",
+      "-- Comments are never edited (they are deleted only with their process, ON DELETE CASCADE).",
+      "CREATE OR REPLACE TRIGGER IB_PROCESS_COMMENTS_RO",
+      "BEFORE UPDATE ON IB_PROCESS_COMMENTS",
+      "BEGIN",
+      "    RAISE_APPLICATION_ERROR(-20001, 'IB_PROCESS_COMMENTS cannot be edited: add a new comment.');",
       "END;",
       "/", ""]
 open(OUT, "w", encoding="utf8").write("\n".join(L))

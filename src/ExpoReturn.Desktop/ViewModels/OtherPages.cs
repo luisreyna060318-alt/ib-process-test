@@ -265,7 +265,7 @@ public sealed partial class RequestsViewModel : PageViewModel
 public sealed partial class UsersViewModel : PageViewModel
 {
     private static readonly RoleCode[] MatrixAreas =
-        { RoleCode.Qmm, RoleCode.Requestor, RoleCode.Gs, RoleCode.Lop, RoleCode.Mfo, RoleCode.Low, RoleCode.Hse };
+        { RoleCode.Qmm, RoleCode.Gs, RoleCode.Lop, RoleCode.Mfo, RoleCode.Low, RoleCode.Hse };
     private readonly UserContext _realUser;
 
     public UsersViewModel(AppServices services, UserContext user, UserContext realUser) : base(services, user)

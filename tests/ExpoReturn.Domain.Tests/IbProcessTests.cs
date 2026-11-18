@@ -16,8 +16,8 @@ public class IbProcessTests
     private static readonly UserContext QmmChampion = U("B\\QMMC", "QMM", UserFunction.Champion);
     private static readonly UserContext MfqChampion = U("B\\MFQC", "MFQ", UserFunction.Champion);
     private static readonly UserContext PuqChampion = U("B\\PUQC", "PUQ", UserFunction.Champion);
-    private static readonly UserContext Creator = U("B\\MFQM", "MFQ", UserFunction.Member);
-    private static readonly UserContext OtherMember = U("B\\MFQ2", "MFQ", UserFunction.Member);
+    private static readonly UserContext Creator = U("B\\QMMM", "QMM", UserFunction.Member);          // QMM member who created it
+    private static readonly UserContext OtherMember = U("B\\QMM2", "QMM", UserFunction.Member);
     private static readonly UserContext MfoMember = U("B\\MFOM", "MFO", UserFunction.Member);
     private static readonly UserContext MfoMemberVs1 = U("B\\MFO1", "MFO", UserFunction.Member, vs: 1);
     private static readonly UserContext Viewer = U("B\\VIEW", "MFQ", UserFunction.Viewer);
@@ -32,7 +32,7 @@ public class IbProcessTests
     {
         var p = new IbProcess
         {
-            ValueStreamId = 4, CreatedBy = Creator.NtUser, RequestingDepartment = "MFQ", RequestorName = "Creator", RequestorNtUser = Creator.NtUser,
+            ValueStreamId = 4, CreatedBy = Creator.NtUser, RequestingDepartment = "MFQ", RequestorName = "MFQ C", RequestorNtUser = MfqChampion.NtUser,
             QmmResponsible = "QMM C", QmmResponsibleNtUser = QmmChampion.NtUser, ReasonId = 6,
         };
         for (var i = 0; i < pallets; i++) p.AddPallet(Pallet($"210489184{i}"));
@@ -66,36 +66,60 @@ public class IbProcessTests
     }
 
     [Fact]
-    public void Champion_of_the_requesting_department_has_crud_on_its_processes()
+    public void Qmm_champion_creates_fills_every_request_of_the_vs_and_deletes()
     {
         var p = Process();
-        Assert.True(FieldPermissions.CanCreate(MfqChampion, 4));
-        Assert.True(FieldPermissions.CanEdit(MfqChampion, p, null, nameof(IbProcess.ReasonId)));
-        Assert.True(FieldPermissions.CanEdit(MfqChampion, p, p.Pallets[1], nameof(PalletReturn.ReturnPONumber)));
-        Assert.True(FieldPermissions.CanDelete(MfqChampion, p));
-        Assert.False(FieldPermissions.CanEdit(MfqChampion, p, p.Pallets[0], nameof(PalletReturn.NewHU)));     // MFO field
-        Assert.False(FieldPermissions.CanCreate(MfqChampion, 1));                                            // another VS
+        Assert.True(FieldPermissions.CanCreate(QmmChampion, 4));
+        Assert.True(FieldPermissions.CanEdit(QmmChampion, p, null, nameof(IbProcess.ReasonId)));
+        Assert.True(FieldPermissions.CanEdit(QmmChampion, p, p.Pallets[1], nameof(PalletReturn.ReturnPONumber)));
+        Assert.True(FieldPermissions.CanAddPallet(QmmChampion, p));
+        Assert.True(FieldPermissions.CanDelete(QmmChampion, p));
+        Assert.False(FieldPermissions.CanEdit(QmmChampion, p, p.Pallets[0], nameof(PalletReturn.NewHU)));     // MFO field
+        Assert.False(FieldPermissions.CanCreate(QmmChampion, 1));                                            // another VS
     }
 
     [Fact]
-    public void Champion_of_another_department_neither_edits_the_request_nor_deletes()
+    public void Requesting_departments_are_not_part_of_the_form_and_only_read()
     {
         var p = Process();
-        Assert.False(FieldPermissions.CanEdit(PuqChampion, p, null, nameof(IbProcess.ReasonId)));
-        Assert.False(FieldPermissions.CanDelete(PuqChampion, p));
-        Assert.True(FieldPermissions.CanEdit(QmmChampion, p, p.Pallets[0], nameof(PalletReturn.StatusCategoryCode)));   // QMM: whole VS
+        foreach (var u in new[] { MfqChampion, PuqChampion, U("B\\MFQ9", "MFQ", UserFunction.Member) })
+        {
+            Assert.False(FieldPermissions.CanCreate(u, 4));
+            Assert.DoesNotContain(Fields.All, f => FieldPermissions.CanEdit(u, p, Fields.Process.Contains(f) ? null : p.Pallets[0], f));
+            Assert.False(FieldPermissions.CanDelete(u, p));
+            Assert.False(FieldPermissions.CanComment(u, p));
+            Assert.True(FieldPermissions.CanRead(u, p));
+        }
+        Assert.False(FieldPermissions.CanEdit(MfqChampion, p, null, nameof(IbProcess.RequestorNtUser)));    // even when it is the requestor
     }
 
     [Fact]
-    public void Member_captures_only_what_they_created_or_request_and_never_deletes()
+    public void Qmm_member_fills_the_requests_they_created_or_are_responsible_for_and_never_deletes()
     {
         var p = Process();
+        Assert.True(FieldPermissions.CanCreate(Creator, 4));
         Assert.True(FieldPermissions.CanEdit(Creator, p, null, nameof(IbProcess.ReasonId)));
         Assert.True(FieldPermissions.CanAddPallet(Creator, p));
         Assert.False(FieldPermissions.CanDelete(Creator, p));
         Assert.False(FieldPermissions.CanRemovePallet(Creator, p, p.Pallets[0] is var x && (x.Id = 5) > 0 ? x : x));   // saved pallet
         Assert.False(FieldPermissions.CanEdit(OtherMember, p, null, nameof(IbProcess.ReasonId)));
+        p.QmmResponsibleNtUser = OtherMember.NtUser;                                                          // now responsible
+        Assert.True(FieldPermissions.CanEdit(OtherMember, p, null, nameof(IbProcess.ReasonId)));
         Assert.False(FieldPermissions.CanEdit(Creator, p, p.Pallets[0], nameof(PalletReturn.ScrapQty)));
+    }
+
+    [Fact]
+    public void Every_area_of_the_form_sets_the_status_category_and_writes_comments()
+    {
+        var p = Process();
+        foreach (var dept in new[] { "QMM", "OSD", "LOP", "MFO", "LOW", "HSE" })
+        {
+            var u = U($"B\\{dept}P", dept, UserFunction.Proxy);
+            Assert.True(FieldPermissions.CanEdit(u, p, p.Pallets[0], nameof(PalletReturn.StatusCategoryCode)), dept);
+            Assert.True(FieldPermissions.CanComment(u, p), dept);
+        }
+        Assert.False(FieldPermissions.CanComment(Viewer, p));
+        Assert.True(FieldPermissions.CanComment(Owner, p));
     }
 
     [Fact]
@@ -104,6 +128,8 @@ public class IbProcessTests
         var p = Process();
         Assert.True(FieldPermissions.CanEdit(MfoMember, p, p.Pallets[0], nameof(PalletReturn.ScrapQty)));
         Assert.False(FieldPermissions.CanEdit(MfoMember, p, null, nameof(IbProcess.ReasonId)));
+        Assert.False(FieldPermissions.CanAddPallet(MfoMember, p));
+        Assert.False(FieldPermissions.CanCreate(MfoMember, 4));
         Assert.False(FieldPermissions.CanEdit(MfoMemberVs1, p, p.Pallets[0], nameof(PalletReturn.ScrapQty)));
         Assert.True(FieldPermissions.CanEdit(U("B\\OSD", "OSD", UserFunction.Member), p, null, nameof(IbProcess.ImportInvoice)));
         Assert.True(FieldPermissions.CanEdit(U("B\\LOP", "LOP", UserFunction.Member), p, null, nameof(IbProcess.DeliveryNumber)));
@@ -134,18 +160,49 @@ public class IbProcessTests
     // ------------------------------------------------------------------ creation and pallets
 
     [Fact]
-    public void Whoever_creates_is_qmm_responsible_if_from_qmm_otherwise_the_requestor()
+    public void Whoever_creates_is_the_qmm_responsible_and_qmm_fills_department_and_requestor()
     {
         var (_, _, svc) = Service();
         var byQmm = svc.NewDraft(4, QmmChampion);
         Assert.Equal(QmmChampion.NtUser, byQmm.QmmResponsibleNtUser);
         Assert.Null(byQmm.RequestorNtUser);
+        Assert.Null(byQmm.RequestingDepartment);
         Assert.Single(byQmm.Pallets);
 
-        var byMfq = svc.NewDraft(4, Creator);
-        Assert.Equal(Creator.NtUser, byMfq.RequestorNtUser);
-        Assert.Equal("MFQ", byMfq.RequestingDepartment);
-        Assert.Null(byMfq.QmmResponsibleNtUser);
+        var byOwner = svc.NewDraft(4, Owner);
+        Assert.Null(byOwner.QmmResponsibleNtUser);
+        Assert.Null(byOwner.RequestorNtUser);
+    }
+
+    [Fact]
+    public void Only_qmm_or_the_owner_can_save_a_new_process()
+    {
+        var (_, _, svc) = Service();
+        var refused = svc.Save(Process(1), MfqChampion);
+        Assert.False(refused.Success);
+        Assert.Contains("create IB processes in VS4", refused.DeniedFields);
+        Assert.True(svc.Save(Process(1), Creator).Success);
+    }
+
+    [Fact]
+    public void Comments_need_a_saved_process_an_area_of_the_form_and_text_and_go_into_the_copy_of_a_deleted_process()
+    {
+        var repo = new InMemoryProcessRepository();
+        var audit = new InMemoryAuditTrail();
+        var svc = new ProcessService(repo, audit, new SystemClock(), null, new InMemoryProcessComments());
+        Assert.False(svc.AddComment(Process(1), MfoMember, "x").Success);                  // not saved yet
+        var saved = Saved(svc, 1);
+        Assert.False(svc.AddComment(saved, MfqChampion, "x").Success);                   // read only
+        Assert.False(svc.AddComment(saved, MfoMember, "  ").Success);
+        Assert.False(svc.AddComment(saved, MfoMember, new string('x', 1001)).Success);
+        Assert.True(svc.AddComment(saved, MfoMember, " Waiting for the GR number ").Success);
+        var c = Assert.Single(svc.Comments(saved));
+        Assert.Equal("Waiting for the GR number", c.Text);
+        Assert.Equal("MFO", c.DepartmentCode);
+        Assert.Equal("B\\MFOM · MFO", c.Author);
+
+        Assert.True(svc.Delete(saved, QmmChampion, "Created by mistake").Success);
+        Assert.Contains("Waiting for the GR number", Assert.Single(audit.For(saved.Id), a => a.Deleted).Snapshot);
     }
 
     [Fact]
@@ -259,11 +316,12 @@ public class IbProcessTests
     {
         var (repo, audit, svc) = Service();
         var saved = Saved(svc, 2);
-        Assert.False(svc.Delete(saved, PuqChampion, "x").Success);
-        Assert.False(svc.Delete(saved, MfqChampion, " ").Success);
+        Assert.False(svc.Delete(saved, MfqChampion, "x").Success);                      // requesting department: read only
+        Assert.False(svc.Delete(saved, Creator, "x").Success);                          // QMM member: no delete
+        Assert.False(svc.Delete(saved, QmmChampion, " ").Success);
         Assert.NotNull(repo.Get(saved.Id));
 
-        Assert.True(svc.Delete(saved, MfqChampion, "Created by mistake").Success);
+        Assert.True(svc.Delete(saved, QmmChampion, "Created by mistake").Success);
         Assert.Null(repo.Get(saved.Id));
         Assert.Empty(repo.AllPallets());
         var entry = Assert.Single(audit.For(saved.Id), a => a.Deleted && a.Field == "IB PROCESS");

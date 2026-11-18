@@ -41,7 +41,7 @@ L = ["/* =====================================================================",
      "   Deleting is allowed (processes, pallets): the application writes a copy to the audit log first.",
      "   ===================================================================== */", ""]
 for name, abbr, cols in tables():
-    if cols and name != "IB_PROCESS_AUDIT_LOG":     # the audit log refuses every UPDATE already (script 03)
+    if cols and name not in ("IB_PROCESS_AUDIT_LOG", "IB_PROCESS_COMMENTS"):     # both refuse every UPDATE already (script 03)
         L += [f"CREATE OR REPLACE TRIGGER {abbr}_NO_EMPTY",
               f"BEFORE UPDATE ON {name}",
               "FOR EACH ROW",

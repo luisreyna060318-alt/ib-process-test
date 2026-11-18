@@ -403,3 +403,34 @@ public sealed class OracleDepartmentAdmin : IDepartmentAdmin
         if (cmd.ExecuteNonQuery() == 0) throw new DataRuleException($"Department {code} does not exist.");
     });
 }
+
+/// <summary>IB_PROCESS_COMMENTS: comments of the Comments tab (insert only; deleted with their process).</summary>
+public sealed class OracleProcessComments : IProcessComments
+{
+    private readonly OracleDb _db;
+    public OracleProcessComments(OracleDb db) => _db = db;
+
+    public IReadOnlyList<ProcessComment> For(int processId) =>
+        _db.Query($@"SELECT COMMENT_ID, PROCESS_ID, COMMENT_TEXT, NT_USER, DEPARTMENT_CODE, CREATED_AT FROM {_db.T("IB_PROCESS_COMMENTS")}
+                     WHERE PROCESS_ID = :processId ORDER BY CREATED_AT, COMMENT_ID",
+            r => new ProcessComment(Int(r, "COMMENT_ID")!.Value, Int(r, "PROCESS_ID")!.Value, Str(r, "COMMENT_TEXT") ?? "",
+                                    Str(r, "NT_USER") ?? "", Str(r, "DEPARTMENT_CODE"), Utc(r, "CREATED_AT") ?? DateTime.UtcNow),
+            ("processId", processId));
+
+    public ProcessComment Add(int processId, string text, string ntUser, string? departmentCode)
+    {
+        var id = _db.InTransaction((c, tx) =>
+        {
+            using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_COMMENTS")} (PROCESS_ID, COMMENT_TEXT, NT_USER, DEPARTMENT_CODE)
+                                              VALUES (:processId, :commentText, :ntUser, :dept) RETURNING COMMENT_ID INTO :newId", tx);
+            cmd.Parameters.Add("processId", processId);
+            cmd.Parameters.Add("commentText", OracleAuditTrail.Cut(text, 1000));
+            cmd.Parameters.Add("ntUser", ntUser);
+            cmd.Parameters.Add("dept", Db(departmentCode));
+            var newId = cmd.Parameters.Add("newId", global::Oracle.ManagedDataAccess.Client.OracleDbType.Int32, System.Data.ParameterDirection.Output);
+            cmd.ExecuteNonQuery();
+            return Convert.ToInt32(newId.Value.ToString());
+        });
+        return new ProcessComment(id, processId, text, ntUser, departmentCode, DateTime.UtcNow);
+    }
+}

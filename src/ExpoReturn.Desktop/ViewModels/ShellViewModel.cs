@@ -146,6 +146,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!ConfirmLeave()) return;
         CurrentPage = value.Key switch
         {
+            "new" when !CanCreateAny() => RefuseNew(),
             "new" => new PalletDetailViewModel(_services, CurrentUser, null, Back),
             "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenList),
             "alerts" => new AlertsViewModel(_services, CurrentUser, OpenPallet),
@@ -167,6 +168,19 @@ public sealed partial class ShellViewModel : ObservableObject
             _ => true,
         };
         if (!onMainScreen) OnSelectedNavChanged(item);
+    }
+
+    /// <summary>The request is always made by QMM: QMM (Member, Proxy, Champion) of some VS, or the Owner.</summary>
+    private bool CanCreateAny() => CurrentUser.IsOwner || CurrentUser.EditGrants.Any(g => g.Area == RoleCode.Qmm);
+
+    private PageViewModel RefuseNew()
+    {
+        MessageBox.Show("The request of an IB PROCESS is always made by QMM. Your department fills its own fields in the processes that QMM creates.",
+            "New IB PROCESS", MessageBoxButton.OK, MessageBoxImage.Information);
+        _suppressNav = true;
+        SelectedNav = NavItems[0];
+        _suppressNav = false;
+        return new PalletListViewModel(_services, CurrentUser, OpenProcess);
     }
 
     private bool ConfirmLeave()
@@ -210,6 +224,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private void NewReturn()
     {
         if (!ConfirmLeave()) return;
+        if (!CanCreateAny()) { CurrentPage = RefuseNew(); return; }
         _suppressNav = true;
         SelectedNav = NavItems[1];
         _suppressNav = false;
