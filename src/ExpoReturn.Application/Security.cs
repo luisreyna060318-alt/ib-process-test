@@ -270,3 +270,23 @@ public static class FieldPermissions
     public static IReadOnlyCollection<string> EditableFields(RoleCode role) =>
         role == RoleCode.AdminQmmPe ? Fields.All.ToList() : Map.TryGetValue(role, out var set) ? set : Array.Empty<string>();
 }
+
+/// <summary>Person name from the Windows display name ("EXTERNAL Reyna Morisco Luis David (PM, ME/QMM-L2-JuP1)").</summary>
+public static class PersonName
+{
+    /// <summary>
+    /// Leaves only the name: without the "EXTERNAL" / "EXTERN" mark in front and without the part in parentheses at the end
+    /// (company / department). Returns null when nothing is left or when it is only the account name.
+    /// </summary>
+    public static string? FromDisplayName(string? displayName, string? accountName = null)
+    {
+        if (string.IsNullOrWhiteSpace(displayName)) return null;
+        var s = displayName.Trim();
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"^(EXTERNAL|EXTERN|EXT\.?)\s+", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*\([^()]*\)\s*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+        if (s.Length == 0) return null;
+        if (accountName is not null && string.Equals(s, accountName.Split('\\').Last(), StringComparison.OrdinalIgnoreCase)) return null;
+        return s;
+    }
+}

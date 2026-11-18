@@ -31,7 +31,11 @@ public sealed partial class ProfileViewModel : ObservableObject
         IsFirstRun = firstRun;
         _existing = services.Users.Find(ntUser);
         IsOwner = services.Users.IsOwner(ntUser);
-        _displayName = _existing?.DisplayName ?? Environment.UserName;
+        // Name as Windows shows it (never the Windows user). A profile saved with the account name as its name is offered
+        // the Windows name instead (it is saved only when the user presses Save).
+        var saved = _existing?.DisplayName;
+        var savedIsAccount = saved is not null && string.Equals(saved.Trim(), ntUser.Split('\\').Last(), StringComparison.OrdinalIgnoreCase);
+        _displayName = (savedIsAccount ? null : saved) ?? WindowsName.Current() ?? saved ?? "";
         DepartmentOptions = Catalogs.Departments.Select(d => new LookupItem(d.Code, d.Label)).ToList();
         var pending = services.Users.PendingRequestFor(ntUser);
         var dept = pending?.DepartmentCode ?? _existing?.DepartmentCode;

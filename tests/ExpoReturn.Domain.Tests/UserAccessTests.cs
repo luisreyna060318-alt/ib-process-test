@@ -110,3 +110,16 @@ public class UserAccessTests
         Assert.Contains("Andrea Salinas", dir.QmmFor(7));          // Proxy in VS7 too
     }
 }
+
+public class PersonNameTests
+{
+    [Theory]
+    [InlineData("EXTERNAL Reyna Morisco Luis David (PM, ME/QMM-L2-JuP1)", "Reyna Morisco Luis David")]
+    [InlineData("Castillo Ivonne (ME/QMM1-JuP1)", "Castillo Ivonne")]
+    [InlineData("  Lozano  Patricia  ", "Lozano Patricia")]
+    [InlineData("EXTERNAL (PM)", null)]
+    [InlineData("RLN8JU", null)]                         // only the account: never used as the name
+    [InlineData(null, null)]
+    public void The_windows_display_name_gives_the_person_name(string? display, string? expected) =>
+        Assert.Equal(expected, PersonName.FromDisplayName(display, "US\\RLN8JU"));
+}

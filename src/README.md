@@ -1,4 +1,4 @@
-# Aplicación (v0.5.2): Expo & Return FG Follow Up
+# Aplicación (v0.5.3): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
 
@@ -6,7 +6,7 @@ Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura d
 
 Los catálogos también se leen de la base: Value Streams, motivos, categorías de estatus y su lista por VS, departamentos, nombres de estatus, permisos por campo y parámetros. Se administran ahí, sin publicar un exe nuevo.
 
-**IB PROCESS (v0.5.2):** cada registro es un proceso (encabezado) con uno o más pallets; ver el README principal para campos, estatus y permisos.
+**IB PROCESS (v0.5.3):** cada registro es un proceso (encabezado) con uno o más pallets; ver el README principal para campos, estatus y permisos.
 
 **Reglas de datos:** procesos y pallets se pueden **borrar** (Owner; Champion / Proxy del departamento solicitante), con motivo; la bitácora guarda la copia completa. Un campo que ya tiene valor se puede modificar, pero no dejar vacío, para todos (app y triggers de `04_integrity_rules.sql`).
 
