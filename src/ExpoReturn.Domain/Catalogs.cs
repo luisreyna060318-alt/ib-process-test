@@ -8,32 +8,29 @@ public sealed record Reason(int Id, string Code, string Description, string Grou
 }
 /// <summary>
 /// Department code (e.g. MFQ8) and its AREA, which decides the fields its Champions / Proxies edit (MFQ8 → MFQ).
-/// Group: PROCESS (departments of the return flow) or CROSS_FUNCTIONAL (digitalization and cross-functional projects).
 /// IsActive = false: code that only appears in historical records (kept so old rows stay valid; not offered any more).
 /// </summary>
-public sealed record Department(string Code, string Area, bool CanRequest, string Group = Department.Process, bool IsActive = true)
+public sealed record Department(string Code, string Area, bool CanRequest, bool IsActive = true)
 {
-    public const string Process = "PROCESS";
-    public const string CrossFunctional = "CROSS_FUNCTIONAL";
-    public string Label => Group == CrossFunctional ? $"{Code}  (digitalization / cross-functional)" : Code;
+    public string Label => Code;
 
     /// <summary>Areas the database accepts (IB_DEPT_CK_AREA) and what a Champion / Proxy of each edits.</summary>
     public static IReadOnlyList<(string Area, string Edits)> Areas { get; } = new[]
     {
-        ("QMM", "request, PO and status category"), ("MFQ", "request"), ("PUQ", "request"),
-        ("OSD", "import and customs export"), ("LOP", "delivery number"), ("MFO", "plant execution and GR number"),
-        ("LOW", "LOW export"), ("HSE", "HSE scrap confirmation"),
+        ("QMM", "request (header and pallets) and status category"), ("MFQ", "read only"), ("PUQ", "read only"),
+        ("OSD", "import, crossing, customs export and status category"), ("LOP", "delivery number and status category"),
+        ("MFO", "rework / scrap, GR number and status category"), ("LOW", "LOW export and status category"),
+        ("HSE", "HSE scrap confirmation and status category"),
     };
 
     /// <summary>Checks a new department; returns the problem or null. Code: letters, digits, '-' and '/', at most 20.</summary>
-    public static string? Validate(string? code, string? area, string? group)
+    public static string? Validate(string? code, string? area)
     {
         var c = code?.Trim().ToUpperInvariant() ?? "";
         if (c.Length == 0) return "Enter the department code.";
         if (c.Length > 20) return "The department code has at most 20 characters.";
         if (!System.Text.RegularExpressions.Regex.IsMatch(c, @"^[A-Z0-9][A-Z0-9/\-]*$")) return "Use only letters, digits, '-' and '/' in the code.";
         if (Areas.All(a => a.Area != area)) return "Select the area.";
-        if (group is not (Process or CrossFunctional)) return "Select the group.";
         return null;
     }
 }

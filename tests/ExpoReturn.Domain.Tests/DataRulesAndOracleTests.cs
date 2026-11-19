@@ -208,7 +208,8 @@ public class DataRulesAndOracleTests
     {
         var seed = Sql("02_seed_data.sql");
         foreach (var d in Catalogs.BuiltInDepartments)
-            Assert.Contains($"VALUES ('{d.Code}', '{d.Area}', '{(d.CanRequest ? "Y" : "N")}', '{d.Group}', '{(d.IsActive ? "Y" : "N")}');", seed);
+            Assert.Contains($"VALUES ('{d.Code}', '{d.Area}', '{(d.CanRequest ? "Y" : "N")}', '{(d.IsActive ? "Y" : "N")}');", seed);
+        Assert.DoesNotContain("DEPARTMENT_GROUP", Sql("01_create_tables.sql"));            // removed on 2026-11-19 (no distinction)
         var areas = Regex.Match(Sql("01_create_tables.sql"), @"IB_DEPT_CK_AREA CHECK \(AREA IN \(([^)]*)\)").Groups[1].Value;
         foreach (var a in Catalogs.BuiltInDepartments.Select(d => d.Area).Distinct()) Assert.Contains($"'{a}'", areas);
     }
@@ -338,8 +339,14 @@ public class OracleScriptCoherenceTests
         Assert.Contains("IB_PROCESS_USER_ACCESS_V", Read("database", "oracle", "IB_PROCESS_install.sql"));
         Assert.Contains("'IB_PROCESS_USER_ACCESS_V'", Read("database", "oracle", "00_drop_all.sql"));
         foreach (var vs in Catalogs.ValueStreams) Assert.Contains($"VS{vs.Id}_FUNCTION", view);   // one column per Value Stream
-        // Only a view: no table, column or data changes; who made the change has its domain, never OS_USER
-        Assert.DoesNotMatch(@"\b(DROP|TRUNCATE|ALTER|DELETE|UPDATE)\b", NoComments(change));
+        // Besides the view, only the department group goes (rule and column), and only after checking that every
+        // department is PROCESS; no other table, column or data changes. Who made the change has its domain, never OS_USER.
+        var other = NoComments(change).Replace("ALTER TABLE IB_PROCESS_DEPARTMENTS DROP CONSTRAINT IB_DEPT_CK_GROUP", "")
+            .Replace("ALTER TABLE IB_PROCESS_DEPARTMENTS DROP COLUMN DEPARTMENT_GROUP", "");
+        Assert.DoesNotMatch(@"\b(DROP|TRUNCATE|ALTER|DELETE|UPDATE)\b", other);
+        Assert.Contains("WHERE DEPARTMENT_GROUP <> ''PROCESS''", change);
+        Assert.Contains("RAISE_APPLICATION_ERROR", change);
+        Assert.DoesNotContain("DEPARTMENT_GROUP", Read("database", "oracle", "IB_PROCESS_install.sql"));
         Assert.Contains("'US\\RLN8JU'", change);
         Assert.DoesNotContain("OS_USER", change);
         Assert.DoesNotContain(change, c => c > 127 || c == '&');
@@ -702,16 +709,16 @@ public class DepartmentsFromDatabaseTests
         {
             Catalogs.UseDepartments(new[]
             {
-                OracleCatalogs.ToDepartment("MFQ", "MFQ", "Y", "PROCESS", "Y"),
-                OracleCatalogs.ToDepartment("NEW1 ", "LOW", "Y", "PROCESS", "Y"),        // added in the database only
-                OracleCatalogs.ToDepartment("QMM", "QMM", "Y", "PROCESS", "N"),          // deactivated in the database
-                OracleCatalogs.ToDepartment("HSE", "HSE", "N", "CROSS_FUNCTIONAL", "Y"),
+                OracleCatalogs.ToDepartment("MFQ", "MFQ", "Y", "Y"),
+                OracleCatalogs.ToDepartment("NEW1 ", "LOW", "Y", "Y"),        // added in the database only
+                OracleCatalogs.ToDepartment("QMM", "QMM", "Y", "N"),          // deactivated in the database
+                OracleCatalogs.ToDepartment("HSE", "HSE", "N", "Y"),
             });
             Assert.Equal(new[] { "MFQ", "NEW1", "HSE" }, Catalogs.Departments.Select(d => d.Code));
             Assert.Equal(new[] { "MFQ", "NEW1" }, Catalogs.Departments.Where(d => d.CanRequest).Select(d => d.Code));
             Assert.Equal(RoleCode.Low, RoleInfo.AreaOfDepartment("NEW1"));
             Assert.Equal(RoleCode.Qmm, RoleInfo.AreaOfDepartment("QMM"));        // inactive: still valid for its records
-            Assert.Equal(Department.CrossFunctional, Catalogs.FindDepartment("HSE")!.Group);
+            Assert.False(Catalogs.FindDepartment("HSE")!.CanRequest);
 
             Catalogs.UseDepartments(Array.Empty<Department>());                   // an empty answer never empties the list
             Assert.Equal(3, Catalogs.Departments.Count);
@@ -833,15 +840,14 @@ public class CatalogsFromDatabaseTests
 public class DepartmentAdminTests
 {
     [Theory]
-    [InlineData("MFQ3", "MFQ", "PROCESS", true)]
-    [InlineData("osd44", "OSD", "PROCESS", true)]
-    [InlineData("", "MFQ", "PROCESS", false)]
-    [InlineData("MFQ 3", "MFQ", "PROCESS", false)]
-    [InlineData("MFQ3", "XYZ", "PROCESS", false)]          // area the database would refuse
-    [InlineData("MFQ3", "MFQ", "OTHER", false)]
-    [InlineData("ABCDEFGHIJKLMNOPQRSTU", "MFQ", "PROCESS", false)]
-    public void New_departments_are_checked_before_reaching_the_database(string code, string area, string group, bool ok) =>
-        Assert.Equal(ok, Department.Validate(code, area, group) is null);
+    [InlineData("MFQ3", "MFQ", true)]
+    [InlineData("osd44", "OSD", true)]
+    [InlineData("", "MFQ", false)]
+    [InlineData("MFQ 3", "MFQ", false)]
+    [InlineData("MFQ3", "XYZ", false)]          // area the database would refuse
+    [InlineData("ABCDEFGHIJKLMNOPQRSTU", "MFQ", false)]
+    public void New_departments_are_checked_before_reaching_the_database(string code, string area, bool ok) =>
+        Assert.Equal(ok, Department.Validate(code, area) is null);
 
     [Fact]
     public void Areas_offered_are_the_ones_the_database_accepts()

@@ -30,7 +30,7 @@ ins("IB_PROCESS_VALUE_STREAMS", ["VALUE_STREAM_ID", "CODE", "NAME", "SHEET_NAME"
 L.append("-- Departments (AREA decides the editable fields). Keep in sync with Catalogs.AllDepartments (Domain).")
 sys.path.insert(0, os.path.join(ROOT, "tools", "dictionary"))
 from build_field_dictionary import DEPARTMENTS as DEPTS  # noqa: E402  (single list for seed, upgrade and dictionary)
-ins("IB_PROCESS_DEPARTMENTS", ["DEPARTMENT_CODE", "AREA", "CAN_REQUEST", "DEPARTMENT_GROUP", "IS_ACTIVE"], DEPTS)
+ins("IB_PROCESS_DEPARTMENTS", ["DEPARTMENT_CODE", "AREA", "CAN_REQUEST", "IS_ACTIVE"], DEPTS)
 
 L.append("-- Reasons (Excel list)")
 reasons = [(1, "R01", "Packaging change due to customer request", "PACKAGING", "N"),

@@ -1,18 +1,22 @@
 /* =====================================================================
-   Expo and Return FG Follow Up (IB Process) - Oracle - CHANGE 2026-11-19 (v0.5.5)
-   For a database installed with IB_PROCESS_install.sql of v0.5.1 plus the change of 2026-11-18. Run ONCE, connected
-   as the owner of the schema (JUP1QMM). A new installation with IB_PROCESS_install.sql already includes it.
-   It can run before or after installing the v0.5.5 executable (the application does not read this view).
+   Expo and Return FG Follow Up (IB Process) - Oracle - CHANGE 2026-11-19 (v0.5.6)
+   For a database installed with IB_PROCESS_install.sql of v0.5.1 plus the change of 2026-11-18. Run it connected as
+   the owner of the schema (JUP1QMM), AFTER replacing the executable by v0.5.6 (older executables still read the column
+   that part 2 removes). A new installation with IB_PROCESS_install.sql already includes it. It can run more than once.
 
    1. New view IB_PROCESS_USER_ACCESS_V: Users and Access as a matrix, one row per user and department (active access
-      only) with one column per Value Stream holding the function there. It is a view: it stores nothing and does not
-      change IB_PROCESS_USER_ACCESS (one row per user x department x VS, with its history), so no data is touched.
-   2. The change is written to the audit log as US\RLN8JU.
-   3. Check (last query): the view exists, is valid and how many rows it shows.
+      only) with one column per Value Stream holding the function there. A view stores nothing: IB_PROCESS_USER_ACCESS
+      keeps one row per user x department x VS with its history.
+   2. IB_PROCESS_DEPARTMENTS loses DEPARTMENT_GROUP (PROCESS / CROSS_FUNCTIONAL) and its rule IB_DEPT_CK_GROUP: every
+      department is PROCESS and the application no longer distinguishes them. Safety first: if some department is
+      not PROCESS the script STOPS before changing anything (that department would have to be reviewed first).
+   3. Both changes are written to the audit log as US\RLN8JU (once).
+   4. Check (last query): the view is VALID and the column no longer exists (DEPARTMENT_GROUP_COLUMNS = 0).
    ===================================================================== */
 
 SET DEFINE OFF
 SET SQLBLANKLINES ON
+SET SERVEROUTPUT ON
 WHENEVER SQLERROR EXIT ROLLBACK
 
 -- 1. Users and Access matrix (same view as 05_views.sql)
@@ -31,15 +35,38 @@ SELECT a.NT_USER, u.DISPLAY_NAME, a.DEPARTMENT_CODE,
   JOIN IB_PROCESS_USERS u ON u.NT_USER = a.NT_USER
  WHERE a.VALID_TO IS NULL
  GROUP BY a.NT_USER, u.DISPLAY_NAME, a.DEPARTMENT_CODE;
+-- 2. Department group: removed only when every department is PROCESS
+DECLARE
+    v_columns NUMBER;
+    v_other   NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_columns FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'IB_PROCESS_DEPARTMENTS' AND COLUMN_NAME = 'DEPARTMENT_GROUP';
+    IF v_columns = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('DEPARTMENT_GROUP was already removed: nothing to do.');
+        RETURN;
+    END IF;
+    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM IB_PROCESS_DEPARTMENTS WHERE DEPARTMENT_GROUP <> ''PROCESS''' INTO v_other;
+    IF v_other > 0 THEN
+        RAISE_APPLICATION_ERROR(-20050, v_other || ' department(s) are not PROCESS: review them before removing DEPARTMENT_GROUP. Nothing was changed.');
+    END IF;
+    EXECUTE IMMEDIATE 'ALTER TABLE IB_PROCESS_DEPARTMENTS DROP CONSTRAINT IB_DEPT_CK_GROUP';
+    EXECUTE IMMEDIATE 'ALTER TABLE IB_PROCESS_DEPARTMENTS DROP COLUMN DEPARTMENT_GROUP';
+    DBMS_OUTPUT.PUT_LINE('DEPARTMENT_GROUP and IB_DEPT_CK_GROUP removed.');
+END;
+/
 
--- 2. Audit log
+-- 3. Audit log (each change once, even if the script runs again)
 INSERT INTO IB_PROCESS_AUDIT_LOG (TABLE_NAME, RECORD_ID, ACTION, FIELD_NAME, OLD_VALUE, NEW_VALUE, NT_USER, APP_VERSION, CHANGE_REASON)
-VALUES ('IB_PROCESS_USER_ACCESS', 'CHANGE-2026-11-19', 'I', 'VIEW',
-        NULL, 'New view IB_PROCESS_USER_ACCESS_V (Users and Access matrix)',
-        'US\RLN8JU', '0.5.5', 'Change script 2026-11-19: readable matrix of the user access for reviews and audits');
+SELECT 'IB_PROCESS_USER_ACCESS', 'CHANGE-2026-11-19', 'I', 'VIEW', NULL, 'New view IB_PROCESS_USER_ACCESS_V (Users and Access matrix)',
+       'US\RLN8JU', '0.5.6', 'Change script 2026-11-19: readable matrix of the user access for reviews and audits'
+  FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM IB_PROCESS_AUDIT_LOG WHERE RECORD_ID = 'CHANGE-2026-11-19' AND FIELD_NAME = 'VIEW');
+INSERT INTO IB_PROCESS_AUDIT_LOG (TABLE_NAME, RECORD_ID, ACTION, FIELD_NAME, OLD_VALUE, NEW_VALUE, NT_USER, APP_VERSION, CHANGE_REASON)
+SELECT 'IB_PROCESS_DEPARTMENTS', 'CHANGE-2026-11-19', 'D', 'DEPARTMENT_GROUP', 'PROCESS / CROSS_FUNCTIONAL (every department PROCESS)', NULL,
+       'US\RLN8JU', '0.5.6', 'Change script 2026-11-19: department group removed, there is no distinction between departments'
+  FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM IB_PROCESS_AUDIT_LOG WHERE RECORD_ID = 'CHANGE-2026-11-19' AND FIELD_NAME = 'DEPARTMENT_GROUP');
 COMMIT;
 
--- 3. Check: must show VALID and the rows of the matrix (one per user and department, plus one per Owner)
+-- 4. Check: VALID, the rows of the matrix, and 0 = the department group column no longer exists
 SELECT o.OBJECT_NAME, o.STATUS, (SELECT COUNT(*) FROM IB_PROCESS_USER_ACCESS_V) AS MATRIX_ROWS,
-       (SELECT COUNT(*) FROM IB_PROCESS_USER_ACCESS WHERE VALID_TO IS NULL) AS ACTIVE_ACCESS_ROWS
+       (SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'IB_PROCESS_DEPARTMENTS' AND COLUMN_NAME = 'DEPARTMENT_GROUP') AS DEPARTMENT_GROUP_COLUMNS
   FROM USER_OBJECTS o WHERE o.OBJECT_TYPE = 'VIEW' AND o.OBJECT_NAME = 'IB_PROCESS_USER_ACCESS_V';

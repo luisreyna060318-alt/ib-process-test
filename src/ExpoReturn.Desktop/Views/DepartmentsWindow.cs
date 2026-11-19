@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Markup;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ExpoReturn.Application;
@@ -16,7 +17,6 @@ public sealed partial class DepartmentRow : ObservableObject
     public string Code => Source.Code;
     public string Area => Source.Area;
     public string Edits => Department.Areas.FirstOrDefault(a => a.Area == Source.Area).Edits ?? "read only";
-    public string Group => Source.Group == Department.CrossFunctional ? "Cross-functional" : "Process";
     [ObservableProperty] private bool _canRequest;
     [ObservableProperty] private bool _isActive;
     public bool Changed => CanRequest != Source.CanRequest || IsActive != Source.IsActive;
@@ -33,7 +33,6 @@ public sealed class DepartmentsWindow : Window
     private readonly ObservableCollection<DepartmentRow> _rows = new();
     private readonly TextBox _code = new() { Width = 130, CharacterCasing = CharacterCasing.Upper, MaxLength = 20 };
     private readonly ComboBox _area = new() { Width = 300, DisplayMemberPath = "Label", SelectedValuePath = "Value" };
-    private readonly ComboBox _group = new() { Width = 150, DisplayMemberPath = "Label", SelectedValuePath = "Value" };
     private readonly CheckBox _canRequest = new() { Content = "Can request returns", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
     private readonly TextBlock _message = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
 
@@ -42,30 +41,29 @@ public sealed class DepartmentsWindow : Window
         _services = services;
         _owner = owner;
         Title = "Departments";
-        Width = 820; Height = 640;
+        Width = 860; Height = 640; MinWidth = 700; MinHeight = 480;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FontFamily = new FontFamily("Segoe UI");
         if (TryFindResource("AppBackground") is Brush bg) Background = bg;
 
         _area.ItemsSource = Department.Areas.Select(a => new ViewModels.LookupItem(a.Area, $"{a.Area}  ·  edits: {a.Edits}")).ToList();
-        _group.ItemsSource = new[] { new ViewModels.LookupItem(Department.Process, "Process"), new ViewModels.LookupItem(Department.CrossFunctional, "Cross-functional") };
-        _group.SelectedIndex = 0;
-
-        var grid = new DataGrid { ItemsSource = _rows, AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, RowHeight = 28 };
+        // The theme makes every grid read-only: this one edits its two check boxes (one click each, no edit mode).
+        var grid = new DataGrid { ItemsSource = _rows, AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, RowHeight = 28,
+                                  IsReadOnly = false };
         grid.Columns.Add(new DataGridTextColumn { Header = "Department", Binding = new Binding(nameof(DepartmentRow.Code)), IsReadOnly = true, Width = 130 });
         grid.Columns.Add(new DataGridTextColumn { Header = "Area", Binding = new Binding(nameof(DepartmentRow.Area)), IsReadOnly = true, Width = 70 });
         grid.Columns.Add(new DataGridTextColumn { Header = "Champion / Proxy edits", Binding = new Binding(nameof(DepartmentRow.Edits)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Group", Binding = new Binding(nameof(DepartmentRow.Group)), IsReadOnly = true, Width = 120 });
-        grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Can request", Binding = new Binding(nameof(DepartmentRow.CanRequest)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 95 });
-        grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active", Binding = new Binding(nameof(DepartmentRow.IsActive)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 65 });
+        grid.Columns.Add(CheckColumn("Can request", nameof(DepartmentRow.CanRequest), 100, "Offered as Requesting Department of a return"));
+        grid.Columns.Add(CheckColumn("Active", nameof(DepartmentRow.IsActive), 70, "Untick to stop offering it (records and users that have it keep it)"));
 
         var add = Button("Add department", "PrimaryButton", (_, _) => Add());
         var save = Button("Save changes", "PrimaryButton", (_, _) => Save());
         var close = Button("Close", "SecondaryButton", (_, _) => Close());
         close.IsCancel = true;
 
-        var form = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        foreach (var (label, control) in new (string, FrameworkElement)[] { ("Code", _code), ("Area", _area), ("Group", _group) })
+        // WrapPanel: on a narrow window the button goes to the next line instead of being cut
+        var form = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+        foreach (var (label, control) in new (string, FrameworkElement)[] { ("Code", _code), ("Area", _area) })
         {
             var cell = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
             cell.Children.Add(new TextBlock { Text = label, FontSize = 12, Margin = new Thickness(0, 0, 0, 2) });
@@ -110,6 +108,17 @@ public sealed class DepartmentsWindow : Window
         Load();
     }
 
+    /// <summary>Check box that changes with a single click (a DataGridCheckBoxColumn needs one click to select and another to edit).</summary>
+    private static DataGridTemplateColumn CheckColumn(string header, string property, double width, string tip) => new()
+    {
+        Header = header, Width = width, MinWidth = width,
+        CellTemplate = (DataTemplate)XamlReader.Parse($@"
+<DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation"">
+  <CheckBox IsChecked=""{{Binding {property}, UpdateSourceTrigger=PropertyChanged}}"" HorizontalAlignment=""Center"" VerticalAlignment=""Center""
+            Margin=""0"" ToolTip=""{tip}"" />
+</DataTemplate>"),
+    };
+
     private Button Button(string text, string style, RoutedEventHandler click)
     {
         var b = new Button { Content = text, Margin = new Thickness(0, 0, 8, 0), MinWidth = 120 };
@@ -121,7 +130,7 @@ public sealed class DepartmentsWindow : Window
     private void Load()
     {
         _rows.Clear();
-        foreach (var d in _services.Departments.All().OrderByDescending(d => d.IsActive).ThenBy(d => d.Group == Department.CrossFunctional).ThenBy(d => d.Code))
+        foreach (var d in _services.Departments.All().OrderByDescending(d => d.IsActive).ThenBy(d => d.Code))
             _rows.Add(new DepartmentRow(d));
     }
 
@@ -129,16 +138,15 @@ public sealed class DepartmentsWindow : Window
     {
         var code = _code.Text.Trim().ToUpperInvariant();
         var area = _area.SelectedValue as string;
-        var group = _group.SelectedValue as string;
-        if (Department.Validate(code, area, group) is { } problem) { Say(problem, true); return; }
+        if (Department.Validate(code, area) is { } problem) { Say(problem, true); return; }
         if (_rows.Any(r => r.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
         { Say($"{code} already exists. If it is inactive, tick Active in the list and save.", true); return; }
-        var d = new Department(code, area!, _canRequest.IsChecked == true, group!, true);
+        var d = new Department(code, area!, _canRequest.IsChecked == true, true);
         try
         {
             _services.Departments.Add(d);
             _services.Audit.Record(new[] { new AuditEntry(0, "DEPARTMENTS", "Department", null,
-                $"{d.Code} · area {d.Area} · {(d.CanRequest ? "can request" : "cannot request")} · {d.Group}", _owner.NtUser, _services.Clock.UtcNow, "Added") });
+                $"{d.Code} · area {d.Area} · {(d.CanRequest ? "can request" : "cannot request")}", _owner.NtUser, _services.Clock.UtcNow, "Added") });
             _services.RefreshCatalogs();
         }
         catch (Exception ex) { Say($"Not saved: {ConnectionRetry.Message(ex)}", true); return; }

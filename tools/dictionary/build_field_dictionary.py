@@ -17,11 +17,11 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-# Department list (code, area, can request, group, active): same as Catalogs.AllDepartments and 02_seed_data.sql.
-DEPARTMENTS = [  # code, area, can request, group, active -- every department can request
-    ("QMM", "QMM", "Y", "PROCESS", "Y"), ("MFQ", "MFQ", "Y", "PROCESS", "Y"), ("PUQ", "PUQ", "Y", "PROCESS", "Y"),
-    ("MFO", "MFO", "Y", "PROCESS", "Y"), ("LOP", "LOP", "Y", "PROCESS", "Y"), ("OSD", "OSD", "Y", "PROCESS", "Y"),
-    ("LOW", "LOW", "Y", "PROCESS", "Y"), ("HSE", "HSE", "Y", "PROCESS", "Y")]
+# Department list (code, area, can request, active): same as Catalogs.AllDepartments and 02_seed_data.sql.
+DEPARTMENTS = [  # code, area, can request, active -- every department can request
+    ("QMM", "QMM", "Y", "Y"), ("MFQ", "MFQ", "Y", "Y"), ("PUQ", "PUQ", "Y", "Y"),
+    ("MFO", "MFO", "Y", "Y"), ("LOP", "LOP", "Y", "Y"), ("OSD", "OSD", "Y", "Y"),
+    ("LOW", "LOW", "Y", "Y"), ("HSE", "HSE", "Y", "Y")]
 OUT = os.path.join(ROOT, "database", "Diccionario_Campos_ExpoReturn.xlsx")
 
 FONT = "Arial"
@@ -76,7 +76,7 @@ TABLES = [
     ("IB_PROCESS_REQUEST_VS", "Value Streams of each profile request.", "Not in the Excel"),
     ("IB_PROCESS_FIELD_PERMISSIONS", "Fields each area edits.", "Area row above the headers"),
     ("IB_PROCESS_VALUE_STREAMS", "VS1, VS4, VS5, VS7, VS9.", "The 5 VS sheets"),
-    ("IB_PROCESS_DEPARTMENTS", "Department codes, their area (MFQ8 → MFQ), group and whether they are active (sheet 'Departments').", "Requesting department"),
+    ("IB_PROCESS_DEPARTMENTS", "Department codes, their area (MFQ8 → MFQ) and whether they are active (sheet 'Departments').", "Requesting department"),
     ("IB_PROCESS_REASONS", "The 10 reasons (Excel text).", "'Reason' list"),
     ("IB_PROCESS_STATUS_CATEGORIES", "Status category options with their exact text, kind and responsible area.", "COMMENTS lists"),
     ("IB_PROCESS_STATUS_CAT_VS", "Which options each VS offers and in which order.", "COMMENTS drop-down of each sheet"),
@@ -231,18 +231,17 @@ def main():
     title(ws4, "Departments (IB_PROCESS_DEPARTMENTS)", "AREA decides the fields a Champion / Proxy edits. Inactive codes are only kept for historical records.")
     permission = {"QMM": "QMM", "MFQ": "Requestor", "PUQ": "Requestor", "OSD": "Customs (OSD)", "LOP": "LOP", "MFO": "MFO",
                   "LOW": "LOW", "HSE": "HSE"}
-    groups = {"PROCESS": "Process", "CROSS_FUNCTIONAL": "Digitalization / cross-functional projects"}
-    h4 = ["Department", "AREA", "Edits the fields of", "Can request a return", "Group", "Active"]
+    h4 = ["Department", "AREA", "Edits the fields of", "Can request a return", "Active"]
     for i, h in enumerate(h4, 1):
         ws4.cell(4, i, h)
     style_header(ws4, 4, len(h4))
-    for k, (code, area, req, grp, active) in enumerate(DEPARTMENTS):
-        for c, v in enumerate([code, area, permission.get(area, "Read only"), "Yes" if req == "Y" else "No", groups[grp],
+    for k, (code, area, req, active) in enumerate(DEPARTMENTS):
+        for c, v in enumerate([code, area, permission.get(area, "Read only"), "Yes" if req == "Y" else "No",
                                "Yes" if active == "Y" else "No (history only)"], 1):
             ws4.cell(5 + k, c, v)
         ws4.cell(5 + k, 1).font = Font(name=FONT, bold=True)
     body(ws4, 5, 4 + len(DEPARTMENTS), len(h4))
-    for i, w in enumerate([16, 10, 26, 20, 40, 18], 1):
+    for i, w in enumerate([16, 10, 26, 20, 18], 1):
         ws4.column_dimensions[get_column_letter(i)].width = w
     ws4.freeze_panes = "B5"
 

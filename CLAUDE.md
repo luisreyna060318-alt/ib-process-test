@@ -2,7 +2,7 @@
 
 **Expo & Return FG Follow Up (IB Process)**: aplicación de escritorio Windows (.NET 8, WPF) con base Oracle que sustituye
 al Excel *"Productos terminados importados temporalmente · Matriz de rastreo 2.0"* de Bosch JuP1 (planta Juárez 1,
-área ME/QMM). Versión actual: **v0.5.5**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
+área ME/QMM). Versión actual: **v0.5.6**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
 español: **responder en español**. La interfaz y el código están en inglés; los README en español.
 
 ## 1. Qué hace el negocio (glosario mínimo)
@@ -97,6 +97,9 @@ español: **responder en español**. La interfaz y el código están en inglés;
 
 ## 6. Estado actual y lo que falta verificar
 
+* **v0.5.6 (2026-11-19):** Departments editable con un clic (el tema pone `IsReadOnly` en todas las tablas: hay que
+  quitarlo en las que editan) y sin grupo Process / Cross-functional; el script 2026-11-19 también elimina
+  `DEPARTMENT_GROUP` (se detiene si algún departamento no es PROCESS; idempotente; ejecutarlo DESPUÉS del exe v0.5.6).
 * **v0.5.5 (2026-11-19):** Alerts paginado en SQL (comparado contra las reglas en C#: 455 alertas idénticas, también
   por área y con atendidas) y matriz de Users & Access. **Cambio de base: `changes/2026-11-19_user_access_matrix_view.sql`**
   (sólo crea una vista; probado en Docker sobre una base instalada y en una instalación nueva, `90_verify` sin diferencias).

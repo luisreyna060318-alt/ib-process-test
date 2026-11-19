@@ -397,18 +397,14 @@ public static class OracleCatalogs
     }
 
     /// <summary>
-    /// IB_PROCESS_DEPARTMENTS, every row (inactive ones too: historical records still use them). Order: process
-    /// departments first, then cross-functional, each alphabetical.
+    /// IB_PROCESS_DEPARTMENTS, every row (inactive ones too: historical records still use them), alphabetical.
     /// </summary>
     public static IReadOnlyList<Department> LoadDepartments(OracleDb db) => db.Query(
-        $@"SELECT DEPARTMENT_CODE, AREA, CAN_REQUEST, DEPARTMENT_GROUP, IS_ACTIVE FROM {db.T("IB_PROCESS_DEPARTMENTS")}
-            ORDER BY CASE DEPARTMENT_GROUP WHEN 'PROCESS' THEN 0 ELSE 1 END, DEPARTMENT_CODE",
-        r => ToDepartment(Str(r, "DEPARTMENT_CODE")!, Str(r, "AREA")!, Str(r, "CAN_REQUEST"), Str(r, "DEPARTMENT_GROUP"), Str(r, "IS_ACTIVE")));
+        $@"SELECT DEPARTMENT_CODE, AREA, CAN_REQUEST, IS_ACTIVE FROM {db.T("IB_PROCESS_DEPARTMENTS")} ORDER BY DEPARTMENT_CODE",
+        r => ToDepartment(Str(r, "DEPARTMENT_CODE")!, Str(r, "AREA")!, Str(r, "CAN_REQUEST"), Str(r, "IS_ACTIVE")));
 
-    public static Department ToDepartment(string code, string area, string? canRequest, string? group, string? isActive) =>
-        new(code.Trim(), area.Trim(), canRequest == "Y",
-            string.Equals(group?.Trim(), Department.CrossFunctional, StringComparison.OrdinalIgnoreCase) ? Department.CrossFunctional : Department.Process,
-            isActive != "N");
+    public static Department ToDepartment(string code, string area, string? canRequest, string? isActive) =>
+        new(code.Trim(), area.Trim(), canRequest == "Y", isActive != "N");
 }
 
 /// <summary>IB_PROCESS_DEPARTMENTS maintenance (Owner): insert and update only, never delete.</summary>
@@ -421,15 +417,14 @@ public sealed class OracleDepartmentAdmin : IDepartmentAdmin
 
     public void Add(Department d)
     {
-        if (Department.Validate(d.Code, d.Area, d.Group) is { } problem) throw new DataRuleException(problem);
+        if (Department.Validate(d.Code, d.Area) is { } problem) throw new DataRuleException(problem);
         _db.InTransaction((c, tx) =>
         {
-            using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_DEPARTMENTS")} (DEPARTMENT_CODE, AREA, CAN_REQUEST, DEPARTMENT_GROUP, IS_ACTIVE)
-                                              VALUES (:dept, :area, :canRequest, :deptGroup, :isActive)", tx);
+            using var cmd = _db.Command(c, $@"INSERT INTO {_db.T("IB_PROCESS_DEPARTMENTS")} (DEPARTMENT_CODE, AREA, CAN_REQUEST, IS_ACTIVE)
+                                              VALUES (:dept, :area, :canRequest, :isActive)", tx);
             cmd.Parameters.Add("dept", d.Code.Trim().ToUpperInvariant());
             cmd.Parameters.Add("area", d.Area);
             cmd.Parameters.Add("canRequest", d.CanRequest ? "Y" : "N");
-            cmd.Parameters.Add("deptGroup", d.Group);
             cmd.Parameters.Add("isActive", d.IsActive ? "Y" : "N");
             cmd.ExecuteNonQuery();
         });
