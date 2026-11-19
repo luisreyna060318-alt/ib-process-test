@@ -2,7 +2,7 @@
 
 **Expo & Return FG Follow Up (IB Process)**: aplicación de escritorio Windows (.NET 8, WPF) con base Oracle que sustituye
 al Excel *"Productos terminados importados temporalmente · Matriz de rastreo 2.0"* de Bosch JuP1 (planta Juárez 1,
-área ME/QMM). Versión actual: **v0.5.4**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
+área ME/QMM). Versión actual: **v0.5.5**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
 español: **responder en español**. La interfaz y el código están en inglés; los README en español.
 
 ## 1. Qué hace el negocio (glosario mínimo)
@@ -76,8 +76,11 @@ español: **responder en español**. La interfaz y el código están en inglés;
 ## 5. Base de datos (Oracle, prefijo `IB_PROCESS_`)
 
 * 21 tablas (catálogos, usuarios/accesos/solicitudes, permisos por campo, parámetros, `PROCESSES`, `PALLETS`, historial,
-  alertas, bitácora, comentarios de procesos, feedback) y 3 vistas (`PARAMS_V`, `PALLETS_V`, `INBOX_V`) que calculan
-  con `TRUNC(SYSDATE)` vencimiento, riesgo, estatus y aranceles.
+  alertas, bitácora, comentarios de procesos, feedback) y 4 vistas: `PARAMS_V`, `PALLETS_V`, `INBOX_V` (calculan con
+  `TRUNC(SYSDATE)` vencimiento, riesgo, estatus y aranceles) y `USER_ACCESS_V` (matriz de accesos para auditoría: una
+  fila por usuario y departamento, una columna por VS; la tabla de accesos sigue normalizada, un renglón por VS).
+* **Alerts** se calcula en SQL (`OracleAlertQueries`, mismas reglas que `ReportingService.Alerts`, que queda como
+  referencia y para pruebas) y se pagina; la bitácora también se pagina en SQL (`IAuditTrail.Page/Count`).
 * Scripts: `00_drop_all.sql` (borra solo los objetos listados por nombre), `IB_PROCESS_install.sql` (= 01 + 02 + 03 +
   04 + 05), `90_verify_install.sql` (solo SELECT; secciones 1–4b sin filas = esquema correcto).
   `01_create_tables.sql` y `05_views.sql` se editan a mano; **02, 03, 04, install y 90 se regeneran** con
@@ -94,6 +97,10 @@ español: **responder en español**. La interfaz y el código están en inglés;
 
 ## 6. Estado actual y lo que falta verificar
 
+* **v0.5.5 (2026-11-19):** Alerts paginado en SQL (comparado contra las reglas en C#: 455 alertas idénticas, también
+  por área y con atendidas) y matriz de Users & Access. **Cambio de base: `changes/2026-11-19_user_access_matrix_view.sql`**
+  (sólo crea una vista; probado en Docker sobre una base instalada y en una instalación nueva, `90_verify` sin diferencias).
+  Confirmar con el usuario si ya lo ejecutó en planta.
 * **v0.5.4 (2026-11-19), probada en Windows contra Oracle Free 23 en Docker** (entorno local fuera del repo, carpeta
   `test-env` junto al repo: DLL falso de SharedServersAccess, `run-app.ps1`, bancos `RoleTests` y `UiSnap`): instalación
   limpia + `90_verify` sin diferencias (primera vez en Oracle real), importación del Excel real (633 filas, 0 rechazos),

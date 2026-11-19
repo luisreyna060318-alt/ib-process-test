@@ -35,7 +35,7 @@ END;
 -- 2. The views (they hold no data; the install creates them again).
 DECLARE
     TYPE t_names IS TABLE OF VARCHAR2(30);
-    v_views t_names := t_names('IB_PROCESS_INBOX_V', 'IB_PROCESS_PALLETS_V', 'IB_PROCESS_PARAMS_V');
+    v_views t_names := t_names('IB_PROCESS_USER_ACCESS_V', 'IB_PROCESS_INBOX_V', 'IB_PROCESS_PALLETS_V', 'IB_PROCESS_PARAMS_V');
 BEGIN
     FOR i IN 1 .. v_views.COUNT LOOP
         BEGIN

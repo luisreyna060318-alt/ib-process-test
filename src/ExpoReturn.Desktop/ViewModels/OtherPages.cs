@@ -94,37 +94,107 @@ public sealed class AlertRow
 
 public sealed partial class AlertsViewModel : PageViewModel
 {
+    /// <summary>Alerts are calculated by the database and read one page at a time (50), like the inbox.</summary>
+    public const int PageSize = 50;
     private readonly Action<int> _open;
     private readonly ObservableCollection<AlertRow> _rows = new();
+    private bool _loading;
 
     public AlertsViewModel(AppServices services, UserContext user, Action<int> open) : base(services, user)
     {
         _open = open;
         Alerts = CollectionViewSource.GetDefaultView(_rows);
-        Alerts.Filter = o => o is AlertRow r && (ShowAcknowledged || !r.IsAcknowledged);
-        Alerts.GroupDescriptions.Add(new PropertyGroupDescription(nameof(AlertRow.Owner)));
+        Alerts.GroupDescriptions.Add(new PropertyGroupDescription(nameof(AlertRow.Owner)));   // groups of the page
+        AreaOptions = new[] { new LookupItem(null, "All areas") }.Concat(AlertFilter.Areas.Select(a => new LookupItem(a, a))).ToList();
+        _selectedArea = AreaOptions[0];
         Refresh();
     }
 
     public override string Title => "Alerts";
     public ICollectionView Alerts { get; }
+    public ObservableCollection<PageButton> PageButtons { get; } = new();
+    public IReadOnlyList<LookupItem> AreaOptions { get; }
+    [ObservableProperty] private LookupItem _selectedArea;
     [ObservableProperty] private int _critical;
     [ObservableProperty] private int _warnings;
     [ObservableProperty] private int _acknowledged;
     [ObservableProperty] private bool _showAcknowledged;
+    [ObservableProperty] private int _shownCount;
+    [ObservableProperty] private int _page = 1;
+    [ObservableProperty] private int _pageCount = 1;
+    [ObservableProperty] private string _pageSummary = "";
+    [ObservableProperty] private string? _message;
+    public bool HasSeveralPages => PageCount > 1;
+    public bool HasRecords => ShownCount > 0;
 
-    partial void OnShowAcknowledgedChanged(bool value) => Alerts.Refresh();
+    partial void OnPageCountChanged(int value) => OnPropertyChanged(nameof(HasSeveralPages));
+    partial void OnShownCountChanged(int value) => OnPropertyChanged(nameof(HasRecords));
+    partial void OnShowAcknowledgedChanged(bool value) => Apply();
+    partial void OnSelectedAreaChanged(LookupItem value) => Apply();
 
+    [RelayCommand] private void FirstPage() => GoToPage(1);
+    [RelayCommand] private void PreviousPage() => GoToPage(Page - 1);
+    [RelayCommand] private void NextPage() => GoToPage(Page + 1);
+    [RelayCommand] private void LastPage() => GoToPage(PageCount);
+    [RelayCommand] private void GoToPage(int? page)
+    {
+        if (page is not { } target) return;                        // the "…" of the pager
+        Page = Math.Clamp(target, 1, Math.Max(1, PageCount));
+        ShowPage();
+    }
+
+    private AlertFilter Filter => new(ShowAcknowledged, SelectedArea?.Value as string);
+    private bool Handled(int palletId, AlertType type) => Services.AlertAcks.Find(palletId, type) is not null;
+
+    /// <summary>Reload: handled alerts saved by others, the indicators and the current page again.</summary>
     public override void Refresh()
     {
+        Message = null;
+        if (!Try(() => Services.AlertAcks.Refresh())) return;
+        Apply(keepPage: true);
+    }
+
+    /// <summary>The indicators follow the filters (one query) and the first page is read again.</summary>
+    private void Apply(bool keepPage = false)
+    {
+        if (_loading) return;
+        if (!keepPage) Page = 1;
+        if (!Try(() =>
+            {
+                var t = Services.Reporting.AlertTotals(Filter, Handled);
+                Critical = t.Critical;
+                Warnings = t.Warnings;
+                Acknowledged = t.Handled;
+                ShownCount = t.Shown;
+            })) return;
+        ShowPage();
+    }
+
+    private void ShowPage()
+    {
+        PageCount = Math.Max(1, (int)Math.Ceiling(ShownCount / (double)PageSize));
+        if (Page > PageCount) Page = PageCount;
         _rows.Clear();
-        foreach (var a in Services.Reporting.Alerts())
-            _rows.Add(new AlertRow(a, Services.AlertAcks.Find(a.PalletId, a.Type)));
-        var pending = _rows.Where(r => !r.IsAcknowledged).ToList();
-        Critical = pending.Count(a => a.Severity == Severity.Error);
-        Warnings = pending.Count(a => a.Severity == Severity.Warning);
-        Acknowledged = _rows.Count(r => r.IsAcknowledged);
-        Alerts.Refresh();
+        PageButtons.Clear();
+        var first = (Page - 1) * PageSize;
+        if (ShownCount > 0 && !Try(() =>
+            {
+                foreach (var a in Services.Reporting.AlertPage(Filter, Handled, first, PageSize))
+                    _rows.Add(new AlertRow(a, Services.AlertAcks.Find(a.PalletId, a.Type)));
+            })) return;
+        PageSummary = ShownCount == 0 ? "No alerts" : $"Alerts {first + 1:N0}–{first + _rows.Count:N0} of {ShownCount:N0}";
+        foreach (var b in PageButton.Build(Page, PageCount)) PageButtons.Add(b);
+    }
+
+    /// <summary>A query that fails (network, database) shows the reason instead of closing the screen.</summary>
+    private bool Try(Action query)
+    {
+        try { query(); return true; }
+        catch (Exception ex)
+        {
+            Message = $"Could not read from the database: {ex.Message}. Press Reload to try again.";
+            return false;
+        }
     }
 
     [RelayCommand]
@@ -160,22 +230,54 @@ public sealed partial class AlertsViewModel : PageViewModel
 // =====================================================================
 public sealed record MatrixRow(string ValueStream, string Qmm, string Mfq, string Gs, string Lop, string Mfo, string Low, string Hse);
 
-public sealed partial class AccessEditRow : ObservableObject
+/// <summary>Function of a user in one Value Stream of the matrix ("—" = no access there).</summary>
+public sealed partial class AccessCell : ObservableObject
 {
-    [ObservableProperty] private string _ntUser = "";
-    [ObservableProperty] private string _displayName = "";
-    [ObservableProperty] private string? _departmentCode;
-    [ObservableProperty] private int _valueStreamId = 1;
-    [ObservableProperty] private UserFunction _function = UserFunction.Viewer;
+    public const string None = "—";
+    public static readonly IReadOnlyList<string> Options = new[] { None, "Viewer", "Member", "Proxy", "Champion" };
+    public AccessCell(int valueStreamId, string code) { ValueStreamId = valueStreamId; _code = code; }
+    public int ValueStreamId { get; }
+    [ObservableProperty] private string _code;
+    public UserFunction? Function => Code == None ? null : Enum.Parse<UserFunction>(Code);
+    public static string CodeOf(UserFunction? f) => f is null ? None : f.Value.ToString();
+}
 
-    public static AccessEditRow From(UserAccess a, string? name) => new()
+/// <summary>
+/// One row of the access matrix: a user in one department, with the function in each Value Stream (columns), or an
+/// Owner row (no department, every VS). Saved as the same rows as always: one per user x department x VS.
+/// </summary>
+public sealed partial class AccessMatrixRow : ObservableObject
+{
+    public AccessMatrixRow(string ntUser, string displayName, string? departmentCode, bool isOwner, IEnumerable<AccessCell> cells, bool isNew = false)
     {
-        NtUser = a.NtUser, DisplayName = name ?? a.NtUser, DepartmentCode = a.Function == UserFunction.Owner ? null : a.DepartmentCode,
-        ValueStreamId = a.Function == UserFunction.Owner ? 0 : a.ValueStreamId, Function = a.Function,
-    };
-    public UserAccess ToAccess() => Function == UserFunction.Owner
-        ? new UserAccess(NtUser.Trim(), "", 0, UserFunction.Owner)
-        : new UserAccess(NtUser.Trim(), DepartmentCode ?? "", ValueStreamId, Function);
+        _ntUser = ntUser; _displayName = displayName; _departmentCode = departmentCode; _isOwner = isOwner; IsNew = isNew;
+        Cells = cells.ToList();
+        foreach (var c in Cells) c.PropertyChanged += (_, _) => OnPropertyChanged(nameof(AllVs));
+    }
+    public bool IsNew { get; }
+    [ObservableProperty] private string _ntUser;
+    [ObservableProperty] private string _displayName;
+    [ObservableProperty] private string? _departmentCode;
+    [ObservableProperty] private bool _isOwner;
+    public IReadOnlyList<AccessCell> Cells { get; }
+    public bool HasDepartment => !IsOwner;
+
+    partial void OnIsOwnerChanged(bool value) => OnPropertyChanged(nameof(HasDepartment));
+
+    /// <summary>"All VS": shows the common function (empty when they differ) and sets every VS at once.</summary>
+    public string? AllVs
+    {
+        get => Cells.Select(c => c.Code).Distinct().Count() == 1 ? Cells[0].Code : null;
+        set { if (value is null) return; foreach (var c in Cells) c.Code = value; OnPropertyChanged(); }
+    }
+
+    public IEnumerable<UserAccess> ToAccess()
+    {
+        var nt = NtUser.Trim().ToUpperInvariant();
+        if (IsOwner) { yield return new UserAccess(nt, "", 0, UserFunction.Owner); yield break; }
+        foreach (var c in Cells.Where(c => c.Function is not null))
+            yield return new UserAccess(nt, DepartmentCode ?? "", c.ValueStreamId, c.Function!.Value);
+    }
 }
 
 public sealed record RequestRow(ProfileRequest Request, string DisplayName, string CurrentDepartment, string CurrentValueStreams)
@@ -290,15 +392,47 @@ public sealed partial class UsersViewModel : PageViewModel
         Refresh();
     }
 
-    public IReadOnlyList<int> ValueStreamOptions { get; } = new[] { 0 }.Concat(Catalogs.ValueStreams.Select(v => v.Id)).ToList();
-    public IReadOnlyList<UserFunction> FunctionOptions { get; } = Enum.GetValues<UserFunction>();
     public string OwnersConfigText =>
         $"Built-in Owner: {string.Join(", ", Services.Config.Owners)}. Other Owners are the OWNER rows of this table (IB_PROCESS_USER_ACCESS).";
 
     [ObservableProperty] private IReadOnlyList<MatrixRow> _rows = Array.Empty<MatrixRow>();
-    [ObservableProperty] private AccessEditRow? _selectedEdit;
+    [ObservableProperty] private AccessMatrixRow? _selectedEdit;
     [ObservableProperty] private string? _message;
-    public ObservableCollection<AccessEditRow> EditRows { get; } = new();
+    [ObservableProperty] private string _searchText = "";
+    [ObservableProperty] private LookupItem? _departmentFilter;
+    /// <summary>The access matrix: one row per user and department, one column per Value Stream (built by the view).</summary>
+    public ObservableCollection<AccessMatrixRow> EditRows { get; } = new();
+    public ICollectionView EditView { get; private set; } = null!;
+    public IReadOnlyList<int> MatrixValueStreams { get; } = Catalogs.ValueStreams.Select(v => v.Id).ToList();
+    public IReadOnlyList<string> CellOptions => AccessCell.Options;
+    public IReadOnlyList<LookupItem> DepartmentFilterOptions =>
+        new[] { new LookupItem(null, "All departments"), new LookupItem("OWNER", "Owners") }.Concat(DepartmentOptions).ToList();
+    [ObservableProperty] private int _shownUsers;
+
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
+    partial void OnDepartmentFilterChanged(LookupItem? value) => ApplyFilter();
+
+    private bool Keep(object o)
+    {
+        if (o is not AccessMatrixRow r) return false;
+        if (r.IsNew) return true;                                  // a row being added is always visible
+        var q = SearchText.Trim();
+        if (q.Length > 0 && !r.NtUser.Contains(q, StringComparison.OrdinalIgnoreCase) && !r.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase)) return false;
+        return DepartmentFilter?.Value switch
+        {
+            null => true,
+            "OWNER" => r.IsOwner,
+            string d => !r.IsOwner && r.DepartmentCode == d,
+            _ => true,
+        };
+    }
+
+    private void ApplyFilter()
+    {
+        if (EditView is null) return;
+        EditView.Refresh();
+        ShownUsers = EditView.Cast<object>().Count();
+    }
 
     public IReadOnlyList<string> EditableByArea => MatrixAreas
         .Select(r => $"{r.DisplayName()}: {string.Join(", ", FieldPermissions.EditableFields(r).Select(FieldLabels.Get))}").ToList();
@@ -317,57 +451,75 @@ public sealed partial class UsersViewModel : PageViewModel
             .Select(vs => new MatrixRow($"VS{vs}", Cell(vs, RoleCode.Qmm), Cell(vs, RoleCode.Requestor), Cell(vs, RoleCode.Gs),
                                         Cell(vs, RoleCode.Lop), Cell(vs, RoleCode.Mfo), Cell(vs, RoleCode.Low), Cell(vs, RoleCode.Hse)))
             .ToList();
+
         EditRows.Clear();
-        foreach (var a in access.OrderBy(a => a.Function == UserFunction.Owner ? 0 : 1).ThenBy(a => Name(a.NtUser)).ThenBy(a => a.ValueStreamId))
-            EditRows.Add(AccessEditRow.From(a, Name(a.NtUser)));
+        var owners = access.Where(a => a.Function == UserFunction.Owner).Select(a => a.NtUser).Distinct();
+        foreach (var nt in owners.OrderBy(Name))
+            EditRows.Add(new AccessMatrixRow(nt, Name(nt), null, true, MatrixValueStreams.Select(v => new AccessCell(v, AccessCell.None))));
+        foreach (var g in access.Where(a => a.Function != UserFunction.Owner).GroupBy(a => (a.NtUser, a.DepartmentCode))
+                     .OrderBy(g => Name(g.Key.NtUser)).ThenBy(g => g.Key.DepartmentCode))
+            EditRows.Add(new AccessMatrixRow(g.Key.NtUser, Name(g.Key.NtUser), g.Key.DepartmentCode, false,
+                MatrixValueStreams.Select(v => new AccessCell(v, AccessCell.CodeOf(g.FirstOrDefault(a => a.ValueStreamId == v)?.Function)))));
+        EditView = CollectionViewSource.GetDefaultView(EditRows);
+        EditView.Filter = Keep;
+        OnPropertyChanged(nameof(EditView));
+        DepartmentFilter ??= DepartmentFilterOptions[0];
+        ApplyFilter();
     }
 
     [RelayCommand]
     private void AddAccess()
     {
-        // Copies the selected user so another VS or function can be assigned with one click.
-        var row = SelectedEdit is null ? new AccessEditRow()
-            : new AccessEditRow { NtUser = SelectedEdit.NtUser, DisplayName = SelectedEdit.DisplayName, DepartmentCode = SelectedEdit.DepartmentCode,
-                                  ValueStreamId = SelectedEdit.ValueStreamId, Function = SelectedEdit.Function };
+        // New row: Windows user, department and the function in each VS. A selected user is copied (another department).
+        var row = new AccessMatrixRow(SelectedEdit?.NtUser ?? "", SelectedEdit?.DisplayName ?? "", null, false,
+            MatrixValueStreams.Select(v => new AccessCell(v, AccessCell.None)), isNew: true);
         EditRows.Add(row);
         SelectedEdit = row;
-        Message = row.NtUser.Length > 0 ? $"New row for {row.DisplayName}: choose the VS / function and save." : "Enter the Windows user (DOMAIN\\user), department, VS and function, then save.";
+        ApplyFilter();
+        Message = row.NtUser.Length > 0
+            ? $"New row for {row.DisplayName}: choose the department and the function in each VS, then save."
+            : "Enter the Windows user (DOMAIN\\user), the department and the function in each VS, then save.";
     }
 
     [RelayCommand]
     private void RemoveAccess()
     {
-        if (SelectedEdit is null) { Message = "Select the access row to end."; return; }
+        if (SelectedEdit is null) { Message = "Select the row whose access ends."; return; }
         var row = SelectedEdit;
-        EditRows.Remove(row);
-        SelectedEdit = null;
-        Message = $"Access to end: {row.ToAccess().Describe}. Press Save changes to apply it (the row is kept as history, never deleted).";
+        row.IsOwner = false;
+        row.AllVs = AccessCell.None;
+        Message = $"Access of {row.DisplayName} ({row.DepartmentCode ?? "Owner"}) will end when you press Save changes (kept as history, never deleted).";
     }
 
     [RelayCommand]
     private void SaveChanges()
     {
         if (!CanEdit) return;
-        var after = EditRows.Select(r => r.ToAccess()).ToList();
-        if (after.Any(a => string.IsNullOrWhiteSpace(a.NtUser))) { Message = "Every row needs a Windows user."; return; }
-        if (after.Any(a => a.Function != UserFunction.Owner && (a.DepartmentCode.Length == 0 || a.ValueStreamId == 0)))
-        { Message = "Viewer, Member, Proxy and Champion rows need a department and a Value Stream (only Owner ignores them)."; return; }
-        var dup = after.GroupBy(a => (a.NtUser.ToUpperInvariant(), a.DepartmentCode, a.ValueStreamId)).FirstOrDefault(g => g.Count() > 1);
-        if (dup is not null) { Message = $"{dup.Key.Item1} appears twice for {dup.Key.DepartmentCode} · VS{dup.Key.ValueStreamId}. Keep one row."; return; }
+        if (EditRows.Any(r => string.IsNullOrWhiteSpace(r.NtUser) && (r.IsOwner || r.Cells.Any(c => c.Function is not null))))
+        { Message = "Every row needs a Windows user."; return; }
+        if (EditRows.Any(r => !r.IsOwner && string.IsNullOrEmpty(r.DepartmentCode) && r.Cells.Any(c => c.Function is not null)))
+        { Message = "Choose the department of every row with access (only Owner rows have none)."; return; }
+        var after = EditRows.SelectMany(r => r.ToAccess()).ToList();
+        var dup = after.GroupBy(a => (a.NtUser, a.DepartmentCode, a.ValueStreamId)).FirstOrDefault(g => g.Count() > 1);
+        if (dup is not null)
+        {
+            var where = dup.Key.ValueStreamId == 0 ? "Owner" : $"{dup.Key.DepartmentCode} · VS{dup.Key.ValueStreamId}";
+            Message = $"{dup.Key.NtUser} appears twice for {where}. Keep one row per user and department.";
+            return;
+        }
         if (!after.Any(a => a.Function == UserFunction.Owner) && Services.Config.Owners.Count == 0)
         { Message = "At least one Owner is required."; return; }
 
         var before = Services.Users.Access().ToList();
-        var norm = after.Select(a => a with { NtUser = a.NtUser.Trim().ToUpperInvariant() }).ToList();
-        var removed = before.Where(b => !norm.Contains(b)).ToList();
-        var added = norm.Where(a => !before.Contains(a)).ToList();
+        var removed = before.Where(b => !after.Contains(b)).ToList();
+        var added = after.Where(a => !before.Contains(a)).ToList();
         if (removed.Count + added.Count == 0) { Message = "No changes to save."; return; }
 
         var now = Services.Clock.UtcNow;
         try
         {
-            // Nothing is deleted: rows that disappear from the grid are closed (VALID_TO) and stay as history.
-            Services.Users.ReplaceAccess(norm, _realUser.NtUser);      // raises Changed: the shell recalculates the current user's access
+            // Nothing is deleted: access that disappears is closed (VALID_TO) and stays as history.
+            Services.Users.ReplaceAccess(after, _realUser.NtUser);      // raises Changed: the shell recalculates the current user's access
         }
         catch (Exception ex)
         {

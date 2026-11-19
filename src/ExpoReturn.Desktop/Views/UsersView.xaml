@@ -14,49 +14,72 @@
             <TextBlock Style="{StaticResource PageSubtitle}" TextWrapping="Wrap"
                        Text="Each user is identified by their Windows account. The table below says, per department and Value Stream, whether the user is Champion, Proxy, Member or Viewer; new users and profile changes are approved in Requests; the Owner has full access regardless of department and VS. Only the Owner can change it." />
 
-            <!-- Access table (Owner edits) -->
+            <!-- Access matrix (Owner edits): one row per user and department, one column per Value Stream -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="User access (User · Department · Value Stream · Function)" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Text="User access (User · Department · function in each Value Stream)" Style="{StaticResource SectionTitle}" />
                     <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" TextWrapping="Wrap"
-                               Text="One row = one user in one department and VS. To give the same user another VS or function, select the row and use 'Add row' (copies user and department). Owner rows ignore department and VS (leave VS = 0). Changes apply on save and go to the audit log." />
+                               Text="One row = one user in one department; each Value Stream column says the function there (— = no access). 'All VS' sets every column at once. Owner rows have full access (no department). 'Add row' adds a user, or another department of the selected user. Changes apply on save, go to the audit log, and ended access is kept as history." />
                     <TextBlock Text="Only the Owner can change user access (read-only for you)."
                                Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"
                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
-                    <DataGrid ItemsSource="{Binding EditRows}" SelectedItem="{Binding SelectedEdit}" IsReadOnly="False" CanUserAddRows="False"
-                              IsEnabled="{Binding CanEdit}" MaxHeight="420" RowHeight="32">
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="240" Margin="0,0,16,0"
+                                 ToolTip="Windows user or name" />
+                        <TextBlock Text="Department" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
+                        <ComboBox ItemsSource="{Binding DepartmentFilterOptions}" SelectedItem="{Binding DepartmentFilter}" DisplayMemberPath="Label" Width="170" Margin="0,0,16,0" />
+                        <TextBlock Text="{Binding ShownUsers, StringFormat='{}{0:N0} row(s)'}" VerticalAlignment="Center" Foreground="{StaticResource TextMuted}" />
+                    </WrapPanel>
+                    <DataGrid x:Name="AccessGrid" ItemsSource="{Binding EditView}" SelectedItem="{Binding SelectedEdit}" IsReadOnly="False" CanUserAddRows="False"
+                              IsEnabled="{Binding CanEdit}" MaxHeight="460" RowHeight="32" CanUserSortColumns="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Windows user" Binding="{Binding NtUser, UpdateSourceTrigger=PropertyChanged}" Width="1.2*" IsReadOnly="False" />
-                            <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" IsReadOnly="True" />
+                            <DataGridTemplateColumn Header="Windows user" Width="170" MinWidth="170">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <TextBlock Text="{Binding NtUser}" VerticalAlignment="Center" Margin="4,0" />
+                                            <!-- only a new row lets the user be typed -->
+                                            <TextBox Text="{Binding NtUser, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"
+                                                     Visibility="{Binding IsNew, Converter={StaticResource BoolToVis}}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" MinWidth="170" IsReadOnly="True" />
+                            <DataGridTemplateColumn Header="Owner" Width="64" MinWidth="64">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsOwner, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" Margin="0"
+                                                  ToolTip="Owner: full access, every department and VS" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTemplateColumn Header="Department" Width="130" MinWidth="130">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox ItemsSource="{Binding DataContext.DepartmentOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding DepartmentCode, UpdateSourceTrigger=PropertyChanged}" />
+                                                  SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding DepartmentCode, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsEnabled="{Binding HasDepartment}" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Value Stream" Width="110" MinWidth="110">
+                            <DataGridTemplateColumn Header="All VS" Width="115" MinWidth="115">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding DataContext.ValueStreamOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  SelectedItem="{Binding ValueStreamId, UpdateSourceTrigger=PropertyChanged}" ItemStringFormat="VS{0}" />
+                                        <ComboBox ItemsSource="{Binding DataContext.CellOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedItem="{Binding AllVs, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasDepartment}"
+                                                  ToolTip="Sets the same function in every Value Stream (empty = they differ)" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Function" Width="130" MinWidth="130">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding DataContext.FunctionOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <!-- one column per Value Stream is added by UsersView.xaml.cs (from the VS catalog) -->
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0" IsEnabled="{Binding CanEdit}">
-                        <Button Content="Add row" Command="{Binding AddAccessCommand}" Style="{StaticResource SecondaryButton}" />
-                        <Button Content="End access" ToolTip="Ends the selected access when you save. Nothing is deleted: the row stays in the history." Command="{Binding RemoveAccessCommand}" Style="{StaticResource SecondaryButton}" />
+                        <Button Content="Add row" Command="{Binding AddAccessCommand}" Style="{StaticResource SecondaryButton}"
+                                ToolTip="New user, or another department of the selected user" />
+                        <Button Content="End access" ToolTip="Ends every access of the selected row when you save. Nothing is deleted: it stays in the history." Command="{Binding RemoveAccessCommand}" Style="{StaticResource SecondaryButton}" />
                         <Button Content="Save changes" Command="{Binding SaveChangesCommand}" Style="{StaticResource PrimaryButton}" />
                         <Button Content="Discard" Command="{Binding DiscardChangesCommand}" Style="{StaticResource LinkButton}" />
                         <Button Content="Departments…" Command="{Binding OpenDepartmentsCommand}" Style="{StaticResource SecondaryButton}" Margin="24,0,0,0"

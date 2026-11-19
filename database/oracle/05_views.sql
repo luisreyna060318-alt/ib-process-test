@@ -128,3 +128,23 @@ SELECT s.PROCESS_ID, s.VALUE_STREAM_ID, s.FOLIO_NUMBER, s.FOLIO_CODE, s.PROCESS_
                             MIN(v.DATA_QUALITY_FLAGS) AS DATA_QUALITY_FLAGS
                        FROM IB_PROCESS_PALLETS_V v
                       GROUP BY v.PROCESS_ID) a ON a.PROCESS_ID = prc.PROCESS_ID) s;
+
+-- Users and Access as the Owner sees it: one row per user and department (active access only) with one column per
+-- Value Stream holding the function there (VIEWER, MEMBER, PROXY, CHAMPION; empty = no access). The table keeps one
+-- row per user x department x VS with its history (VALID_FROM / VALID_TO); this view is the readable matrix for reviews
+-- and audits. OTHER_VS_ROWS > 0 means a Value Stream not listed here: add its column (the table does not change).
+CREATE OR REPLACE VIEW IB_PROCESS_USER_ACCESS_V (NT_USER, DISPLAY_NAME, DEPARTMENT_CODE, IS_OWNER, VS1_FUNCTION, VS4_FUNCTION,
+    VS5_FUNCTION, VS7_FUNCTION, VS9_FUNCTION, OTHER_VS_ROWS, ACCESS_ROWS, LAST_CHANGE_AT) AS
+SELECT a.NT_USER, u.DISPLAY_NAME, a.DEPARTMENT_CODE,
+       MAX(CASE WHEN a.FUNCTION_CODE = 'OWNER' THEN 'Y' ELSE 'N' END),
+       MAX(CASE WHEN a.VALUE_STREAM_ID = 1 THEN a.FUNCTION_CODE END),
+       MAX(CASE WHEN a.VALUE_STREAM_ID = 4 THEN a.FUNCTION_CODE END),
+       MAX(CASE WHEN a.VALUE_STREAM_ID = 5 THEN a.FUNCTION_CODE END),
+       MAX(CASE WHEN a.VALUE_STREAM_ID = 7 THEN a.FUNCTION_CODE END),
+       MAX(CASE WHEN a.VALUE_STREAM_ID = 9 THEN a.FUNCTION_CODE END),
+       SUM(CASE WHEN a.VALUE_STREAM_ID NOT IN (1, 4, 5, 7, 9) THEN 1 ELSE 0 END),
+       COUNT(*), MAX(a.VALID_FROM)
+  FROM IB_PROCESS_USER_ACCESS a
+  JOIN IB_PROCESS_USERS u ON u.NT_USER = a.NT_USER
+ WHERE a.VALID_TO IS NULL
+ GROUP BY a.NT_USER, u.DISPLAY_NAME, a.DEPARTMENT_CODE;

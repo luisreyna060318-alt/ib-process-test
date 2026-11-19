@@ -57,7 +57,7 @@ public sealed class AppServices
         {
             Config = config, Repository = repo, Queries = queries, Audit = audit, Comments = comments, Users = users, Clock = clock,
             Processes = new ProcessService(repo, audit, clock, parameters, comments),
-            Reporting = new ReportingService(queries, clock, parameters),
+            Reporting = new ReportingService(queries, clock, parameters, new OracleAlertQueries(db)),
             AlertAcks = new OracleAlertStore(db),
             MaterialCosts = new OracleMaterialCostCatalog(db),
             Feedback = new OracleFeedbackStore(db),

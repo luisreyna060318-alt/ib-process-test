@@ -264,7 +264,7 @@ public class OracleScriptCoherenceTests
     public void Views_read_only_existing_columns_and_the_queries_only_existing_view_columns()
     {
         var views = Views();
-        Assert.Equal(new[] { "IB_PROCESS_INBOX_V", "IB_PROCESS_PALLETS_V", "IB_PROCESS_PARAMS_V" }, views.Keys.OrderBy(k => k));
+        Assert.Equal(new[] { "IB_PROCESS_INBOX_V", "IB_PROCESS_PALLETS_V", "IB_PROCESS_PARAMS_V", "IB_PROCESS_USER_ACCESS_V" }, views.Keys.OrderBy(k => k));
         var sql = NoComments(Read("database", "oracle", "05_views.sql"));
         // pal. / prc. / scat. / prm. columns used by the views exist in their table or view
         var sources = new Dictionary<string, ICollection<string>>
@@ -325,6 +325,24 @@ public class OracleScriptCoherenceTests
         Assert.DoesNotContain(change, c => c > 127 || c == '&');
         Assert.DoesNotMatch(@"\b(DROP|TRUNCATE)\b", NoComments(change));
         Assert.Contains("'IB_PROCESS_COMMENTS'", Read("database", "oracle", "00_drop_all.sql"));
+    }
+
+    [Fact]
+    public void Change_of_2026_11_19_adds_the_same_user_access_matrix_view_as_a_new_install()
+    {
+        var change = Read("database", "oracle", "changes", "2026-11-19_user_access_matrix_view.sql").Replace("\r\n", "\n");
+        var view = Regex.Match(Read("database", "oracle", "05_views.sql").Replace("\r\n", "\n"),
+            @"CREATE OR REPLACE VIEW IB_PROCESS_USER_ACCESS_V .*?;\n", RegexOptions.Singleline).Value;
+        Assert.NotEmpty(view);
+        Assert.Contains(view, change);                                                     // same view as a new install
+        Assert.Contains("IB_PROCESS_USER_ACCESS_V", Read("database", "oracle", "IB_PROCESS_install.sql"));
+        Assert.Contains("'IB_PROCESS_USER_ACCESS_V'", Read("database", "oracle", "00_drop_all.sql"));
+        foreach (var vs in Catalogs.ValueStreams) Assert.Contains($"VS{vs.Id}_FUNCTION", view);   // one column per Value Stream
+        // Only a view: no table, column or data changes; who made the change has its domain, never OS_USER
+        Assert.DoesNotMatch(@"\b(DROP|TRUNCATE|ALTER|DELETE|UPDATE)\b", NoComments(change));
+        Assert.Contains("'US\\RLN8JU'", change);
+        Assert.DoesNotContain("OS_USER", change);
+        Assert.DoesNotContain(change, c => c > 127 || c == '&');
     }
 
     [Fact]
