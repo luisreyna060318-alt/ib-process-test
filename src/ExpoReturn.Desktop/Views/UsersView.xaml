@@ -28,7 +28,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Windows user" Binding="{Binding NtUser, UpdateSourceTrigger=PropertyChanged}" Width="1.2*" IsReadOnly="False" />
                             <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" IsReadOnly="True" />
-                            <DataGridTemplateColumn Header="Department" Width="130">
+                            <DataGridTemplateColumn Header="Department" Width="130" MinWidth="130">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox ItemsSource="{Binding DataContext.DepartmentOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -36,7 +36,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Value Stream" Width="110">
+                            <DataGridTemplateColumn Header="Value Stream" Width="110" MinWidth="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox ItemsSource="{Binding DataContext.ValueStreamOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -44,7 +44,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Function" Width="130">
+                            <DataGridTemplateColumn Header="Function" Width="130" MinWidth="130">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox ItemsSource="{Binding DataContext.FunctionOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -73,7 +73,7 @@
                     <TextBlock Text="Champion / Proxy matrix" Style="{StaticResource SectionTitle}" />
                     <DataGrid ItemsSource="{Binding Rows}" RowHeight="NaN" MinRowHeight="36">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" MinWidth="50" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="QMM" Binding="{Binding Qmm}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="MFQ / PUQ (read only)" Binding="{Binding Mfq}" Width="*" ElementStyle="{StaticResource WrapCell}" />
                             <DataGridTextColumn Header="OSD" Binding="{Binding Gs}" Width="*" ElementStyle="{StaticResource WrapCell}" />

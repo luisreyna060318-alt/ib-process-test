@@ -87,8 +87,6 @@ public sealed record UserContext(string NtUser, string DisplayName, string? Depa
     public IReadOnlyList<int> ValueStreams => Grants.Select(g => g.ValueStreamId).Distinct().OrderBy(v => v).ToList();
     public bool SeesAllValueStreams => IsOwner;
     public bool CoversValueStream(int vs) => IsOwner || EditGrants.Any(g => g.ValueStreamId == vs);
-    /// <summary>May read the processes of a VS (any function there, Viewer included).</summary>
-    public bool ReadsValueStream(int vs) => IsOwner || Grants.Any(g => g.ValueStreamId == vs);
     public bool CanEditArea(RoleCode area, int vs) => IsOwner || EditGrants.Any(g => g.Area == area && g.ValueStreamId == vs);
 
     public string ValueStreamText => IsOwner ? "All VS"
@@ -163,9 +161,11 @@ public static class Fields
 /// (header and pallets). QMM Champion / Proxy: every process of the VS, delete too; QMM Member: the processes they created
 /// or are QMM Responsible of.</item>
 /// <item>OSD, LOP, MFO, LOW, HSE (Member, Proxy, Champion): only the fields of their area, in every process of their VS.</item>
-/// <item>Every area of the form sets the Status Category (Excel COMMENTS) and writes comments.</item>
+/// <item>Every area of the form sets the Status Category (Excel COMMENTS) and writes comments; QMM Member sets it only in
+/// its own processes (created or QMM Responsible), like the rest of the QMM fields. Comments: any QMM user of the VS.</item>
 /// <item>Closed: only Owner, Champion and Proxy change them. Departments that are not part of the form (MFQ, PUQ) and
-/// Viewers (or registration pending) only read the processes of their VS.</item>
+/// Viewers (or registration pending) only read.</item>
+/// <item>Reading: every registered user sees every IB PROCESS of every VS (read only where they have no permission).</item>
 /// </list>
 /// </summary>
 public static class FieldPermissions
@@ -262,7 +262,8 @@ public static class FieldPermissions
     public static bool CanRemovePallet(UserContext user, IbProcess process, PalletReturn pallet) =>
         pallet.Id == 0 ? CanAddPallet(user, process) : CanDelete(user, process);
 
-    public static bool CanRead(UserContext user, IbProcess process) => user.ReadsValueStream(process.ValueStreamId);
+    /// <summary>Everybody reads every process of every VS (decision 2026-11-19); what they may change is decided field by field.</summary>
+    public static bool CanRead(UserContext user, IbProcess process) => true;
 
     /// <summary>Writes comments: Owner and the users (Member, Proxy, Champion) of the six areas of the form in the VS.</summary>
     public static bool CanComment(UserContext user, IbProcess process) => user.IsOwner || GrantsIn(user, process).Any();

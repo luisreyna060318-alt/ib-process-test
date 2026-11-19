@@ -21,7 +21,25 @@ public sealed partial class OracleDb
     {
         _settings = settings;
         _credentials = credentials;
-        if (TnsFolder() is { } dir) OracleConfiguration.TnsAdmin = dir;
+        if (TnsFolder() is { } dir) ApplyTnsAdmin(dir);
+    }
+
+    private static readonly object TnsGate = new();
+    private static string? _tnsAdminApplied;
+
+    /// <summary>
+    /// OracleConfiguration.TnsAdmin is global and ODP.NET refuses it (ORA-50099) once a connection was attempted. The
+    /// start-up window builds a new OracleDb on every retry, so it is set only once per process; otherwise the retries
+    /// would all fail with ORA-50099 and hide the real error of the first attempt.
+    /// </summary>
+    private static void ApplyTnsAdmin(string dir)
+    {
+        lock (TnsGate)
+        {
+            if (_tnsAdminApplied is not null) return;   // the folder comes from fixed settings: it does not change
+            OracleConfiguration.TnsAdmin = dir;
+            _tnsAdminApplied = dir;
+        }
     }
 
     public OracleSettings Settings => _settings;

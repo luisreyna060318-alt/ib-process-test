@@ -89,6 +89,35 @@ public interface IAuditTrail
     /// <summary>Every entry of an IB PROCESS (header and pallets).</summary>
     IReadOnlyList<AuditEntry> For(int processId);
     IReadOnlyList<AuditEntry> All();
+    /// <summary>Audit log screen: entries of the filter, most recent first, one page at a time (Oracle: OFFSET … FETCH).</summary>
+    IReadOnlyList<AuditEntry> Page(AuditFilter filter, int skip, int take);
+    /// <summary>How many entries match the filter (every page).</summary>
+    int Count(AuditFilter filter);
+    /// <summary>Users and fields that appear in the log (options of the filters).</summary>
+    IReadOnlyList<string> Users();
+    IReadOnlyList<string> Fields();
+}
+
+/// <summary>
+/// Filters of the audit log screen (all optional, combined with AND): folio contains the text (case-insensitive), exact
+/// user, exact field (property name), and the day the change was made (local time) between From and To, both included.
+/// </summary>
+public sealed record AuditFilter(string? Folio = null, string? NtUser = null, string? Field = null, DateTime? From = null, DateTime? To = null)
+{
+    public static AuditFilter All { get; } = new();
+    public string? FolioText => string.IsNullOrWhiteSpace(Folio) ? null : Folio.Trim();
+
+    /// <summary>Same rule as the SQL of OracleAuditTrail.</summary>
+    public bool Matches(AuditEntry e)
+    {
+        if (FolioText is { } f && !(e.FolioCode ?? "").Contains(f, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(NtUser) && !string.Equals(e.NtUser, NtUser, StringComparison.Ordinal)) return false;
+        if (!string.IsNullOrEmpty(Field) && e.Field != Field) return false;
+        var day = e.ChangedAtLocal.Date;
+        if (From is { } from && day < from.Date) return false;
+        if (To is { } to && day > to.Date) return false;
+        return true;
+    }
 }
 
 /// <summary>How an alert was handled: who, when and with which comment (IB_PROCESS_ALERTS).</summary>

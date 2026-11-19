@@ -17,15 +17,15 @@
                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
                     <DataGrid ItemsSource="{Binding Pending}" RowHeight="36" Visibility="{Binding HasPending, Converter={StaticResource BoolToVis}}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
-                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110" />
+                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" MinWidth="130" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110" MinWidth="110" />
                             <DataGridTextColumn Header="User" Binding="{Binding DisplayName}" Width="*" />
                             <DataGridTextColumn Header="Windows user" Binding="{Binding NtUser}" Width="*" />
-                            <DataGridTextColumn Header="Current dept." Binding="{Binding CurrentDepartment}" Width="90" />
-                            <DataGridTextColumn Header="Current VS" Binding="{Binding CurrentValueStreams}" Width="120" />
-                            <DataGridTextColumn Header="Requested dept." Binding="{Binding RequestedDepartment}" Width="105" />
-                            <DataGridTextColumn Header="Requested VS" Binding="{Binding RequestedValueStreams}" Width="120" />
-                            <DataGridTemplateColumn Width="170">
+                            <DataGridTextColumn Header="Current dept." Binding="{Binding CurrentDepartment}" Width="90" MinWidth="90" />
+                            <DataGridTextColumn Header="Current VS" Binding="{Binding CurrentValueStreams}" Width="120" MinWidth="120" />
+                            <DataGridTextColumn Header="Requested dept." Binding="{Binding RequestedDepartment}" Width="105" MinWidth="105" />
+                            <DataGridTextColumn Header="Requested VS" Binding="{Binding RequestedValueStreams}" Width="120" MinWidth="120" />
+                            <DataGridTemplateColumn Width="170" MinWidth="170">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" IsEnabled="{Binding DataContext.CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}">
@@ -49,14 +49,14 @@
                     <TextBlock Text="Decided (last 200)" Style="{StaticResource SectionTitle}" />
                     <DataGrid ItemsSource="{Binding History}" MaxHeight="420">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
-                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110" />
+                            <DataGridTextColumn Header="Requested" Binding="{Binding RequestedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" MinWidth="130" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110" MinWidth="110" />
                             <DataGridTextColumn Header="User" Binding="{Binding DisplayName}" Width="*" />
-                            <DataGridTextColumn Header="Dept." Binding="{Binding RequestedDepartment}" Width="70" />
-                            <DataGridTextColumn Header="VS" Binding="{Binding RequestedValueStreams}" Width="110" />
-                            <DataGridTextColumn Header="Decision" Binding="{Binding StatusText}" Width="90" />
-                            <DataGridTextColumn Header="By" Binding="{Binding DecidedBy}" Width="120" />
-                            <DataGridTextColumn Header="On" Binding="{Binding DecidedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
+                            <DataGridTextColumn Header="Dept." Binding="{Binding RequestedDepartment}" Width="70" MinWidth="70" />
+                            <DataGridTextColumn Header="VS" Binding="{Binding RequestedValueStreams}" Width="110" MinWidth="110" />
+                            <DataGridTextColumn Header="Decision" Binding="{Binding StatusText}" Width="90" MinWidth="90" />
+                            <DataGridTextColumn Header="By" Binding="{Binding DecidedBy}" Width="120" MinWidth="120" />
+                            <DataGridTextColumn Header="On" Binding="{Binding DecidedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" MinWidth="130" />
                             <DataGridTextColumn Header="Comment" Binding="{Binding Comment}" Width="*" />
                         </DataGrid.Columns>
                     </DataGrid>

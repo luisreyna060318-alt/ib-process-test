@@ -30,11 +30,27 @@ public sealed class UserPreferences
         catch { return new UserPreferences(); }     // preferencia dañada: se ignora
     }
 
+    /// <summary>Users (Windows account) who keep the side menu collapsed to its icons.</summary>
+    public HashSet<string> CollapsedNav { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     public ListFilterPreference? GetListFilter(string ntUser) => ListFilters.GetValueOrDefault(ntUser);
 
     public void SetListFilter(string ntUser, ListFilterPreference pref)
     {
         ListFilters[ntUser] = pref;
+        Save();
+    }
+
+    public bool IsNavCollapsed(string ntUser) => CollapsedNav.Contains(ntUser);
+
+    public void SetNavCollapsed(string ntUser, bool collapsed)
+    {
+        if (collapsed) CollapsedNav.Add(ntUser); else CollapsedNav.Remove(ntUser);
+        Save();
+    }
+
+    private void Save()
+    {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);

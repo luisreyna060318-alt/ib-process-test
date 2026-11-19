@@ -35,6 +35,35 @@ public sealed class OracleProcessQueries : IProcessQueries
         if (f.OnlyOpen) sql.Add("i.IS_CLOSED = 'N'");
         if (f.OnlyDutyRisk) sql.Add("i.IS_DUTY_RISK = 'Y'");
         if (f.OnlyFindings) sql.Add("i.IS_LEGACY = 'Y' AND i.OPEN_FINDINGS > 0");
+        if (!string.IsNullOrWhiteSpace(f.MineOf))
+        {
+            // Same rule as ProcessFilter.IsMine, on the table (the view does not need new columns).
+            sql.Add($@"EXISTS (SELECT 1 FROM {table("IB_PROCESS_PROCESSES")} m WHERE m.PROCESS_ID = i.PROCESS_ID
+                              AND (UPPER(m.CREATED_BY) = :mine OR UPPER(m.QMM_RESPONSIBLE_NT) = :mine OR UPPER(m.REQUESTOR_NT) = :mine))");
+            Bind(args, ("mine", f.MineOf.Trim().ToUpperInvariant()));
+        }
+        if (f.PendingFor is { } scopes)
+        {
+            // "Pending for my area": same conditions as PendingWork.IsPendingFor, on an OPEN pallet of the process.
+            var parts = new List<string>();
+            for (var n = 0; n < scopes.Count; n++)
+            {
+                var s = scopes[n];
+                var cond = new List<string> { PendingWork.SqlCondition(s.Area) };
+                if (s.ValueStreamId != 0) { cond.Add($"m.VALUE_STREAM_ID = :pvs{n}"); Bind(args, ($"pvs{n}", s.ValueStreamId)); }
+                if (s.OnlyOwnOf is { } own)
+                {
+                    cond.Add($"(UPPER(m.CREATED_BY) = :pown{n} OR UPPER(m.QMM_RESPONSIBLE_NT) = :pown{n})");
+                    Bind(args, ($"pown{n}", own.Trim().ToUpperInvariant()));
+                }
+                parts.Add("(" + string.Join(" AND ", cond) + ")");
+            }
+            sql.Add(parts.Count == 0 ? "1 = 0" :
+                $@"EXISTS (SELECT 1 FROM {table("IB_PROCESS_PALLETS_V")} v
+                             JOIN {table("IB_PROCESS_PALLETS")} x ON x.PALLET_ID = v.PALLET_ID
+                             JOIN {table("IB_PROCESS_PROCESSES")} m ON m.PROCESS_ID = v.PROCESS_ID
+                            WHERE v.PROCESS_ID = i.PROCESS_ID AND v.IS_OPEN = 'Y' AND ({string.Join(" OR ", parts)}))");
+        }
         if (f.SearchText is { } text)
         {
             sql.Add($@"(UPPER(i.FOLIO_CODE) LIKE :q ESCAPE '\' OR UPPER(i.IMPORT_INVOICE) LIKE :q ESCAPE '\'

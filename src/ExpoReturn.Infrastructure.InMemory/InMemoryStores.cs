@@ -93,6 +93,11 @@ public sealed class InMemoryAuditTrail : IAuditTrail
     public void Record(IEnumerable<AuditEntry> entries) { lock (_gate) _entries.AddRange(entries); }
     public IReadOnlyList<AuditEntry> For(int processId) { lock (_gate) return _entries.Where(e => e.ProcessId == processId).OrderByDescending(e => e.ChangedAtUtc).ToList(); }
     public IReadOnlyList<AuditEntry> All() { lock (_gate) return _entries.OrderByDescending(e => e.ChangedAtUtc).ToList(); }
+    public IReadOnlyList<AuditEntry> Page(AuditFilter filter, int skip, int take) =>
+        All().Where(filter.Matches).Skip(Math.Max(0, skip)).Take(Math.Max(0, take)).ToList();
+    public int Count(AuditFilter filter) => All().Count(filter.Matches);
+    public IReadOnlyList<string> Users() => All().Select(e => e.NtUser).Distinct().OrderBy(u => u, StringComparer.Ordinal).ToList();
+    public IReadOnlyList<string> Fields() => All().Select(e => e.Field).Distinct().OrderBy(f => f, StringComparer.Ordinal).ToList();
     /// <summary>Demo only (memory). The Oracle audit log is append-only.</summary>
     public void Clear() { lock (_gate) _entries.Clear(); }
 }

@@ -39,6 +39,45 @@ public class UserAccessTests
     }
 
     [Fact]
+    public void Everybody_reads_every_value_stream_but_edits_only_where_they_have_permission()
+    {
+        // Decision 2026-11-19: every registered user sees every IB PROCESS of every VS, read only where they have no permission.
+        var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: false);
+        dir.Register("BOSCH\\QMM1", "Qmm Uno", "QMM", new[] { 1 });
+        dir.ReplaceAccess(new[] { new UserAccess("BOSCH\\QMM1", "QMM", 1, UserFunction.Champion) });
+        var qmmVs1 = dir.ContextFor("BOSCH\\QMM1");
+        dir.Register("BOSCH\\NEW1", "Nuevo Uno", "MFQ", new[] { 4 });
+        var viewer = dir.ContextFor("BOSCH\\NEW1");
+
+        var vs7 = Imported(7);
+        Assert.True(FieldPermissions.CanRead(qmmVs1, vs7.Process));
+        Assert.True(FieldPermissions.CanRead(viewer, vs7.Process));
+        Assert.False(FieldPermissions.CanEdit(qmmVs1, vs7, nameof(PalletReturn.ReturnReasonDetail)));
+        Assert.False(FieldPermissions.CanComment(qmmVs1, vs7.Process));
+    }
+
+    [Fact]
+    public void Qmm_member_sets_the_status_category_only_in_their_own_processes()
+    {
+        // Decision 2026-11-19: "por algo es el QMM Responsible". The other areas set it in every process of their VS.
+        var dir = new UserDirectory((string?)null, Array.Empty<string>(), includeDemoUsers: false);
+        dir.ReplaceAccess(new[]
+        {
+            new UserAccess("BOSCH\\QMMA", "QMM", 7, UserFunction.Member), new UserAccess("BOSCH\\QMMB", "QMM", 7, UserFunction.Member),
+            new UserAccess("BOSCH\\OSDA", "OSD", 7, UserFunction.Member),
+        });
+        var process = new IbProcess { ValueStreamId = 7, CreatedBy = "BOSCH\\QMMA" };
+        var pallet = process.NewPallet("BOSCH\\QMMA");
+        const string category = nameof(PalletReturn.StatusCategoryCode);
+        Assert.True(FieldPermissions.CanEdit(dir.ContextFor("BOSCH\\QMMA"), process, pallet, category));    // created it
+        Assert.False(FieldPermissions.CanEdit(dir.ContextFor("BOSCH\\QMMB"), process, pallet, category));   // another QMM member
+        Assert.True(FieldPermissions.CanComment(dir.ContextFor("BOSCH\\QMMB"), process));                  // but comments
+        Assert.True(FieldPermissions.CanEdit(dir.ContextFor("BOSCH\\OSDA"), process, pallet, category));    // other areas: whole VS
+        process.QmmResponsibleNtUser = "BOSCH\\QMMB";
+        Assert.True(FieldPermissions.CanEdit(dir.ContextFor("BOSCH\\QMMB"), process, pallet, category));    // now QMM Responsible
+    }
+
+    [Fact]
     public void Owner_is_configured_by_windows_user_and_ignores_department_and_value_stream()
     {
         var dir = new UserDirectory((string?)null, new[] { "owner1" }, includeDemoUsers: false);

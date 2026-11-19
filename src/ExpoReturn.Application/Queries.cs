@@ -10,9 +10,19 @@ namespace ExpoReturn.Application;
 
 /// <summary>Filters of the inbox (all optional; combined with AND).</summary>
 public sealed record ProcessFilter(int? ValueStreamId = null, WorkflowStatus? Status = null, bool OnlyOpen = false,
-                                   bool OnlyDutyRisk = false, bool OnlyFindings = false, string? Search = null)
+                                   bool OnlyDutyRisk = false, bool OnlyFindings = false, string? Search = null, string? MineOf = null,
+                                   IReadOnlyList<AreaScope>? PendingFor = null)
 {
     public static ProcessFilter All { get; } = new();
+
+    /// <summary>
+    /// "My IB PROCESS": the processes the user created, is QMM Responsible of, or is the Requestor of (registered users;
+    /// historical Excel rows only carry names, so they are nobody's). Same rule as the SQL of the inbox.
+    /// </summary>
+    public static bool IsMine(IbProcess p, string ntUser) =>
+        string.Equals(p.CreatedBy, ntUser, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(p.QmmResponsibleNtUser, ntUser, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(p.RequestorNtUser, ntUser, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Search text trimmed, or null.</summary>
     public string? SearchText => string.IsNullOrWhiteSpace(Search) ? null : Search.Trim();
@@ -124,6 +134,8 @@ public static class ProcessSummaries
         if (f.OnlyOpen && s.IsClosed) return false;
         if (f.OnlyDutyRisk && !s.IsDutyRisk) return false;
         if (f.OnlyFindings && !(s.IsLegacy && s.OpenFindings > 0)) return false;
+        if (!string.IsNullOrWhiteSpace(f.MineOf) && !ProcessFilter.IsMine(p, f.MineOf.Trim())) return false;
+        if (f.PendingFor is { } scopes && !PendingWork.Matches(p, scopes)) return false;
         return f.SearchText is not { } t || ProcessFilter.Matches(p, t);
     }
 

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ExpoReturn.Application;
@@ -388,17 +389,23 @@ public sealed partial class UsersViewModel : PageViewModel
 // =====================================================================
 public sealed partial class AuditViewModel : PageViewModel
 {
-    private readonly ObservableCollection<AuditEntry> _entries = new();
+    /// <summary>The log only grows: it is read page by page from the database (filters and order in SQL), like the inbox.</summary>
+    public const int PageSize = 50;
+    private readonly DispatcherTimer _folioDelay;
+    private bool _loadingFilters;
+    private AuditFilter _filter = AuditFilter.All;
 
     public AuditViewModel(AppServices services, UserContext user) : base(services, user)
     {
-        Entries = CollectionViewSource.GetDefaultView(_entries);
-        Entries.Filter = Filter;
+        // Typing a folio asks the database once the user pauses, not on every key.
+        _folioDelay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _folioDelay.Tick += (_, _) => { _folioDelay.Stop(); Apply(); };
         Refresh();
     }
 
     public override string Title => "Audit log";
-    public ICollectionView Entries { get; }
+    public ObservableCollection<AuditEntry> Entries { get; } = new();
+    public ObservableCollection<PageButton> PageButtons { get; } = new();
     [ObservableProperty] private IReadOnlyList<string> _userOptions = Array.Empty<string>();
     [ObservableProperty] private IReadOnlyList<LookupItem> _fieldOptions = Array.Empty<LookupItem>();
     [ObservableProperty] private string _folioFilter = "";
@@ -407,49 +414,104 @@ public sealed partial class AuditViewModel : PageViewModel
     [ObservableProperty] private DateTime? _from;
     [ObservableProperty] private DateTime? _to;
     [ObservableProperty] private int _visibleCount;
+    [ObservableProperty] private int _page = 1;
+    [ObservableProperty] private int _pageCount = 1;
+    [ObservableProperty] private string _pageSummary = "";
+    [ObservableProperty] private string? _message;
+    public bool HasSeveralPages => PageCount > 1;
+    public bool HasRecords => VisibleCount > 0;
 
-    partial void OnFolioFilterChanged(string value) => Apply();
+    partial void OnPageCountChanged(int value) => OnPropertyChanged(nameof(HasSeveralPages));
+    partial void OnVisibleCountChanged(int value) => OnPropertyChanged(nameof(HasRecords));
+    partial void OnFolioFilterChanged(string value)
+    {
+        if (_loadingFilters) return;
+        _folioDelay.Stop();
+        _folioDelay.Start();
+    }
     partial void OnSelectedUserChanged(string value) => Apply();
     partial void OnSelectedFieldChanged(LookupItem? value) => Apply();
     partial void OnFromChanged(DateTime? value) => Apply();
     partial void OnToChanged(DateTime? value) => Apply();
 
+    [RelayCommand] private void FirstPage() => GoToPage(1);
+    [RelayCommand] private void PreviousPage() => GoToPage(Page - 1);
+    [RelayCommand] private void NextPage() => GoToPage(Page + 1);
+    [RelayCommand] private void LastPage() => GoToPage(PageCount);
+    [RelayCommand] private void GoToPage(int? page)
+    {
+        if (page is not { } target) return;                        // the "…" of the pager
+        Page = Math.Clamp(target, 1, Math.Max(1, PageCount));
+        ShowPage();
+    }
+
+    /// <summary>Reload: options of the filters (users and fields in the log) and the current page again.</summary>
     public override void Refresh()
     {
-        _entries.Clear();
-        foreach (var e in Services.Audit.All()) _entries.Add(e);
-        UserOptions = new[] { "All" }.Concat(_entries.Select(e => e.NtUser).Distinct().OrderBy(u => u)).ToList();
-        FieldOptions = new[] { new LookupItem(null, "All fields") }
-            .Concat(_entries.Select(e => e.Field).Distinct().OrderBy(f => FieldLabels.Get(f)).Select(f => new LookupItem(f, FieldLabels.Get(f)))).ToList();
-        SelectedField ??= FieldOptions[0];
-        Apply();
+        Message = null;
+        if (!Try(() =>
+            {
+                var fieldKey = SelectedField?.Value as string;
+                _loadingFilters = true;
+                try
+                {
+                    UserOptions = new[] { "All" }.Concat(Services.Audit.Users()).ToList();
+                    FieldOptions = new[] { new LookupItem(null, "All fields") }
+                        .Concat(Services.Audit.Fields().OrderBy(FieldLabels.Get).Select(f => new LookupItem(f, FieldLabels.Get(f)))).ToList();
+                    SelectedField = FieldOptions.FirstOrDefault(o => Equals(o.Value, fieldKey)) ?? FieldOptions[0];
+                    if (!UserOptions.Contains(SelectedUser)) SelectedUser = "All";
+                }
+                finally { _loadingFilters = false; }
+            })) return;
+        Apply(keepPage: true);
     }
 
-    private bool Filter(object o)
+    /// <summary>The count follows the filters (one COUNT query) and the page is read again from page 1.</summary>
+    private void Apply(bool keepPage = false)
     {
-        if (o is not AuditEntry e) return false;
-        if (!string.IsNullOrWhiteSpace(FolioFilter) && !e.FolioCode.Contains(FolioFilter.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
-        if (SelectedUser is { } u && u != "All" && e.NtUser != u) return false;
-        if (SelectedField?.Value is string f && e.Field != f) return false;
-        var day = e.ChangedAtLocal.Date;
-        if (From is { } from && day < from.Date) return false;
-        if (To is { } to && day > to.Date) return false;
-        return true;
+        if (_loadingFilters) return;
+        _filter = new AuditFilter(FolioFilter, SelectedUser is "All" or null ? null : SelectedUser, SelectedField?.Value as string, From, To);
+        if (!keepPage) Page = 1;
+        if (!Try(() => VisibleCount = Services.Audit.Count(_filter))) return;
+        ShowPage();
     }
 
-    private void Apply()
+    private void ShowPage()
     {
-        Entries.Refresh();
-        VisibleCount = Entries.Cast<object>().Count();
+        PageCount = Math.Max(1, (int)Math.Ceiling(VisibleCount / (double)PageSize));
+        if (Page > PageCount) Page = PageCount;
+        Entries.Clear();
+        PageButtons.Clear();
+        var first = (Page - 1) * PageSize;
+        if (VisibleCount > 0 && !Try(() => { foreach (var e in Services.Audit.Page(_filter, first, PageSize)) Entries.Add(e); })) return;
+        PageSummary = VisibleCount == 0 ? "No changes" : $"Changes {first + 1:N0}–{first + Entries.Count:N0} of {VisibleCount:N0}";
+        foreach (var b in PageButton.Build(Page, PageCount)) PageButtons.Add(b);
+    }
+
+    /// <summary>A query that fails (network, database) shows the reason instead of closing the screen.</summary>
+    private bool Try(Action query)
+    {
+        try { query(); return true; }
+        catch (Exception ex)
+        {
+            Message = $"Could not read from the database: {ex.Message}. Press Reload to try again.";
+            return false;
+        }
     }
 
     [RelayCommand]
     private void ClearFilters()
     {
-        FolioFilter = "";
-        SelectedUser = "All";
-        SelectedField = FieldOptions.FirstOrDefault();
-        From = null;
-        To = null;
+        _loadingFilters = true;
+        try
+        {
+            FolioFilter = "";
+            SelectedUser = "All";
+            SelectedField = FieldOptions.FirstOrDefault();
+            From = null;
+            To = null;
+        }
+        finally { _loadingFilters = false; }
+        Apply();
     }
 }

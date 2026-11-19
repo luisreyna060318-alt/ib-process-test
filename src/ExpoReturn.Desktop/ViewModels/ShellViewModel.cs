@@ -26,6 +26,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _selectedNav = NavItems[0];
         _currentPage = new PalletListViewModel(services, _currentUser, OpenProcess);
         _dataSourceLabel = services.DataSourceLabel;
+        _isNavCollapsed = services.Preferences.IsNavCollapsed(ntUser);
         services.Users.Changed += (_, _) => RefreshIdentity();
     }
 
@@ -39,6 +40,8 @@ public sealed partial class ShellViewModel : ObservableObject
         var list = new List<NavItem>
         {
             new("list", "IB PROCESS inbox", "\uE8FD"),
+            new("mine", "My IB PROCESS", "\uE77B"),
+            new("pending", "Pending for my area", "\uE823"),
             new("new", "New IB PROCESS", "\uE710"),
             new("dashboard", "Balance / Duties", "\uE9D2"),
             new("alerts", "Alerts", "\uE7BA"),
@@ -48,6 +51,11 @@ public sealed partial class ShellViewModel : ObservableObject
         return list;
     }
     public string AppTitle => "Expo & Return FG Follow Up";
+
+    /// <summary>Side menu collapsed to its icons (more room for the tables); remembered per Windows user.</summary>
+    [ObservableProperty] private bool _isNavCollapsed;
+    [RelayCommand] private void ToggleNav() => IsNavCollapsed = !IsNavCollapsed;
+    partial void OnIsNavCollapsedChanged(bool value) => _services.Preferences.SetNavCollapsed(_ntUser, value);
     public string VersionText => $"v{AppConfig.Version} · Oracle";
     /// <summary>Import Excel writes records to the database: Owner only.</summary>
     public bool CanImportExcel => IsOwner;
@@ -148,6 +156,8 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             "new" when !CanCreateAny() => RefuseNew(),
             "new" => new PalletDetailViewModel(_services, CurrentUser, null, Back),
+            "mine" => new PalletListViewModel(_services, CurrentUser, OpenProcess, new ListFilter(OnlyMine: true)),
+            "pending" => new PalletListViewModel(_services, CurrentUser, OpenProcess, new ListFilter(OnlyOpen: true, OnlyPending: true)),
             "dashboard" => new DashboardViewModel(_services, CurrentUser, OpenList),
             "alerts" => new AlertsViewModel(_services, CurrentUser, OpenPallet),
             "users" when RealUser.IsOwner => new UsersViewModel(_services, CurrentUser, RealUser),
@@ -163,7 +173,9 @@ public sealed partial class ShellViewModel : ObservableObject
         if (item != SelectedNav) return;                          // a real change is handled by OnSelectedNavChanged
         var onMainScreen = item.Key switch
         {
-            "list" => CurrentPage is PalletListViewModel,
+            "list" => CurrentPage is PalletListViewModel { OnlyMine: false, OnlyPending: false },
+            "mine" => CurrentPage is PalletListViewModel { OnlyMine: true },
+            "pending" => CurrentPage is PalletListViewModel { OnlyPending: true },
             "new" => CurrentPage is PalletDetailViewModel { IsNew: true },
             _ => true,
         };
@@ -226,7 +238,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!ConfirmLeave()) return;
         if (!CanCreateAny()) { CurrentPage = RefuseNew(); return; }
         _suppressNav = true;
-        SelectedNav = NavItems[1];
+        SelectedNav = NavItems.First(n => n.Key == "new");
         _suppressNav = false;
         CurrentPage = new PalletDetailViewModel(_services, CurrentUser, null, Back);
     }

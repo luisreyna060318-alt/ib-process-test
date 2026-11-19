@@ -73,6 +73,48 @@ public sealed class OracleAuditTrail : IAuditTrail
         $"SELECT * FROM (SELECT {Columns} FROM {_db.T("IB_PROCESS_AUDIT_LOG")} ORDER BY CHANGED_AT DESC, AUDIT_ID DESC) WHERE ROWNUM <= :n",
         ("n", Math.Max(100, _db.Settings.AuditRowsShown)));
 
+    /// <summary>WHERE of the audit log screen: same rules as AuditFilter.Matches (the day is the local date of CHANGED_AT).</summary>
+    private static (string Sql, (string, object?)[] Args) Where(AuditFilter f)
+    {
+        var sql = new List<string> { "1 = 1" };
+        var args = new List<(string, object?)>();
+        if (f.FolioText is { } folio) { sql.Add(@"UPPER(FOLIO_CODE) LIKE :folio ESCAPE '\'"); Bind(args, ("folio", OracleProcessQueries.Like(folio))); }
+        if (!string.IsNullOrEmpty(f.NtUser)) { sql.Add("NT_USER = :who"); Bind(args, ("who", f.NtUser)); }
+        if (!string.IsNullOrEmpty(f.Field))
+        {
+            sql.Add("FIELD_NAME = :field");
+            Bind(args, ("field", Cut(OracleProcessRepository.ColumnOfProperty.GetValueOrDefault(f.Field, f.Field), 30)));
+        }
+        if (f.From is { } from) { sql.Add("CHANGED_AT >= :fromDay"); Bind(args, ("fromDay", from.Date)); }
+        if (f.To is { } to) { sql.Add("CHANGED_AT < :toDay"); Bind(args, ("toDay", to.Date.AddDays(1))); }
+        return (string.Join(" AND ", sql), args.ToArray());
+    }
+
+    private static void Bind(List<(string, object?)> args, (string Name, object? Value) arg) => args.Add(arg);
+    private static (string, object?)[] Concat((string, object?)[] args, params (string Name, object? Value)[] more) =>
+        args.Concat(more.Select(m => (m.Name, m.Value))).ToArray();
+
+    public IReadOnlyList<AuditEntry> Page(AuditFilter filter, int skip, int take)
+    {
+        var (where, args) = Where(filter);
+        return Read($@"SELECT {Columns} FROM {_db.T("IB_PROCESS_AUDIT_LOG")} WHERE {where}
+                       ORDER BY CHANGED_AT DESC, AUDIT_ID DESC OFFSET :skip ROWS FETCH NEXT :take ROWS ONLY",
+            Concat(args, ("skip", Math.Max(0, skip)), ("take", Math.Max(0, take))));
+    }
+
+    public int Count(AuditFilter filter)
+    {
+        var (where, args) = Where(filter);
+        return _db.Query($"SELECT COUNT(*) AS N FROM {_db.T("IB_PROCESS_AUDIT_LOG")} WHERE {where}", r => Int(r, "N") ?? 0, args).FirstOrDefault();
+    }
+
+    public IReadOnlyList<string> Users() =>
+        _db.Query($"SELECT NT_USER FROM {_db.T("IB_PROCESS_AUDIT_LOG")} GROUP BY NT_USER ORDER BY NT_USER", r => Str(r, "NT_USER") ?? "");
+
+    public IReadOnlyList<string> Fields() =>
+        _db.Query($"SELECT FIELD_NAME FROM {_db.T("IB_PROCESS_AUDIT_LOG")} WHERE FIELD_NAME IS NOT NULL GROUP BY FIELD_NAME ORDER BY FIELD_NAME",
+            r => Str(r, "FIELD_NAME") ?? "").Select(c => PropertyOfColumn.GetValueOrDefault(c, c)).Distinct().ToList();
+
     private List<AuditEntry> Read(string sql, params (string, object?)[] args) => _db.Query(sql, r =>
     {
         var table = Str(r, "TABLE_NAME");

@@ -655,8 +655,8 @@
                     </StackPanel>
                     <DataGrid ItemsSource="{Binding ProcessComments}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Date / time" Binding="{Binding CreatedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
-                            <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="200" />
+                            <DataGridTextColumn Header="Date / time" Binding="{Binding CreatedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" MinWidth="130" />
+                            <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="200" MinWidth="200" />
                             <DataGridTextColumn Header="Comment" Binding="{Binding Text}" Width="*">
                                 <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style></DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -671,12 +671,12 @@
                     <TextBlock DockPanel.Dock="Top" Text="Who changed what and when (old value → new). In production: IB_PROCESS_AUDIT_LOG with the Windows user." Style="{StaticResource PageSubtitle}" />
                     <DataGrid ItemsSource="{Binding AuditEntries}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Date / time" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
-                            <DataGridTextColumn Header="User" Binding="{Binding NtUser}" Width="130" />
-                            <DataGridTextColumn Header="Field" Binding="{Binding Field, Converter={StaticResource FieldNameConv}}" Width="210" />
+                            <DataGridTextColumn Header="Date / time" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" MinWidth="130" />
+                            <DataGridTextColumn Header="User" Binding="{Binding NtUser}" Width="130" MinWidth="130" />
+                            <DataGridTextColumn Header="Field" Binding="{Binding Field, Converter={StaticResource FieldNameConv}}" Width="210" MinWidth="210" />
                             <DataGridTextColumn Header="Old value" Binding="{Binding OldValue}" Width="*" />
                             <DataGridTextColumn Header="New value" Binding="{Binding NewValue}" Width="*" />
-                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="160" />
+                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="160" MinWidth="160" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>

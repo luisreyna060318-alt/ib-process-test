@@ -5,13 +5,13 @@
         <StackPanel DockPanel.Dock="Top">
             <TextBlock Text="Audit log" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Every field-level change of every record, including handled alerts and changes to users and access. In production it cannot be modified." />
-            <!-- filtros -->
+            <!-- filtros: se resuelven en la base y regresan a la página 1 -->
             <Border Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,10">
-                <StackPanel Orientation="Horizontal">
+                <WrapPanel Orientation="Horizontal">
                     <TextBlock Text="Folio" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <TextBox Text="{Binding FolioFilter, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,16,0" />
                     <TextBlock Text="User" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
-                    <ComboBox ItemsSource="{Binding UserOptions}" SelectedItem="{Binding SelectedUser}" Width="150" Margin="0,0,16,0" />
+                    <ComboBox ItemsSource="{Binding UserOptions}" SelectedItem="{Binding SelectedUser}" Width="190" Margin="0,0,16,0" />
                     <TextBlock Text="Field" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding FieldOptions}" SelectedItem="{Binding SelectedField}" Width="230" Margin="0,0,16,0" />
                     <TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
@@ -19,20 +19,60 @@
                     <TextBlock Text="To" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                     <DatePicker SelectedDate="{Binding To}" Width="130" Margin="0,0,16,0" />
                     <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
-                    <TextBlock Text="{Binding VisibleCount, StringFormat='{}{0} change(s)'}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource TextMuted}" />
-                </StackPanel>
+                    <TextBlock Text="{Binding VisibleCount, StringFormat='{}{0:N0} change(s)'}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource TextMuted}" />
+                </WrapPanel>
             </Border>
         </StackPanel>
-        <DataGrid ItemsSource="{Binding Entries}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Date / time" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" />
-                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="100" />
-                <DataGridTextColumn Header="User" Binding="{Binding NtUser}" Width="130" />
-                <DataGridTextColumn Header="Field" Binding="{Binding Field, Converter={StaticResource FieldNameConv}}" Width="230" />
-                <DataGridTextColumn Header="Old value" Binding="{Binding OldValue}" Width="*" />
-                <DataGridTextColumn Header="New value" Binding="{Binding NewValue}" Width="*" />
-                <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="160" />
-            </DataGrid.Columns>
-        </DataGrid>
+
+        <!-- Pager: 50 changes per page, read from the database -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding PageSummary}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,16,0" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding HasSeveralPages, Converter={StaticResource BoolToVis}}">
+                    <Button Content="«" ToolTip="First page" Command="{Binding FirstPageCommand}" Style="{StaticResource PagerButton}" />
+                    <Button Content="‹" ToolTip="Previous page" Command="{Binding PreviousPageCommand}" Style="{StaticResource PagerButton}" />
+                    <ItemsControl ItemsSource="{Binding PageButtons}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Button x:Name="Num" Content="{Binding Text}" CommandParameter="{Binding Number}" IsEnabled="{Binding IsPage}"
+                                            Command="{Binding DataContext.GoToPageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Style="{StaticResource PagerButton}" />
+                                    <Border x:Name="Cur" Background="{StaticResource Primary}" CornerRadius="6" MinWidth="34" Height="32" Margin="2,0" Visibility="Collapsed">
+                                        <TextBlock Text="{Binding Text}" Foreground="White" FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0" />
+                                    </Border>
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter TargetName="Cur" Property="Visibility" Value="Visible" />
+                                        <Setter TargetName="Num" Property="Visibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="›" ToolTip="Next page" Command="{Binding NextPageCommand}" Style="{StaticResource PagerButton}" />
+                    <Button Content="»" ToolTip="Last page" Command="{Binding LastPageCommand}" Style="{StaticResource PagerButton}" />
+                </StackPanel>
+                <TextBlock Text="{Binding Message}" VerticalAlignment="Center" Foreground="{StaticResource Danger}" Margin="16,0,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid>
+            <DataGrid ItemsSource="{Binding Entries}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Date / time" Binding="{Binding ChangedAtLocal, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130" MinWidth="130" />
+                    <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="110" MinWidth="110" />
+                    <DataGridTextColumn Header="User" Binding="{Binding NtUser}" Width="170" MinWidth="170" />
+                    <DataGridTextColumn Header="Field" Binding="{Binding Field, Converter={StaticResource FieldNameConv}}" Width="230" MinWidth="230" />
+                    <DataGridTextColumn Header="Old value" Binding="{Binding OldValue}" Width="*" MinWidth="140" />
+                    <DataGridTextColumn Header="New value" Binding="{Binding NewValue}" Width="*" MinWidth="140" />
+                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="160" MinWidth="160" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="No changes match the filters" Style="{StaticResource Hint}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsHitTestVisible="False" Visibility="{Binding HasRecords, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
+        </Grid>
     </DockPanel>
 </UserControl>

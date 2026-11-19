@@ -2,7 +2,7 @@
 
 **Expo & Return FG Follow Up (IB Process)**: aplicación de escritorio Windows (.NET 8, WPF) con base Oracle que sustituye
 al Excel *"Productos terminados importados temporalmente · Matriz de rastreo 2.0"* de Bosch JuP1 (planta Juárez 1,
-área ME/QMM). Versión actual: **v0.5.3**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
+área ME/QMM). Versión actual: **v0.5.4**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
 español: **responder en español**. La interfaz y el código están en inglés; los README en español.
 
 ## 1. Qué hace el negocio (glosario mínimo)
@@ -30,7 +30,9 @@ español: **responder en español**. La interfaz y el código están en inglés;
   `IB_PROCESS_FIELD_PERMISSIONS`): la requisición **siempre la hace QMM**. QMM crea; Champion/Proxy de QMM editan la
   solicitud de todo su VS y borran; Member de QMM solo la de los procesos que creó o de los que es QMM Responsible.
   OSD/LOP/MFO/LOW/HSE editan solo sus campos en todo su VS. Las seis áreas ponen *Status Category* (columna COMMENTS del
-  Excel) y escriben comentarios. Cerrados: solo Owner, Champion, Proxy. MFQ/PUQ y Viewer: solo lectura.
+  Excel) y escriben comentarios; el Member de QMM pone *Status Category* solo en sus procesos (decisión del usuario,
+  2026-11-19: "por algo es el QMM Responsible"). Cerrados: solo Owner, Champion, Proxy. MFQ/PUQ y Viewer: solo lectura.
+* **Lectura:** todos ven todos los procesos de todos los VS (decisión 2026-11-19); `FieldPermissions.CanRead` siempre es true.
 * Un campo con valor **se puede cambiar pero nunca dejar vacío** (app + triggers `*_NO_EMPTY`).
 * **Borrar** procesos/pallets sí se permite (Owner y Champion/Proxy de QMM), con motivo; la bitácora
   (`IB_PROCESS_AUDIT_LOG`, solo inserción) guarda una copia JSON (`SNAPSHOT`), incluidos los comentarios.
@@ -86,7 +88,17 @@ español: **responder en español**. La interfaz y el código están en inglés;
   que registren al usuario **con dominio `US\RLN8JU`** (nunca `OS_USER`). Agregar una prueba de que el cambio deja la
   base igual que una instalación nueva. Enviar los scripts al usuario para que los revise antes de ejecutarlos.
 
+* **My IB PROCESS / Pending for my area** (acordado 2026-11-19): `ProcessFilter.MineOf` / `PendingFor` + `PendingWork`
+  (`src/ExpoReturn.Application/PendingWork.cs`, misma regla en C# y en `PendingWork.SqlCondition`). Duty risk NO es
+  pendiente (queda en Alerts). Sin cambios de esquema.
+
 ## 6. Estado actual y lo que falta verificar
+
+* **v0.5.4 (2026-11-19), probada en Windows contra Oracle Free 23 en Docker** (entorno local fuera del repo, carpeta
+  `test-env` junto al repo: DLL falso de SharedServersAccess, `run-app.ps1`, bancos `RoleTests` y `UiSnap`): instalación
+  limpia + `90_verify` sin diferencias (primera vez en Oracle real), importación del Excel real (633 filas, 0 rechazos),
+  permisos por rol (223/224, la diferencia era la regla de Status Category ya resuelta) e interfaz por usuario (462/462).
+  **No requiere cambios de base** respecto a v0.5.3 (sí requiere el cambio 2026-11-18, ver abajo).
 
 * El usuario reinstaló la base con los scripts de **v0.5.1** y `90_verify_install.sql` salió correcto.
 * Se le entregó `changes/2026-11-18_qmm_requests_and_comments.sql` (v0.5.2: permisos de QMM + tabla de comentarios);

@@ -37,6 +37,25 @@ public class InboxQueryTests
     }
 
     [Fact]
+    public void My_ib_process_are_the_ones_i_created_or_am_qmm_responsible_or_requestor_of()
+    {
+        var (repo, q, _) = Seeded();
+        var all = repo.GetAll().ToList();
+        Assert.True(all.Count >= 3);
+        var created = all[0]; var responsible = all[1]; var requestor = all[2];
+        created.CreatedBy = "BOSCH\\ME1"; repo.Save(created);
+        responsible.QmmResponsibleNtUser = "bosch\\me1"; repo.Save(responsible);       // case does not matter
+        requestor.RequestorNtUser = "BOSCH\\ME1"; repo.Save(requestor);
+
+        var mine = AllPages(q, new ProcessFilter(MineOf: "BOSCH\\ME1"), ProcessSort.Default, 50).Select(r => r.Id).ToHashSet();
+        var expected = repo.GetAll().Where(p => ProcessFilter.IsMine(p, "BOSCH\\ME1")).Select(p => p.Id).ToHashSet();
+        Assert.Contains(created.Id, mine); Assert.Contains(responsible.Id, mine); Assert.Contains(requestor.Id, mine);
+        Assert.Equal(expected, mine);
+        Assert.Equal(mine.Count, q.Totals(new ProcessFilter(MineOf: "BOSCH\\ME1")).Count);
+        Assert.Empty(AllPages(q, new ProcessFilter(MineOf: "BOSCH\\NOBODY"), ProcessSort.Default, 50));
+    }
+
+    [Fact]
     public void Pages_put_together_are_the_whole_filter_once_in_every_order()
     {
         var (repo, q, _) = Seeded();

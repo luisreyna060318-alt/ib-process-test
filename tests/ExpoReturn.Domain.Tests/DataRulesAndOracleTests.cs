@@ -150,6 +150,22 @@ public class DataRulesAndOracleTests
         Assert.Contains("not found", ex.Message);
     }
 
+    [Fact]
+    public void A_retry_after_a_failed_connection_does_not_fail_on_the_tns_folder()
+    {
+        // The start-up window builds a new OracleDb on every retry. Once ODP.NET has tried to open a connection,
+        // setting OracleConfiguration.TnsAdmin again throws ORA-50099 and hid the real error of the first attempt.
+        var tns = Path.Combine(Path.GetTempPath(), "exporeturn-tns-test");
+        Directory.CreateDirectory(tns);
+        var settings = new OracleSettings { TnsAdmin = tns };
+        var credentials = new SharedServersCredentials(settings);
+        _ = new OracleDb(settings, credentials);
+        using (var c = new global::Oracle.ManagedDataAccess.Client.OracleConnection("User Id=x;Password=y;Data Source=127.0.0.1:1/NONE;Connection Timeout=3"))
+            Assert.ThrowsAny<Exception>(() => c.Open());           // nothing listens on port 1: the first attempt fails
+        var retry = Record.Exception(() => new OracleDb(settings, credentials));
+        Assert.Null(retry);
+    }
+
     // ------------------------------------------------------------------ code ↔ Oracle scripts
 
     private static string Root()
@@ -353,7 +369,8 @@ public class OracleScriptCoherenceTests
             .Concat(Regex.Matches(code, @",\s*\(""([a-z]\w*)"",").Select(m => m.Groups[1].Value))   // Query(sql, map, ("name", value))
             .Distinct().ToList();
         var used = Regex.Matches(code, @"[\s(,=]:([A-Za-z]\w*)").Select(m => m.Groups[1].Value)
-            .Where(b => b is not "p" and not "h").Distinct().ToList();  // :h0..:hN / :p0..:pN = header / pallet columns, added in a loop
+            .Where(b => b is not "p" and not "h" and not "pvs" and not "pown").Distinct().ToList();
+        // :h0..:hN / :p0..:pN = header / pallet columns, added in a loop; :pvs0.. / :pown0.. = "Pending for my area" scopes (loop)
         Assert.True(added.Count > 40 && used.Count > 40);
         Assert.All(added.Concat(used), b => Assert.False(Reserved.Contains(b.ToUpperInvariant()), $":{b} is an Oracle reserved word (ORA-01745)"));
         Assert.All(added, b => Assert.Contains(b, used));            // every parameter given is used in a statement

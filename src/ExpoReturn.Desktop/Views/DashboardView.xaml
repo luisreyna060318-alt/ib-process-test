@@ -55,9 +55,9 @@
                     <TextBlock Text="Balance by Value Stream (double-click a row to open its open records)" Style="{StaticResource SectionTitle}" />
                     <DataGrid x:Name="Grid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" RowHeight="30" MouseDoubleClick="OnRowDoubleClick">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="60" />
-                            <DataGridTextColumn Header="Pallets" Binding="{Binding Pallets}" Width="65" />
-                            <DataGridTextColumn Header="Open pallets" Binding="{Binding OpenPallets}" Width="80" />
+                            <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="60" MinWidth="60" />
+                            <DataGridTextColumn Header="Pallets" Binding="{Binding Pallets}" Width="65" MinWidth="65" />
+                            <DataGridTextColumn Header="Open pallets" Binding="{Binding OpenPallets}" Width="80" MinWidth="80" />
                             <DataGridTextColumn Header="Total imported" Binding="{Binding TotalImportedUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="MFO inventory" Binding="{Binding MfoInventoryUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="Scrap HSE" Binding="{Binding HseScrapUsd, StringFormat={}{0:N2}}" Width="*" />
@@ -65,7 +65,7 @@
                             <DataGridTextColumn Header="Exported / reconciled" Binding="{Binding ExportedUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="General balance" Binding="{Binding BalanceGeneralUsd, StringFormat={}{0:N2}}" Width="*" />
                             <DataGridTextColumn Header="Duties to pay" Binding="{Binding DutiesToPayUsd, StringFormat={}{0:N2}}" Width="*" />
-                            <DataGridTextColumn Header="Pallets at risk" Binding="{Binding DutyRiskPallets}" Width="90" />
+                            <DataGridTextColumn Header="Pallets at risk" Binding="{Binding DutyRiskPallets}" Width="90" MinWidth="90" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>

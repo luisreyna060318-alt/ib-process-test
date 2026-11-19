@@ -8,6 +8,7 @@
         FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}">
     <Window.InputBindings>
         <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewReturnCommand}" />
+        <KeyBinding Key="B" Modifiers="Control" Command="{Binding ToggleNavCommand}" />
     </Window.InputBindings>
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:PalletListViewModel}"><v:PalletListView /></DataTemplate>
@@ -21,18 +22,65 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="230" />
+            <!-- Side menu: 230 px, or 56 px (icons only) when collapsed (☰ / Ctrl+B; remembered per user) -->
+            <ColumnDefinition>
+                <ColumnDefinition.Style>
+                    <Style TargetType="ColumnDefinition">
+                        <Setter Property="Width" Value="230" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsNavCollapsed}" Value="True"><Setter Property="Width" Value="56" /></DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ColumnDefinition.Style>
+            </ColumnDefinition>
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- ===== Side navigation ===== -->
         <DockPanel Background="{StaticResource Primary}">
-            <StackPanel DockPanel.Dock="Top" Margin="18,20,18,24">
-                <TextBlock Text="JuP1 · ME/QMM" Foreground="#93C5FD" FontSize="11.5" />
-                <TextBlock Text="Expo &amp; Return" Foreground="White" FontSize="19" FontWeight="SemiBold" />
-                <TextBlock Text="FG Follow Up" Foreground="White" FontSize="15" />
+            <DockPanel DockPanel.Dock="Top" Margin="8,12,8,18">
+                <Button DockPanel.Dock="Top" HorizontalAlignment="Left" Command="{Binding ToggleNavCommand}" Width="40" Height="34" Cursor="Hand"
+                        Background="Transparent" BorderThickness="0" Foreground="White" FontFamily="Segoe MDL2 Assets" FontSize="16">
+                    <!-- "<" collapses, ">" expands (a ☰ looked like the first menu entry) -->
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Content" Value="&#xE76B;" />
+                            <Setter Property="ToolTip" Value="Collapse the menu (Ctrl+B)" />
+                            <Setter Property="AutomationProperties.Name" Value="Collapse the menu" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsNavCollapsed}" Value="True">
+                                    <Setter Property="Content" Value="&#xE76C;" />
+                                    <Setter Property="ToolTip" Value="Expand the menu (Ctrl+B)" />
+                                    <Setter Property="AutomationProperties.Name" Value="Expand the menu" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#2B4A80" /></Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <StackPanel Margin="10,6,10,0" Visibility="{Binding IsNavCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
+                    <TextBlock Text="JuP1 · ME/QMM" Foreground="#93C5FD" FontSize="11.5" />
+                    <TextBlock Text="Expo &amp; Return" Foreground="White" FontSize="19" FontWeight="SemiBold" />
+                    <TextBlock Text="FG Follow Up" Foreground="White" FontSize="15" />
+                </StackPanel>
+            </DockPanel>
+            <!-- Collapsed: only Reload and Send feedback, as icons (imports are Owner tasks: expand the menu) -->
+            <StackPanel DockPanel.Dock="Bottom" Margin="8,12,8,18" Visibility="{Binding IsNavCollapsed, Converter={StaticResource BoolToVis}}">
+                <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" Command="{Binding ReloadCommand}" Style="{StaticResource SecondaryButton}"
+                        Padding="0" Height="34" Margin="0,0,0,8" ToolTip="Reload" AutomationProperties.Name="Reload" />
+                <Button Content="&#xE70F;" FontFamily="Segoe MDL2 Assets" Command="{Binding OpenFeedbackCommand}" Style="{StaticResource PrimaryButton}"
+                        Background="#2E75B6" BorderBrush="#2E75B6" Padding="0" Height="34" Margin="0" ToolTip="Send feedback" AutomationProperties.Name="Send feedback" />
             </StackPanel>
-            <StackPanel DockPanel.Dock="Bottom" Margin="16,12,16,18">
+            <StackPanel DockPanel.Dock="Bottom" Margin="16,12,16,18" Visibility="{Binding IsNavCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
                 <Button Content="⟳  Reload" Command="{Binding ReloadCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
                         ToolTip="Reads again the records, users and alerts saved by other people" />
                 <Button Content="Import Excel 2.0…" Command="{Binding ImportExcelCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"
@@ -51,9 +99,10 @@
                      ItemContainerStyle="{StaticResource NavItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" ToolTip="{Binding Title}" AutomationProperties.Name="{Binding Title}">
                             <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="28" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding Title}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Title}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" VerticalAlignment="Center"
+                                       Visibility="{Binding DataContext.IsNavCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>

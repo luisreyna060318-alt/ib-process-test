@@ -34,7 +34,7 @@
                 </GroupStyle>
             </DataGrid.GroupStyle>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severity" Width="95">
+                <DataGridTemplateColumn Header="Severity" Width="95" MinWidth="95">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding Severity, Converter={StaticResource SeverityBrush}}" CornerRadius="9" Padding="8,1" HorizontalAlignment="Left">
@@ -43,12 +43,12 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="210" />
-                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" />
-                <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" />
+                <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="210" MinWidth="210" />
+                <DataGridTextColumn Header="Folio" Binding="{Binding FolioCode}" Width="95" MinWidth="95" />
+                <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="50" MinWidth="50" />
                 <DataGridTextColumn Header="Detail" Binding="{Binding Message}" Width="*" />
                 <DataGridTextColumn Header="Handling" Binding="{Binding AckText}" Width="*" />
-                <DataGridTemplateColumn Header="" Width="170">
+                <DataGridTemplateColumn Header="" Width="170" MinWidth="170">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">

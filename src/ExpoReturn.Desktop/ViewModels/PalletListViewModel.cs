@@ -94,7 +94,8 @@ public sealed record PageButton(int? Number, bool IsCurrent)
 }
 
 /// <summary>Filtro inicial al llegar desde otra pantalla.</summary>
-public sealed record ListFilter(int? ValueStreamId = null, WorkflowStatus? Status = null, bool OnlyOpen = false);
+public sealed record ListFilter(int? ValueStreamId = null, WorkflowStatus? Status = null, bool OnlyOpen = false, bool OnlyMine = false,
+                                bool OnlyPending = false);
 
 public sealed partial class PalletListViewModel : PageViewModel
 {
@@ -111,24 +112,29 @@ public sealed partial class PalletListViewModel : PageViewModel
             .Concat(Enum.GetValues<WorkflowStatus>().Select(s => new LookupItem(s, s.DisplayName()))).ToList();
         _selectedValueStream = ValueStreamOptions[0];
         _selectedStatus = StatusOptions[0];
-        _isTableShown = s_tableShown;
         _sort = s_sort;
         // Typing in the search asks the database once the user pauses, not on every key.
         _searchDelay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         _searchDelay.Tick += (_, _) => { _searchDelay.Stop(); FiltersChanged(); };
-        var page = s_page;
-
         if (initial is not null) ApplyInitial(initial);
-        else LoadPreferences();
-        Refresh();
-        if (initial is null && IsTableShown && page > 1) GoToPage(page);      // back from a record: same page as before
+        else { LoadPreferences(); _page = s_page; }                // back from a record: same page as before
+        Refresh();                                                  // the first page is read right away
     }
 
-    public override string Title => "IB PROCESS inbox";
+    public override string Title => OnlyPending ? "Pending for my area" : OnlyMine ? "My IB PROCESS" : "IB PROCESS inbox";
 
-    // ---------- Table: shown on demand, 50 records per page, read page by page from the database ----------
+    /// <summary>"My IB PROCESS": created by the user, or QMM Responsible / Requestor (follows "View as").</summary>
+    [ObservableProperty] private bool _onlyMine;
+    partial void OnOnlyMineChanged(bool value) { OnPropertyChanged(nameof(Title)); FiltersChanged(); }
+
+    /// <summary>"Pending for my area" (PendingWork): open pallets where the user's area has something to capture.</summary>
+    [ObservableProperty] private bool _onlyPending;
+    partial void OnOnlyPendingChanged(bool value) { OnPropertyChanged(nameof(Title)); FiltersChanged(); }
+    /// <summary>Only users who fill part of the form (or the Owner) have pending work; MFQ / PUQ / Viewer do not.</summary>
+    public bool HasPendingScopes => PendingWork.ScopesFor(User).Count > 0;
+
+    // ---------- Table: 50 records per page, read page by page from the database as soon as the screen opens ----------
     public const int PageSize = 50;
-    private static bool s_tableShown;          // remembered while the application is open
     private static int s_page = 1;
     private static ProcessSort s_sort = ProcessSort.Default;
     private ProcessSort _sort;
@@ -137,22 +143,17 @@ public sealed partial class PalletListViewModel : PageViewModel
     /// <summary>Records of the current page (what the grid shows).</summary>
     public ObservableCollection<ProcessRow> PageRows { get; } = new();
     public ObservableCollection<PageButton> PageButtons { get; } = new();
-    [ObservableProperty] private bool _isTableShown;
     [ObservableProperty] private int _page = 1;
     [ObservableProperty] private int _pageCount = 1;
     [ObservableProperty] private string _pageSummary = "";
     public bool HasSeveralPages => PageCount > 1;
     public bool HasRecords => KpiCount > 0;
-    public string ShowButtonText => KpiCount == 0 ? "No records match the filters" : $"Show {KpiCount:N0} record{(KpiCount == 1 ? "" : "s")}";
     /// <summary>Sort column chosen (for the grid header arrow when coming back).</summary>
     public ProcessSort Sort => _sort;
 
-    partial void OnIsTableShownChanged(bool value) { s_tableShown = value; if (value) ShowPage(); else ClearPage(); }
     partial void OnPageCountChanged(int value) => OnPropertyChanged(nameof(HasSeveralPages));
-    partial void OnKpiCountChanged(int value) { OnPropertyChanged(nameof(HasRecords)); OnPropertyChanged(nameof(ShowButtonText)); }
+    partial void OnKpiCountChanged(int value) => OnPropertyChanged(nameof(HasRecords));
 
-    [RelayCommand] private void ShowTable() { if (HasRecords) IsTableShown = true; }
-    [RelayCommand] private void HideTable() => IsTableShown = false;
     [RelayCommand] private void FirstPage() => GoToPage(1);
     [RelayCommand] private void PreviousPage() => GoToPage(Page - 1);
     [RelayCommand] private void NextPage() => GoToPage(Page + 1);
@@ -182,9 +183,8 @@ public sealed partial class PalletListViewModel : PageViewModel
         PageCount = Math.Max(1, (int)Math.Ceiling(KpiCount / (double)PageSize));
         if (Page > PageCount) { Page = PageCount; s_page = Page; }
         ClearPage();
-        if (!IsTableShown) return;                                  // nothing is read until the user asks for it
         var first = (Page - 1) * PageSize;
-        if (!Try(() =>
+        if (KpiCount > 0 && !Try(() =>
             {
                 var rows = Services.Queries.Page(_filter, _sort, first, PageSize);
                 var pallets = Services.Queries.PalletsOf(rows.Select(r => r.Id).ToList()).ToLookup(p => p.ProcessId);
@@ -243,6 +243,7 @@ public sealed partial class PalletListViewModel : PageViewModel
 
     protected override void UserChanged()
     {
+        OnPropertyChanged(nameof(HasPendingScopes));
         LoadPreferences();
         ApplyFilter();
     }
@@ -292,6 +293,8 @@ public sealed partial class PalletListViewModel : PageViewModel
                            : f.OnlyOpen ? StatusOptions[0] : StatusOptions[1];
             SearchText = "";
             OnlyDutyRisk = false;
+            OnlyMine = f.OnlyMine;
+            OnlyPending = f.OnlyPending;
         }
         finally { _loadingFilters = false; }
     }
@@ -302,7 +305,9 @@ public sealed partial class PalletListViewModel : PageViewModel
         OnlyOpen: Equals(SelectedStatus?.Value, "open"),
         OnlyDutyRisk: OnlyDutyRisk,
         OnlyFindings: OnlyDataFindings,
-        Search: SearchText);
+        Search: SearchText,
+        MineOf: OnlyMine ? User.NtUser : null,
+        PendingFor: OnlyPending ? PendingWork.ScopesFor(User) : null);
 
     /// <summary>The indicators always follow the filters (one COUNT/SUM query); the page is read only if the table is shown.</summary>
     private void ApplyFilter(bool keepPage = false)
@@ -323,7 +328,7 @@ public sealed partial class PalletListViewModel : PageViewModel
     private string FilterDescription =>
         $"{SelectedValueStream?.Label} · {SelectedStatus?.Label}" +
         (string.IsNullOrWhiteSpace(SearchText) ? "" : $" · \"{SearchText}\"") +
-        (OnlyDutyRisk ? " · duty risk only" : "") + (OnlyDataFindings ? " · to homogenize" : "");
+        (OnlyDutyRisk ? " · duty risk only" : "") + (OnlyDataFindings ? " · to homogenize" : "") + (OnlyMine ? " · mine" : "") + (OnlyPending ? " · pending for my area" : "");
 
     [RelayCommand]
     private void Open(ProcessRow? row)
@@ -343,6 +348,8 @@ public sealed partial class PalletListViewModel : PageViewModel
             SearchText = "";
             OnlyDutyRisk = false;
             OnlyDataFindings = false;
+            OnlyMine = false;
+            OnlyPending = false;
         }
         finally { _loadingFilters = false; }
         FiltersChanged();

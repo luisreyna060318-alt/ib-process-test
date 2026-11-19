@@ -6,7 +6,7 @@
     </UserControl.InputBindings>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="IB PROCESS inbox" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="{Binding Title}" Style="{StaticResource PageTitle}" />
             <TextBlock FontSize="14.5" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap" Margin="0,0,0,12">
                 <Run Text="Double-click" FontWeight="SemiBold" /><Run Text=" or " /><Run Text="Enter" FontWeight="SemiBold" /><Run Text=" opens an IB PROCESS   ·   ▸ shows its pallets   ·   " />
                 <Run Text="Ctrl+F" FontWeight="SemiBold" /><Run Text=" search   ·   " /><Run Text="Ctrl+E" FontWeight="SemiBold" /><Run Text=" export   ·   " /><Run Text="Ctrl+N" FontWeight="SemiBold" /><Run Text=" new IB PROCESS" />
@@ -39,11 +39,12 @@
             <!-- Filtros (se recuerdan por usuario) -->
             <Border Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,10">
                 <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="Export to Excel" Command="{Binding ExportCommand}" Style="{StaticResource SecondaryButton}" Margin="0"
                                 ToolTip="Exports the pallets of the filtered IB processes to a protected read-only Excel file (Ctrl+E)" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal">
+                    <!-- WrapPanel: with every filter visible the bar does not fit in 1600 px; the rest goes to a second line -->
+                    <WrapPanel Orientation="Horizontal">
                         <TextBlock Text="Value Stream" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                         <ComboBox ItemsSource="{Binding ValueStreamOptions}" SelectedItem="{Binding SelectedValueStream}" Width="130" Margin="0,0,16,0" />
                         <TextBlock Text="Status" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
@@ -51,45 +52,23 @@
                         <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource FieldLabel}" />
                         <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="260" Margin="0,0,16,0"
                                  ToolTip="IB PROCESS or pallet folio, part number, HU/batch, PO, invoice, QMM responsible, requestor, delivery or customs export (Ctrl+F)" />
+                        <CheckBox Content="Only mine" IsChecked="{Binding OnlyMine}" Margin="0,0,16,0"
+                                  ToolTip="IB processes you created, or where you are QMM Responsible or Requestor" />
+                        <CheckBox Content="Pending for my area" IsChecked="{Binding OnlyPending}" Margin="0,0,16,0"
+                                  Visibility="{Binding HasPendingScopes, Converter={StaticResource BoolToVis}}"
+                                  ToolTip="IB processes of your VS with an open pallet where your area has something to capture (duty risk is in Alerts)" />
                         <CheckBox Content="Duty risk only" IsChecked="{Binding OnlyDutyRisk}" Margin="0,0,16,0" />
                         <CheckBox Content="To homogenize" IsChecked="{Binding OnlyDataFindings}" Margin="0,0,16,0"
                                   Visibility="{Binding HasLegacy, Converter={StaticResource BoolToVis}}"
                                   ToolTip="Records imported from the Excel 2.0 that still break a validation rule (open them to see which)" />
                         <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}" Style="{StaticResource LinkButton}" />
-                    </StackPanel>
+                    </WrapPanel>
                 </DockPanel>
             </Border>
         </StackPanel>
 
         <!-- Pager: 50 records per page -->
-        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" Visibility="{Binding IsTableShown, Converter={StaticResource BoolToVis}}">
-            <DockPanel.Resources>
-                <Style x:Key="PagerButton" TargetType="Button">
-                    <Setter Property="MinWidth" Value="34" />
-                    <Setter Property="Height" Value="32" />
-                    <Setter Property="Margin" Value="2,0" />
-                    <Setter Property="Padding" Value="8,0" />
-                    <Setter Property="FontSize" Value="13" />
-                    <Setter Property="Cursor" Value="Hand" />
-                    <Setter Property="Foreground" Value="{StaticResource Primary}" />
-                    <Setter Property="Background" Value="White" />
-                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushLight}" />
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="B" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#E8EEF7" /></Trigger>
-                                    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-            </DockPanel.Resources>
-            <Button DockPanel.Dock="Right" Content="Hide table" Command="{Binding HideTableCommand}" Style="{StaticResource LinkButton}" VerticalAlignment="Center" />
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Text="{Binding PageSummary}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,16,0" />
                 <StackPanel Orientation="Horizontal" Visibility="{Binding HasSeveralPages, Converter={StaticResource BoolToVis}}">
@@ -124,19 +103,10 @@
             </StackPanel>
         </DockPanel>
 
-        <!-- Table not shown yet: the records are listed only when the user asks for them -->
-        <Border Style="{StaticResource Card}" Visibility="{Binding IsTableShown, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Button Content="{Binding ShowButtonText}" Command="{Binding ShowTableCommand}" IsEnabled="{Binding HasRecords}" IsDefault="True"
-                        Style="{StaticResource PrimaryButton}" FontSize="15" Padding="28,10" HorizontalAlignment="Center" />
-                <TextBlock Text="Set the filters first; the indicators above already follow them. The table shows 50 records per page."
-                           Style="{StaticResource Hint}" FontSize="12.5" Margin="0,10,0,0" HorizontalAlignment="Center" />
-                <TextBlock Text="{Binding Message}" Foreground="{StaticResource Success}" Margin="0,8,0,0" HorizontalAlignment="Center" />
-            </StackPanel>
-        </Border>
-
+        <!-- The first page (50 records) is read as soon as the screen opens; without records the grid says so -->
+        <Grid>
         <DataGrid x:Name="Grid" ItemsSource="{Binding PageRows}" SelectedItem="{Binding SelectedRow}"
-                  Visibility="{Binding IsTableShown, Converter={StaticResource BoolToVis}}" Sorting="OnSorting"
+                  Sorting="OnSorting"
                   MouseDoubleClick="OnRowDoubleClick" PreviewKeyDown="OnGridKeyDown">
             <!-- Encabezados del Excel: pueden ser largos, se acomodan en dos renglones -->
             <DataGrid.ColumnHeaderStyle>
@@ -154,7 +124,7 @@
                 </Style>
             </DataGrid.RowStyle>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="" Width="34" CanUserSort="False">
+                <DataGridTemplateColumn Header="" Width="34" MinWidth="34" CanUserSort="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ToggleButton IsChecked="{Binding IsExpanded, UpdateSourceTrigger=PropertyChanged}" Width="22" Height="20" Padding="0"
@@ -171,22 +141,22 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="IB PROCESS" Binding="{Binding FolioCode}" Width="105" />
-                <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="48" />
-                <DataGridTemplateColumn Header="Status" Width="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
-                <DataGridTextColumn Header="Pallets" Binding="{Binding PalletCount}" Width="60" />
-                <DataGridTextColumn Header="Pieces" Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="70" />
-                <DataGridTextColumn Header="Part number(s)" Binding="{Binding Material}" Width="150" />
-                <DataGridTextColumn Header="PO" Binding="{Binding PoNumbers}" Width="100" />
-                <DataGridTextColumn Header="SAP value (USD)" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="105" />
-                <DataGridTextColumn Header="Balance (USD)" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="105" />
-                <DataGridTextColumn Header="Days in JuP1" Binding="{Binding DaysInJuP1}" Width="90" />
-                <DataGridTextColumn Header="Nearest IMMEX due" Binding="{Binding DueDate, StringFormat={}{0:dd/MM/yyyy}}" Width="100" SortMemberPath="DueDate" />
-                <DataGridTextColumn Header="Days to due" Binding="{Binding DaysToLegalDue}" Width="85" />
-                <DataGridTextColumn Header="QMM responsible" Binding="{Binding Qmm}" Width="140" />
-                <DataGridTextColumn Header="Requestor" Binding="{Binding Requestor}" Width="140" />
-                <DataGridTextColumn Header="Dept." Binding="{Binding Department}" Width="60" />
-                <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" Width="105" />
+                <DataGridTextColumn Header="IB PROCESS" Binding="{Binding FolioCode}" Width="112" MinWidth="112" />
+                <DataGridTextColumn Header="VS" Binding="{Binding ValueStream}" Width="56" MinWidth="56" />
+                <DataGridTemplateColumn Header="Status" Width="165" MinWidth="165" CellTemplate="{StaticResource StatusChip}" SortMemberPath="Status" />
+                <DataGridTextColumn Header="Pallets" Binding="{Binding PalletCount}" Width="68" MinWidth="68" />
+                <DataGridTextColumn Header="Pieces" Binding="{Binding Qty, StringFormat={}{0:N0}}" Width="70" MinWidth="70" />
+                <DataGridTextColumn Header="Part number(s)" Binding="{Binding Material}" Width="150" MinWidth="150" />
+                <DataGridTextColumn Header="PO" Binding="{Binding PoNumbers}" Width="100" MinWidth="100" />
+                <DataGridTextColumn Header="SAP value (USD)" Binding="{Binding SapUsdTotal, StringFormat={}{0:N2}}" Width="105" MinWidth="105" />
+                <DataGridTextColumn Header="Balance (USD)" Binding="{Binding Balance, StringFormat={}{0:N2}}" Width="105" MinWidth="105" />
+                <DataGridTextColumn Header="Days in JuP1" Binding="{Binding DaysInJuP1}" Width="90" MinWidth="90" />
+                <DataGridTextColumn Header="Nearest IMMEX due" Binding="{Binding DueDate, StringFormat={}{0:dd/MM/yyyy}}" Width="100" MinWidth="100" SortMemberPath="DueDate" />
+                <DataGridTextColumn Header="Days to due" Binding="{Binding DaysToLegalDue}" Width="85" MinWidth="85" />
+                <DataGridTextColumn Header="QMM responsible" Binding="{Binding Qmm}" Width="140" MinWidth="140" />
+                <DataGridTextColumn Header="Requestor" Binding="{Binding Requestor}" Width="140" MinWidth="140" />
+                <DataGridTextColumn Header="Dept." Binding="{Binding Department}" Width="68" MinWidth="68" />
+                <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" Width="105" MinWidth="105" />
                 <DataGridTextColumn x:Name="DqColumn" Header="Data quality" Binding="{Binding DqText}" Width="*" MinWidth="160" />
             </DataGrid.Columns>
             <DataGrid.RowDetailsTemplate>
@@ -218,5 +188,8 @@
                 </DataTemplate>
             </DataGrid.RowDetailsTemplate>
         </DataGrid>
+            <TextBlock Text="No records match the filters" Style="{StaticResource Hint}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsHitTestVisible="False" Visibility="{Binding HasRecords, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}" />
+        </Grid>
     </DockPanel>
 </UserControl>
