@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generates entregables/Diccionario_Campos_ExpoReturn.xlsx: dictionary between the name of each field in the
+Generates database/Diccionario_Campos_ExpoReturn.xlsx: dictionary between the name of each field in the
 application, its Oracle column and the header / column it had in the Excel MATRIZ DE RASTREO 2.0
 (sheets VS1, VS4, VS5, VS7 and VS9). Fields come from tools/dictionary/fields.py.
 
@@ -22,7 +22,7 @@ DEPARTMENTS = [  # code, area, can request, group, active -- every department ca
     ("QMM", "QMM", "Y", "PROCESS", "Y"), ("MFQ", "MFQ", "Y", "PROCESS", "Y"), ("PUQ", "PUQ", "Y", "PROCESS", "Y"),
     ("MFO", "MFO", "Y", "PROCESS", "Y"), ("LOP", "LOP", "Y", "PROCESS", "Y"), ("OSD", "OSD", "Y", "PROCESS", "Y"),
     ("LOW", "LOW", "Y", "PROCESS", "Y"), ("HSE", "HSE", "Y", "PROCESS", "Y")]
-OUT = os.path.join(ROOT, "entregables", "Diccionario_Campos_ExpoReturn.xlsx")
+OUT = os.path.join(ROOT, "database", "Diccionario_Campos_ExpoReturn.xlsx")
 
 FONT = "Arial"
 NAVY = "1F3864"

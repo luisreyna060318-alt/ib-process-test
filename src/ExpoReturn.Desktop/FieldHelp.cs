@@ -2,7 +2,7 @@ namespace ExpoReturn.Desktop;
 
 /// <summary>
 /// Field help (tooltip): Excel 2.0 column, what it is, the rule and an example.
-/// Names and Excel columns are also in entregables/Diccionario_Campos_ExpoReturn.xlsx.
+/// Names and Excel columns are also in database/Diccionario_Campos_ExpoReturn.xlsx.
 /// </summary>
 public static class FieldHelp
 {
@@ -75,7 +75,7 @@ public sealed class HelpMap
 /// <summary>Field name (form, tables, messages, audit log) and its Excel 2.0 column header.</summary>
 public static class FieldLabels
 {
-    /// <summary>Required to move to "Requested" (UX-B04).</summary>
+    /// <summary>Required to move to "Requested".</summary>
     public static readonly HashSet<string> Required = new()
     {
         "QmmResponsible", "RequestingDepartment", "RequestorName", "ReasonId", "ReturnedMaterial", "QtyImported", "OriginalHU", "OriginalBatch",

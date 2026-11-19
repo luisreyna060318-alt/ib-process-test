@@ -209,7 +209,7 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = new PalletDetailViewModel(_services, CurrentUser, process, Back, palletId);
     }
 
-    /// <summary>UX-B13: opens the inbox with a filter (from Balance / Duties).</summary>
+    /// <summary>opens the inbox with a filter (from Balance / Duties).</summary>
     private void OpenList(ListFilter filter)
     {
         if (!ConfirmLeave()) return;
@@ -219,7 +219,7 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = new PalletListViewModel(_services, CurrentUser, OpenProcess, filter);
     }
 
-    /// <summary>UX-B12: Ctrl+N opens a new return from any screen.</summary>
+    /// <summary>Ctrl+N opens a new return from any screen.</summary>
     [RelayCommand]
     private void NewReturn()
     {

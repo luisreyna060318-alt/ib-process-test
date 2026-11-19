@@ -17,7 +17,7 @@ public sealed record ValidationIssue(string Code, Severity Severity, string Fiel
     public bool IsRequiredPending => !FromExcel && Severity == Severity.Warning && RequiredCodes.Contains(Code);
 }
 
-/// <summary>Catálogo de validaciones VAL-xxx (doc 03 §2), ajustado a lo observado en el Excel real.</summary>
+/// <summary>Catálogo de validaciones VAL-xxx, ajustado a lo observado en el Excel real.</summary>
 /// <summary>
 /// Validations VAL-xxx. An IB PROCESS is validated as header (once), each pallet, and across pallets.
 /// <see cref="Validate(PalletReturn, DateTime)"/> = header + that pallet (a process with one pallet).

@@ -91,7 +91,7 @@ public interface IAuditTrail
     IReadOnlyList<AuditEntry> All();
 }
 
-/// <summary>How an alert was handled (UX-B09): who, when and with which comment (IB_PROCESS_ALERTS).</summary>
+/// <summary>How an alert was handled: who, when and with which comment (IB_PROCESS_ALERTS).</summary>
 public sealed record AlertAcknowledgement(int PalletId, AlertType Type, string NtUser, string Comment, DateTime AtUtc,
                                           Severity Severity = Severity.Info, string? Message = null, string? ResponsibleArea = null);
 

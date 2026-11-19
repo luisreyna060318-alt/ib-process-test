@@ -97,7 +97,7 @@ public sealed class InMemoryAuditTrail : IAuditTrail
     public void Clear() { lock (_gate) _entries.Clear(); }
 }
 
-/// <summary>Acknowledged alerts (UX-B09), in memory.</summary>
+/// <summary>Acknowledged alerts, in memory.</summary>
 public sealed class InMemoryAlertAcknowledgementStore : IAlertAcknowledgementStore
 {
     private readonly Dictionary<(int, AlertType), AlertAcknowledgement> _items = new();

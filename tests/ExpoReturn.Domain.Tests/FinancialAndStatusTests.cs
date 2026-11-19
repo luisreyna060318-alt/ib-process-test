@@ -3,7 +3,7 @@ using Xunit;
 
 namespace ExpoReturn.Domain.Tests;
 
-/// <summary>Casos golden (doc 03 §6), tomados de registros del Excel 2.0.</summary>
+/// <summary>Casos golden, tomados de registros del Excel 2.0.</summary>
 public class FinancialAndStatusTests
 {
     private static readonly DateTime Today = new(2026, 11, 5);

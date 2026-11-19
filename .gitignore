@@ -1,10 +1,9 @@
-node_modules/
 bin/
 obj/
 .vs/
 *.user
 TestResults/
 publish/
-docs/ux/img/
 __pycache__/
+# SharedServersAccess.dll (lib/) is embedded in the exe at build time and is never versioned
 SharedServersAccess.dll

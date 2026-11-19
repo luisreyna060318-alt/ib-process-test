@@ -4,7 +4,7 @@ using ExpoReturn.Domain;
 namespace ExpoReturn.Infrastructure.InMemory;
 
 /// <summary>
-/// Exporta la vista filtrada de la bandeja a un Excel de SÓLO LECTURA (UX-B06): hoja protegida,
+/// Exporta la vista filtrada de la bandeja a un Excel de SÓLO LECTURA: hoja protegida,
 /// para consulta o envío; la captura sigue siendo en la aplicación.
 /// </summary>
 public static class ExcelExporter

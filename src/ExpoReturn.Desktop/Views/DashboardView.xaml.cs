@@ -8,7 +8,7 @@ public partial class DashboardView : UserControl
 {
     public DashboardView() => InitializeComponent();
 
-    /// <summary>UX-B13: doble clic en un VS abre la bandeja filtrada.</summary>
+    /// <summary>doble clic en un VS abre la bandeja filtrada.</summary>
     private void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is DashboardViewModel vm) vm.OpenRowCommand.Execute(Grid.SelectedItem);

@@ -27,7 +27,7 @@ public static class StageGuards
         || p.ReinsertionQty is not null || (p.ScrapQty ?? 0) > 0 || p.DateSentBack is not null;
 }
 
-/// <summary>Reglas DR-1..DR-4 (doc 03 §5.1).</summary>
+/// <summary>Reglas DR-1..DR-4.</summary>
 public static class DutyRisk
 {
     public static DutyRiskAssessment Evaluate(PalletReturn p, ReconciliationResult r, DateTime today, CalcParameters prm)
@@ -46,7 +46,7 @@ public static class DutyRisk
     }
 }
 
-/// <summary>Máquina de estados derivada (doc 03 §4.1).</summary>
+/// <summary>Máquina de estados derivada.</summary>
 public static class StatusResolver
 {
     public static WorkflowStatus Resolve(PalletReturn p, ReconciliationResult r, DutyRiskAssessment risk)

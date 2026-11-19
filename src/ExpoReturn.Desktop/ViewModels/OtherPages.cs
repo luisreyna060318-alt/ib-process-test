@@ -12,7 +12,7 @@ namespace ExpoReturn.Desktop.ViewModels;
 public sealed record BarItem(string Label, decimal Value, double Width, string ValueText, int? ValueStreamId = null, WorkflowStatus? Status = null);
 
 // =====================================================================
-// PNT-03 · Balance / Duties  (UX-B13: click a VS or status -> filtered inbox)
+// Balance / Duties
 // =====================================================================
 public sealed partial class DashboardViewModel : PageViewModel
 {
@@ -72,7 +72,7 @@ public sealed partial class DashboardViewModel : PageViewModel
 }
 
 // =====================================================================
-// PNT-04 · Alerts  (UX-B09: grouped by responsible area; mark as handled)
+// Alerts
 // =====================================================================
 public sealed class AlertRow
 {
@@ -154,7 +154,7 @@ public sealed partial class AlertsViewModel : PageViewModel
 }
 
 // =====================================================================
-// PNT-05 · Users & Access: who is Owner / Champion / Proxy / Viewer in which department and VS.
+// Users & Access: who is Owner / Champion / Proxy / Viewer in which department and VS.
 // Only the Owner edits; profile change requests are approved or rejected here.
 // =====================================================================
 public sealed record MatrixRow(string ValueStream, string Qmm, string Mfq, string Gs, string Lop, string Mfo, string Low, string Hse);
@@ -384,7 +384,7 @@ public sealed partial class UsersViewModel : PageViewModel
 }
 
 // =====================================================================
-// PNT-06 · Audit log  (UX-B08: filters by folio, user, field and dates)
+// Audit log
 // =====================================================================
 public sealed partial class AuditViewModel : PageViewModel
 {

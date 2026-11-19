@@ -93,7 +93,7 @@ public sealed record PageButton(int? Number, bool IsCurrent)
     }
 }
 
-/// <summary>Filtro inicial al llegar desde otra pantalla (UX-B13: clic en Balance).</summary>
+/// <summary>Filtro inicial al llegar desde otra pantalla.</summary>
 public sealed record ListFilter(int? ValueStreamId = null, WorkflowStatus? Status = null, bool OnlyOpen = false);
 
 public sealed partial class PalletListViewModel : PageViewModel

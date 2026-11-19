@@ -6,7 +6,7 @@ using Xunit;
 
 namespace ExpoReturn.Domain.Tests;
 
-/// <summary>Lógica no visual de los pendientes UX-B01, UX-B06 y UX-B10 (matriz Champions VS).</summary>
+/// <summary>Lógica no visual de la bandeja y de la captura (pendientes, exportar, matriz Champions VS).</summary>
 public class UxBacklogTests
 {
     [Fact]

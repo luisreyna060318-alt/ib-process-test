@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace ExpoReturn.Desktop;
 
-/// <summary>Last inbox filters per user (UX-B06), stored in %LOCALAPPDATA%\ExpoReturn\preferences.json.</summary>
+/// <summary>Last inbox filters per user, stored in %LOCALAPPDATA%\ExpoReturn\preferences.json.</summary>
 public sealed class ListFilterPreference
 {
     public int? ValueStreamId { get; set; }

@@ -26,7 +26,7 @@ public sealed record ReconciliationResult(
 }
 
 /// <summary>
-/// Motor financiero CalcVersion 2 (doc 03 §3.2). Corrige los defectos del Excel:
+/// Motor financiero CalcVersion 2. Corrige los defectos del Excel:
 /// faltantes que desaparecían (H-03), scrap liberado sólo con confirmación HSE (H-04),
 /// y cierre aduanal sólo con documento reconocido (H-02).
 /// </summary>

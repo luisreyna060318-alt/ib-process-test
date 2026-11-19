@@ -1,6 +1,6 @@
 # Aplicación (v0.5.3): Expo & Return FG Follow Up
 
-Aplicación de escritorio con **interfaz en inglés**. Respeta la arquitectura del SRS (capítulo 01): Domain → Application → Infrastructure → Desktop.
+Aplicación de escritorio con **interfaz en inglés**. Arquitectura: Domain → Application → Infrastructure → Desktop.
 
 **Siempre trabaja sobre la base Oracle** (tablas `IB_PROCESS_` de `IFACTJUP`): no existe modo local ni datos de demostración, así que no hay confusión sobre si un cambio se guardó. Al abrir, la app se conecta sola, con la cuenta que entrega **SharedServersAccess.dll** (igual que el worker de good-receipt). Si no logra conectarse, no abre.
 
@@ -151,19 +151,20 @@ Lista vigente: **QMM, MFQ, PUQ, MFO, LOP, OSD, LOW y HSE**, todos pueden solicit
 ## Guion de revisión sugerido (10 minutos)
 
 0. **Conexión:** abrir el exe (no necesita nada junto a él): se conecta sola y arriba aparece *Oracle IFACTJUP · usuario · 5 value streams*.
-1. **Primera ejecución:** abrir la app; aparece *Welcome*. El usuario de Windows ya viene escrito; elegir Department y VS y guardar. Arriba a la derecha aparece como **Viewer**: todo en gris.
+1. **Primera ejecución:** abrir la app; aparece *Welcome* con el nombre de Windows ya escrito (sin EXTERNAL ni paréntesis). Elegir Department y VS y guardar: queda como **Viewer** (todo en gris) con una solicitud para el Owner.
 2. Abrir con el usuario `US\RLN8JU` (Owner por defecto): aparece como **Owner** y ve *Import MM60 file* y la edición de *Users & Access*. Para otro Owner, darle la función *Owner* en *Users & Access*.
 3. **Users & Access:** agregar una fila con otro usuario (o el suyo con otra configuración) como *Champion* de un VS y guardar; la bitácora registra el cambio.
-4. **Requests:** un usuario nuevo aparece como *New user*; al aprobarlo queda como Member. **View as** un Champion de OSD: en un proceso de su VS sólo los campos de aduana quedan en verde; en otro VS todo queda en gris.
-5. **New IB PROCESS:** capturar el encabezado y dos pallets (el segundo trae el PO del primero); repetir el HU muestra VAL-053; usar un PO de otro proceso muestra la pregunta antes de guardar. Desde la bandeja, **▸** muestra los pallets.
-6. Abrir un registro *Pending export* de VS1 (como Owner o un GS de VS1) y capturar *Customs Export* `PR26-00123`: pasa a *Exported*. Con `scrap marzo` aparece VAL-046.
+4. **Requests:** un usuario nuevo aparece como *New user*; al aprobarlo queda como Member. **View as** un usuario de OSD: en un proceso de su VS sólo los campos de la pestaña *OSD Customs* (y *Status Category*) quedan en verde; en otro VS todo queda en gris. Uno de MFQ / PUQ ve todo en gris.
+5. **New IB PROCESS** (QMM u Owner; otros departamentos reciben un aviso): capturar *QMM Request* y dos pallets en *QMM Pallets* (el segundo trae el PO del primero); repetir el HU muestra VAL-053; usar un PO de otro proceso muestra la pregunta antes de guardar. Desde la bandeja, **▸** muestra los pallets.
+6. Abrir un registro *Pending export* de VS1 (como Owner o un usuario de OSD de VS1) en la pestaña *OSD Customs* y capturar *Customs Export* `PR26-00123`: pasa a *Exported*. Con `scrap marzo` aparece VAL-046.
 7. **Import Excel 2.0…** con el archivo real y revisar *LOW Export Number / Date*. Con Oracle (Owner), importarlo dos veces: la segunda debe decir "already loaded". Abrir un registro importado, corregir un dato y guardar; con **To homogenize** en la bandeja se ven los que todavía rompen alguna regla.
 8. **Reglas:** borrar el texto de un campo con valor y guardar; la app lo rechaza, también como Owner. **Delete IB PROCESS** pide motivo y la bitácora conserva la copia. En *Users & Access*, **End access** cierra el acceso y lo deja en la historia.
-9. **Send feedback** en cada pantalla.
+9. **Comments:** escribir un comentario y cambiar el *Status Category* con un usuario de cualquiera de las seis áreas.
+10. **Send feedback** en cada pantalla.
 
 ## Limitaciones actuales
 
-* La conexión a Oracle **no se pudo probar** contra `IFACTJUP` desde el entorno de desarrollo: las pruebas automáticas cubren las reglas, el manejo de credenciales del DLL y que el código coincida con los scripts SQL. La primera prueba real es abrir la app en la red de planta con el DLL y la clave.
+* La base ya se instaló y verificó en `IFACTJUP` con los scripts, pero la app todavía no se ha abierto contra ella ni se ha visto en Windows: la primera prueba real es abrir el exe en la red de planta. Las pruebas automáticas cubren las reglas, el manejo de credenciales del DLL y que el código coincida con los scripts SQL.
 * La página de la bandeja se lee al cambiar filtro, orden o página y con **Reload**; no se actualiza sola mientras otra persona guarda.
 * Las vistas no se pudieron ejecutar en un Oracle desde el entorno de desarrollo: su SQL se comprobó en DuckDB contra los cálculos de la app (`tools/database/check_views_parity.py`). `90_verify_install.sql` confirma en la base que compilan y responden.
 * Las alertas se ven en pantalla; el envío por correo o Teams es de la fase de producción.

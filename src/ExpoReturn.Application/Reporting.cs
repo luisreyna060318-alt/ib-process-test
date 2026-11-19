@@ -31,7 +31,7 @@ public sealed record Alert(AlertType Type, Severity Severity, int PalletId, stri
 }
 
 /// <summary>
-/// Balance by VS / fiscal year and alert rules (SRS chapter 03). Totals are calculated by the store (SQL on the views with
+/// Balance by VS / fiscal year and alert rules. Totals are calculated by the store (SQL on the views with
 /// Oracle); the alerts look only at open pallets.
 /// </summary>
 public sealed class ReportingService

@@ -26,7 +26,7 @@ public sealed record LegacyChampion(string Name, string Area, int ValueStreamId,
 
 /// <summary>
 /// Lee la MATRIZ DE RASTREO 2.0 (tablas VS_1, VS_4, VS_5, VS_7, VS_9 y hoja "Champions VS") y la convierte
-/// al modelo nuevo, SÓLO EN MEMORIA. Es el prototipo del ETL de migración (doc 04 §2).
+/// al modelo nuevo, SÓLO EN MEMORIA. Es el ETL de migración del Excel 2.0.
 /// Usa el valor cacheado de las fórmulas (XLOOKUP no se recalcula fuera de Excel).
 /// </summary>
 public static partial class LegacyExcelImporter

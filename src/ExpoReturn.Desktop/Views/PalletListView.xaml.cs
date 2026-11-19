@@ -17,7 +17,7 @@ public partial class PalletListView : UserControl
             if (e.NewValue is INotifyPropertyChanged vm) vm.PropertyChanged += OnVmChanged;
             UpdateDqColumn();
         };
-        // UX-B12: Ctrl+F lleva el foco a la búsqueda
+        // Ctrl+F lleva el foco a la búsqueda
         InputBindings.Add(new KeyBinding(new RelayUiCommand(() => { SearchBox.Focus(); SearchBox.SelectAll(); }), Key.F, ModifierKeys.Control));
         Loaded += (_, _) => Grid.Focus();
     }
@@ -27,7 +27,7 @@ public partial class PalletListView : UserControl
         if (e.PropertyName == nameof(PalletListViewModel.HasLegacy)) UpdateDqColumn();
     }
 
-    /// <summary>UX-B07: la columna "Calidad de datos" sólo aparece si hay registros históricos.</summary>
+    /// <summary>la columna "Calidad de datos" sólo aparece si hay registros históricos.</summary>
     private void UpdateDqColumn() =>
         DqColumn.Visibility = DataContext is PalletListViewModel { HasLegacy: true } ? Visibility.Visible : Visibility.Collapsed;
 
@@ -47,7 +47,7 @@ public partial class PalletListView : UserControl
             vm.OpenCommand.Execute(row);
     }
 
-    /// <summary>UX-B12: Enter abre el renglón seleccionado (en lugar de bajar al siguiente).</summary>
+    /// <summary>Enter abre el renglón seleccionado (en lugar de bajar al siguiente).</summary>
     private void OnGridKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not PalletListViewModel vm || Grid.SelectedItem is not ProcessRow row) return;
