@@ -97,7 +97,7 @@ español: **responder en español**. La interfaz y el código están en inglés;
 
 ## 6. Estado actual y lo que falta verificar
 
-* **v0.5.7 (2026-11-20): usuarios sin dominio.** La app guarda y compara la cuenta de Windows sin `US\` (`NtUsers.Normalize` / `NtUsers.Same`; los valores viejos con dominio cuentan como el mismo usuario). Cambio de base `changes/2026-11-20_users_without_domain_and_area_leads.sql`: pasa los usuarios existentes y las columnas de "quién" a sin dominio (no toca bitácora ni comentarios), da de alta Champions/Proxies (MFO y QMM de VS1; LOW y OSD de todos los VS; dos Proxies de LOW) y agrega la regla `IB_USR_CK_NO_DOMAIN`. Ejecutarlo junto con el cambio de exe. No probado aún en Oracle (sólo pruebas estáticas).
+* **v0.5.7 (2026-11-20): usuarios sin dominio.** La app guarda y compara la cuenta de Windows sin `US\` (`NtUsers.Normalize` / `NtUsers.Same`; los valores viejos con dominio cuentan como el mismo usuario). Cambio de base `changes/2026-11-20_users_without_domain_and_area_leads.sql`: pasa los usuarios existentes y las columnas de "quién" a sin dominio (no toca bitácora ni comentarios), da de alta 20 Champions/Proxies, 40 accesos (MFO y QMM por VS; LOW y OSD en todos los VS; dos Proxies de LOW) y agrega la regla `IB_USR_CK_NO_DOMAIN`. Ejecutarlo junto con el cambio de exe. No probado aún en Oracle (sólo pruebas estáticas).
 
 * **v0.5.6 (2026-11-19):** Departments editable con un clic (el tema pone `IsReadOnly` en todas las tablas: hay que
   quitarlo en las que editan) y sin grupo Process / Cross-functional; el script 2026-11-19 también elimina

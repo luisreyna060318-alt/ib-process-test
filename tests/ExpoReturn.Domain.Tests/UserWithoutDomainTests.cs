@@ -79,10 +79,11 @@ public class UserWithoutDomainTests
         // Same rule as a new install
         Assert.Contains("CONSTRAINT IB_USR_CK_NO_DOMAIN CHECK (INSTR(NT_USER, '\\') = 0)", ddl);
         Assert.Contains("CHECK (INSTR(NT_USER, ''\\'') = 0)", change);
-        // The champions and proxies: 3 rows in VS1 + 5 users in the five VS = 28 access rows, 9 users
+        // The champions and proxies: 15 rows of one VS + 5 users in the five VS = 40 access rows, 20 users
         var leads = Regex.Matches(change, @"put_lead\('(\w+)', N'([^']+)', '(\w+)', '(\w+)', (v_all_vs\(i\)|\d)\);").ToList();
-        Assert.Equal(8, leads.Count);
-        Assert.Equal(3 + 5 * 5, leads.Sum(m => m.Groups[5].Value == "v_all_vs(i)" ? 5 : 1));
+        Assert.Equal(20, leads.Count);
+        Assert.Equal(20, leads.Select(m => m.Groups[1].Value).Distinct().Count());
+        Assert.Equal(15 + 5 * 5, leads.Sum(m => m.Groups[5].Value == "v_all_vs(i)" ? 5 : 1));
         Assert.Contains("t_numbers(1, 4, 5, 7, 9)", change);
         Assert.All(leads, m => Assert.Contains(m.Groups[3].Value, new[] { "MFO", "QMM", "LOW", "OSD" }));
         Assert.All(leads, m => Assert.Contains(m.Groups[4].Value, new[] { "CHAMPION", "PROXY" }));

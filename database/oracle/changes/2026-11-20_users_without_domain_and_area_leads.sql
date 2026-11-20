@@ -15,6 +15,10 @@
       and VS, that row is closed with date (kept as history) and the new one is opened. Each change goes to the audit log
       as RLN8JU.
          VS1: MFO Champion BAJ1JU, MFO Proxy LZJ3JU, QMM Champion WGE1JU
+         VS4: MFO Champion GIC1JU, QMM Champion AVI1JU, QMM Proxy ARL9JU
+         VS5: MFO Champion MEN7JU, MFO Proxy ALD2JU, QMM Champion NOH4JU, QMM Proxy DCE1JU
+         VS7: MFO Champion ESP5JU, MFO Proxy BAR5JU, QMM Champion RSN9JU
+         VS9: MFO Champion SSR3JU, MFO Proxy FLA2JU
          VS1, VS4, VS5, VS7, VS9: LOW Champion OVG1JU, LOW Proxies GOD2JU and HAD1JU,
                                   OSD Champion AVS2JU, OSD Proxy ROC2JU2
    4. Rule IB_USR_CK_NO_DOMAIN: from now on the database refuses a user with domain.
@@ -96,6 +100,18 @@ BEGIN
     put_lead('BAJ1JU', N'Barrera Barrera Jose Ramon', 'MFO', 'CHAMPION', 1);
     put_lead('LZJ3JU', N'Lopez Pinedo Juan Antonio', 'MFO', 'PROXY', 1);
     put_lead('WGE1JU', N'Wong Villalobos Enrique Alberto', 'QMM', 'CHAMPION', 1);
+    put_lead('GIC1JU', N'Garcia Aguilar Aide Yasmeli', 'MFO', 'CHAMPION', 4);
+    put_lead('AVI1JU', N'Avila Castro Irene', 'QMM', 'CHAMPION', 4);
+    put_lead('ARL9JU', N'Alcantar Palomino Luis', 'QMM', 'PROXY', 4);
+    put_lead('MEN7JU', N'Mendez Pacheco Angel Alejandro', 'MFO', 'CHAMPION', 5);
+    put_lead('ALD2JU', N'Aldaba Favela Daniel', 'MFO', 'PROXY', 5);
+    put_lead('NOH4JU', N'Hernandez Lascurain Nora Hilda', 'QMM', 'CHAMPION', 5);
+    put_lead('DCE1JU', N'Delgado Esparza Cesar Manuel', 'QMM', 'PROXY', 5);
+    put_lead('ESP5JU', N'Escudero Moreno Paulina', 'MFO', 'CHAMPION', 7);
+    put_lead('BAR5JU', N'Baylon Contreras Rocio', 'MFO', 'PROXY', 7);
+    put_lead('RSN9JU', N'Rodriguez Sanchez Norma Aracely', 'QMM', 'CHAMPION', 7);
+    put_lead('SSR3JU', N'Santos Velazquez Rogelio', 'MFO', 'CHAMPION', 9);
+    put_lead('FLA2JU', N'Flores Romero Abizaid', 'MFO', 'PROXY', 9);
     FOR i IN 1 .. v_all_vs.COUNT LOOP
         put_lead('OVG1JU', N'Oviedo Vega Jesus Guadalupe', 'LOW', 'CHAMPION', v_all_vs(i));
         put_lead('GOD2JU', N'Gonzalez Vergara David', 'LOW', 'PROXY', v_all_vs(i));
@@ -127,7 +143,7 @@ BEGIN
             v_added := v_added + 1;
         END IF;
     END LOOP;
-    DBMS_OUTPUT.PUT_LINE(v_added || ' access row(s) added or changed (28 the first time).');
+    DBMS_OUTPUT.PUT_LINE(v_added || ' access row(s) added or changed (40 the first time).');
 END;
 /
 COMMIT;
