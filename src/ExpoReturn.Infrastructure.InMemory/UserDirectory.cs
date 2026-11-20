@@ -280,8 +280,11 @@ public sealed class UserDirectory : IUserDirectory
         Persist(changes);
     }
 
-    public void ReplaceAccess(IEnumerable<UserAccess> rows, string changedBy = "SYSTEM")
+    public void ReplaceAccess(IEnumerable<UserAccess> rows, string changedBy = "SYSTEM", IReadOnlyDictionary<string, string>? newUserNames = null)
     {
+        var names = (newUserNames ?? new Dictionary<string, string>())
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+            .GroupBy(kv => Normalize(kv.Key)).ToDictionary(g => g.Key, g => g.Last().Value.Trim());
         var list = rows.Select(r => r with { NtUser = Normalize(r.NtUser), DepartmentCode = r.DepartmentCode?.Trim() ?? "" })
                        .Distinct().ToList();
         var changes = new UserStoreChanges { ChangedBy = Normalize(changedBy) };
@@ -295,7 +298,7 @@ public sealed class UserDirectory : IUserDirectory
                 foreach (var nt in target.Select(r => r.NtUser).Distinct().Where(nt => store.Users.All(u => u.NtUser != nt)))
                 {
                     var first = target.First(r => r.NtUser == nt);
-                    var user = new AppUser(nt, nt, first.Function == UserFunction.Owner ? null : first.DepartmentCode,
+                    var user = new AppUser(nt, names.GetValueOrDefault(nt, nt), first.Function == UserFunction.Owner ? null : first.DepartmentCode,
                         target.Where(r => r.NtUser == nt && r.ValueStreamId > 0).Select(r => r.ValueStreamId).Distinct().OrderBy(v => v).ToList(),
                         DateTime.UtcNow, isDemo);
                     store.Users.Add(user);

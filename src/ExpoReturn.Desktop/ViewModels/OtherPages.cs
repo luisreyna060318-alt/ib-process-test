@@ -273,7 +273,7 @@ public sealed partial class AccessMatrixRow : ObservableObject
 
     public IEnumerable<UserAccess> ToAccess()
     {
-        var nt = NtUser.Trim().ToUpperInvariant();
+        var nt = NtUsers.Normalize(NtUser);
         if (IsOwner) { yield return new UserAccess(nt, "", 0, UserFunction.Owner); yield break; }
         foreach (var c in Cells.Where(c => c.Function is not null))
             yield return new UserAccess(nt, DepartmentCode ?? "", c.ValueStreamId, c.Function!.Value);
@@ -473,12 +473,18 @@ public sealed partial class UsersViewModel : PageViewModel
         // New row: Windows user, department and the function in each VS. A selected user is copied (another department).
         var row = new AccessMatrixRow(SelectedEdit?.NtUser ?? "", SelectedEdit?.DisplayName ?? "", null, false,
             MatrixValueStreams.Select(v => new AccessCell(v, AccessCell.None)), isNew: true);
+        // Typing the Windows user of someone already registered brings their name (it can still be changed for a new user).
+        row.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(AccessMatrixRow.NtUser) || !string.IsNullOrWhiteSpace(row.DisplayName)) return;
+            if (Services.Users.Find(row.NtUser) is { } known) row.DisplayName = known.DisplayName;
+        };
         EditRows.Add(row);
         SelectedEdit = row;
         ApplyFilter();
         Message = row.NtUser.Length > 0
             ? $"New row for {row.DisplayName}: choose the department and the function in each VS, then save."
-            : "Enter the Windows user (DOMAIN\\user), the department and the function in each VS, then save.";
+            : "Enter the Windows user (without domain, e.g. RLN8JU), the name, Owner or the department, and the function in each VS, then save.";
     }
 
     [RelayCommand]
@@ -499,6 +505,12 @@ public sealed partial class UsersViewModel : PageViewModel
         { Message = "Every row needs a Windows user."; return; }
         if (EditRows.Any(r => !r.IsOwner && string.IsNullOrEmpty(r.DepartmentCode) && r.Cells.Any(c => c.Function is not null)))
         { Message = "Choose the department of every row with access (only Owner rows have none)."; return; }
+        // A user that is not registered yet is created with the name typed in its new row.
+        var newRows = EditRows.Where(r => r.IsNew && !string.IsNullOrWhiteSpace(r.NtUser) && (r.IsOwner || r.Cells.Any(c => c.Function is not null))).ToList();
+        var unnamed = newRows.FirstOrDefault(r => Services.Users.Find(r.NtUser) is null && string.IsNullOrWhiteSpace(r.DisplayName));
+        if (unnamed is not null) { Message = $"Enter the name of {NtUsers.Normalize(unnamed.NtUser)} (new user)."; return; }
+        var newUserNames = newRows.Where(r => !string.IsNullOrWhiteSpace(r.DisplayName))
+            .GroupBy(r => NtUsers.Normalize(r.NtUser)).ToDictionary(g => g.Key, g => g.Last().DisplayName.Trim());
         var after = EditRows.SelectMany(r => r.ToAccess()).ToList();
         var dup = after.GroupBy(a => (a.NtUser, a.DepartmentCode, a.ValueStreamId)).FirstOrDefault(g => g.Count() > 1);
         if (dup is not null)
@@ -519,7 +531,7 @@ public sealed partial class UsersViewModel : PageViewModel
         try
         {
             // Nothing is deleted: access that disappears is closed (VALID_TO) and stays as history.
-            Services.Users.ReplaceAccess(after, _realUser.NtUser);      // raises Changed: the shell recalculates the current user's access
+            Services.Users.ReplaceAccess(after, _realUser.NtUser, newUserNames);      // raises Changed: the shell recalculates the current user's access
         }
         catch (Exception ex)
         {

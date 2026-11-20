@@ -162,3 +162,24 @@ public class PersonNameTests
     public void The_windows_display_name_gives_the_person_name(string? display, string? expected) =>
         Assert.Equal(expected, PersonName.FromDisplayName(display, "US\\RLN8JU"));
 }
+
+public class NewUserFromAccessTests
+{
+    [Fact]
+    public void A_new_row_in_users_and_access_creates_the_user_with_the_name_typed()
+    {
+        var dir = new UserDirectory((string?)null, new[] { "RLN8JU" }, includeDemoUsers: false);
+        dir.Register("WGE1JU", "Wong Villalobos Enrique Alberto", "QMM", new[] { 1 });
+        dir.ReplaceAccess(new[]
+        {
+            new UserAccess("US\\GIC1JU", "MFO", 4, UserFunction.Champion),
+            new UserAccess("WGE1JU", "QMM", 1, UserFunction.Champion),
+            new UserAccess("NONAME1", "LOW", 1, UserFunction.Proxy),
+        }, "RLN8JU", new Dictionary<string, string> { ["us\\gic1ju"] = " Garcia Aguilar Aide Yasmeli ", ["WGE1JU"] = "Other name" });
+        Assert.Equal("Garcia Aguilar Aide Yasmeli", dir.Find("GIC1JU")!.DisplayName);
+        Assert.Equal("MFO", dir.Find("GIC1JU")!.DepartmentCode);
+        Assert.Equal("Wong Villalobos Enrique Alberto", dir.Find("WGE1JU")!.DisplayName);   // an existing user keeps their name
+        Assert.Equal("NONAME1", dir.Find("NONAME1")!.DisplayName);                          // no name given: the Windows user
+        Assert.Contains(dir.ContextFor("GIC1JU").Grants, g => g.ValueStreamId == 4 && g.Function == UserFunction.Champion);
+    }
+}

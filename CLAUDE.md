@@ -2,7 +2,7 @@
 
 **Expo & Return FG Follow Up (IB Process)**: aplicación de escritorio Windows (.NET 8, WPF) con base Oracle que sustituye
 al Excel *"Productos terminados importados temporalmente · Matriz de rastreo 2.0"* de Bosch JuP1 (planta Juárez 1,
-área ME/QMM). Versión actual: **v0.5.7**. El usuario (dueño del proceso, cuenta Windows `RLN8JU`, rol **Owner**) habla
+área ME/QMM). Versión actual: **v0.5.8**. El usuario (dueño del proceso, cuenta Windows `RLN8JU`, rol **Owner**) habla
 español: **responder en español**. La interfaz y el código están en inglés; los README en español.
 
 ## 1. Qué hace el negocio (glosario mínimo)
@@ -96,6 +96,8 @@ español: **responder en español**. La interfaz y el código están en inglés;
   pendiente (queda en Alerts). Sin cambios de esquema.
 
 ## 6. Estado actual y lo que falta verificar
+
+* **v0.5.8 (2026-11-20):** *Users & Access* → *Add row* permite escribir el nombre en filas nuevas; `IUserDirectory.ReplaceAccess(rows, changedBy, newUserNames)` crea al usuario que no existe con ese nombre (los existentes conservan el suyo). Sin cambios de base.
 
 * **v0.5.7 (2026-11-20): usuarios sin dominio.** La app guarda y compara la cuenta de Windows sin `US\` (`NtUsers.Normalize` / `NtUsers.Same`; los valores viejos con dominio cuentan como el mismo usuario). Cambio de base `changes/2026-11-20_users_without_domain_and_area_leads.sql`: pasa los usuarios existentes y las columnas de "quién" a sin dominio (no toca bitácora ni comentarios), da de alta 20 Champions/Proxies, 40 accesos (MFO y QMM por VS; LOW y OSD en todos los VS; dos Proxies de LOW) y agrega la regla `IB_USR_CK_NO_DOMAIN`. Ejecutarlo junto con el cambio de exe. No probado aún en Oracle (sólo pruebas estáticas).
 

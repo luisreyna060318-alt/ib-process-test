@@ -210,9 +210,10 @@ public interface IUserDirectory
     void Decide(int requestId, bool approve, string ownerNtUser, string? comment);
     /// <summary>
     /// Owner saves the whole access grid. Nothing is deleted: rows that disappear are closed (VALID_TO) and kept as history;
-    /// a changed function closes the old row and opens a new one.
+    /// a changed function closes the old row and opens a new one. A user that does not exist yet is created with the name
+    /// given in <paramref name="newUserNames"/> (Windows user → name; the Windows user itself when there is none).
     /// </summary>
-    void ReplaceAccess(IEnumerable<UserAccess> rows, string changedBy = "SYSTEM");
+    void ReplaceAccess(IEnumerable<UserAccess> rows, string changedBy = "SYSTEM", IReadOnlyDictionary<string, string>? newUserNames = null);
     /// <summary>QMM Champions/Proxies of a Value Stream (QMM Responsible options).</summary>
     IReadOnlyList<string> QmmFor(int valueStreamId);
 }

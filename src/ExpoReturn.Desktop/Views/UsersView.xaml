@@ -46,7 +46,18 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" MinWidth="170" IsReadOnly="True" />
+                            <DataGridTemplateColumn Header="Name" Width="*" MinWidth="170">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" Margin="4,0" />
+                                            <!-- only a new row lets the name be typed (used when the user is not registered yet) -->
+                                            <TextBox Text="{Binding DisplayName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" MaxLength="150"
+                                                     Visibility="{Binding IsNew, Converter={StaticResource BoolToVis}}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTemplateColumn Header="Owner" Width="64" MinWidth="64">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

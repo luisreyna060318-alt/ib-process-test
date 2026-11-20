@@ -1,4 +1,4 @@
-# Aplicación (v0.5.7): Expo & Return FG Follow Up
+# Aplicación (v0.5.8): Expo & Return FG Follow Up
 
 Aplicación de escritorio con **interfaz en inglés**. Arquitectura: Domain → Application → Infrastructure → Desktop.
 
