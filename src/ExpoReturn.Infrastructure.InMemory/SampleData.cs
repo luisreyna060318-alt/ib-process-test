@@ -74,7 +74,7 @@ public static class SampleData
 
     private static string GsUser(IUserDirectory users, int vs) =>
         users.Access().FirstOrDefault(a => a.ValueStreamId == vs && a.Function == UserFunction.Champion
-                                           && RoleInfo.AreaOfDepartment(a.DepartmentCode) == RoleCode.Gs)?.NtUser ?? "DEMO\\OSD";
+                                           && RoleInfo.AreaOfDepartment(a.DepartmentCode) == RoleCode.Gs)?.NtUser ?? "DEMO.OSD";
 
     private static PalletReturn Build(Scenario sc, int vs, int folio, int n, DateTime today, IUserDirectory users)
     {

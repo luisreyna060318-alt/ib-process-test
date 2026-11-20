@@ -39,8 +39,8 @@ public sealed class OracleProcessQueries : IProcessQueries
         {
             // Same rule as ProcessFilter.IsMine, on the table (the view does not need new columns).
             sql.Add($@"EXISTS (SELECT 1 FROM {table("IB_PROCESS_PROCESSES")} m WHERE m.PROCESS_ID = i.PROCESS_ID
-                              AND (UPPER(m.CREATED_BY) = :mine OR UPPER(m.QMM_RESPONSIBLE_NT) = :mine OR UPPER(m.REQUESTOR_NT) = :mine))");
-            Bind(args, ("mine", f.MineOf.Trim().ToUpperInvariant()));
+                              AND ({Plain("m.CREATED_BY")} = :mine OR {Plain("m.QMM_RESPONSIBLE_NT")} = :mine OR {Plain("m.REQUESTOR_NT")} = :mine))");
+            Bind(args, ("mine", NtUsers.Normalize(f.MineOf)));
         }
         if (f.PendingFor is { } scopes)
         {
@@ -53,8 +53,8 @@ public sealed class OracleProcessQueries : IProcessQueries
                 if (s.ValueStreamId != 0) { cond.Add($"m.VALUE_STREAM_ID = :pvs{n}"); Bind(args, ($"pvs{n}", s.ValueStreamId)); }
                 if (s.OnlyOwnOf is { } own)
                 {
-                    cond.Add($"(UPPER(m.CREATED_BY) = :pown{n} OR UPPER(m.QMM_RESPONSIBLE_NT) = :pown{n})");
-                    Bind(args, ($"pown{n}", own.Trim().ToUpperInvariant()));
+                    cond.Add($"({Plain("m.CREATED_BY")} = :pown{n} OR {Plain("m.QMM_RESPONSIBLE_NT")} = :pown{n})");
+                    Bind(args, ($"pown{n}", NtUsers.Normalize(own)));
                 }
                 parts.Add("(" + string.Join(" AND ", cond) + ")");
             }
@@ -80,6 +80,9 @@ public sealed class OracleProcessQueries : IProcessQueries
     }
 
     private static void Bind(List<(string, object?)> args, (string Name, object? Value) arg) => args.Add(arg);
+
+    /// <summary>The account of a user column without domain and in capitals (values saved before v0.5.7 had "US\\").</summary>
+    private static string Plain(string column) => $"UPPER(SUBSTR({column}, INSTR({column}, '\\', -1) + 1))";
 
     private static (string Name, object? Value)[] Args(IEnumerable<(string Name, object? Value)> args, params (string Name, object? Value)[] more) =>
         args.Concat(more).ToArray();

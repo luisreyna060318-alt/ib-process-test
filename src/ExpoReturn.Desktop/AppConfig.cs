@@ -9,14 +9,14 @@ namespace ExpoReturn.Desktop;
 /// </summary>
 public sealed class AppConfig
 {
-    public const string Version = "0.5.6";
+    public const string Version = "0.5.7";
 
     /// <summary>IFACTJUP through SharedServersAccess; tnsnames.ora from TNS_ADMIN or %ORACLE_HOME%\network\admin.</summary>
     public OracleSettings Oracle { get; } = new();
 
     /// <summary>First Owner (process owner of the application). More Owners: OWNER rows in IB_PROCESS_USER_ACCESS.</summary>
-    public IReadOnlyList<string> Owners { get; } = new[] { "US\\RLN8JU" };
+    public IReadOnlyList<string> Owners { get; } = new[] { "RLN8JU" };
 
-    /// <summary>Windows user running the application (DOMAIN\user).</summary>
-    public static string CurrentWindowsUser => $"{Environment.UserDomainName}\\{Environment.UserName}".ToUpperInvariant();
+    /// <summary>Windows user running the application: only the account, without the domain, in capitals.</summary>
+    public static string CurrentWindowsUser => ExpoReturn.Application.NtUsers.Normalize(Environment.UserName);
 }

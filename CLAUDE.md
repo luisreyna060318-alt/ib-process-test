@@ -2,7 +2,7 @@
 
 **Expo & Return FG Follow Up (IB Process)**: aplicación de escritorio Windows (.NET 8, WPF) con base Oracle que sustituye
 al Excel *"Productos terminados importados temporalmente · Matriz de rastreo 2.0"* de Bosch JuP1 (planta Juárez 1,
-área ME/QMM). Versión actual: **v0.5.6**. El usuario (dueño del proceso, cuenta Windows `US\RLN8JU`, rol **Owner**) habla
+área ME/QMM). Versión actual: **v0.5.7**. El usuario (dueño del proceso, cuenta Windows `RLN8JU`, rol **Owner**) habla
 español: **responder en español**. La interfaz y el código están en inglés; los README en español.
 
 ## 1. Qué hace el negocio (glosario mínimo)
@@ -88,7 +88,7 @@ español: **responder en español**. La interfaz y el código están en inglés;
 * Reglas de los scripts: ASCII puro, sin `&`, sin líneas en blanco dentro de una instrucción, `VARCHAR2(n CHAR)`, nombres
   ≤ 30, sin palabras reservadas como columnas o binds (ORA-01745). Las pruebas lo revisan.
 * **Base ya instalada → cambios en `database/oracle/changes/AAAA-MM-DD_*.sql`**, uno por fecha, que no borren datos y
-  que registren al usuario **con dominio `US\RLN8JU`** (nunca `OS_USER`). Agregar una prueba de que el cambio deja la
+  que registren al usuario **sin dominio, `RLN8JU`** (desde v0.5.7; nunca `OS_USER`). Agregar una prueba de que el cambio deja la
   base igual que una instalación nueva. Enviar los scripts al usuario para que los revise antes de ejecutarlos.
 
 * **My IB PROCESS / Pending for my area** (acordado 2026-11-19): `ProcessFilter.MineOf` / `PendingFor` + `PendingWork`
@@ -96,6 +96,8 @@ español: **responder en español**. La interfaz y el código están en inglés;
   pendiente (queda en Alerts). Sin cambios de esquema.
 
 ## 6. Estado actual y lo que falta verificar
+
+* **v0.5.7 (2026-11-20): usuarios sin dominio.** La app guarda y compara la cuenta de Windows sin `US\` (`NtUsers.Normalize` / `NtUsers.Same`; los valores viejos con dominio cuentan como el mismo usuario). Cambio de base `changes/2026-11-20_users_without_domain_and_area_leads.sql`: pasa los usuarios existentes y las columnas de "quién" a sin dominio (no toca bitácora ni comentarios), da de alta Champions/Proxies (MFO y QMM de VS1; LOW y OSD de todos los VS; dos Proxies de LOW) y agrega la regla `IB_USR_CK_NO_DOMAIN`. Ejecutarlo junto con el cambio de exe. No probado aún en Oracle (sólo pruebas estáticas).
 
 * **v0.5.6 (2026-11-19):** Departments editable con un clic (el tema pone `IsReadOnly` en todas las tablas: hay que
   quitarlo en las que editan) y sin grupo Process / Cross-functional; el script 2026-11-19 también elimina

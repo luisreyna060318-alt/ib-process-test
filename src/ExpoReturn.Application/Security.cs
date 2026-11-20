@@ -223,8 +223,7 @@ public static class FieldPermissions
 
     /// <summary>The user created the process or is its QMM Responsible.</summary>
     private static bool IsMine(UserContext user, IbProcess process) =>
-        string.Equals(process.CreatedBy, user.NtUser, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(process.QmmResponsibleNtUser, user.NtUser, StringComparison.OrdinalIgnoreCase);
+        NtUsers.Same(process.CreatedBy, user.NtUser) || NtUsers.Same(process.QmmResponsibleNtUser, user.NtUser);
 
     /// <summary>May the user change <paramref name="field"/> of the process (header field) or of <paramref name="pallet"/>?</summary>
     public static bool CanEdit(UserContext user, IbProcess process, PalletReturn? pallet, string field)
@@ -290,4 +289,22 @@ public static class PersonName
         if (accountName is not null && string.Equals(s, accountName.Split('\\').Last(), StringComparison.OrdinalIgnoreCase)) return null;
         return s;
     }
+}
+
+/// <summary>
+/// Windows user as the application stores it: only the account, without the domain ("US\\RLN8JU" → "RLN8JU"), in capitals.
+/// Older values with domain still compare equal (<see cref="Same"/>).
+/// </summary>
+public static class NtUsers
+{
+    public static string Normalize(string? ntUser)
+    {
+        if (string.IsNullOrWhiteSpace(ntUser)) return "";
+        var s = ntUser.Trim();
+        var i = s.LastIndexOf('\\');
+        return (i >= 0 ? s[(i + 1)..] : s).Trim().ToUpperInvariant();
+    }
+
+    public static bool Same(string? a, string? b) =>
+        !string.IsNullOrWhiteSpace(a) && !string.IsNullOrWhiteSpace(b) && Normalize(a) == Normalize(b);
 }

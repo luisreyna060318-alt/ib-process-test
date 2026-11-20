@@ -349,7 +349,7 @@ public class IbProcessTests
         var dir = new UserDirectory((string?)null, new[] { "BOSCH\\OWNER" }, includeDemoUsers: false);
         dir.Register("BOSCH\\NEW1", "New One", "LOP", new[] { 4, 7 });
         Assert.All(dir.ContextFor("BOSCH\\NEW1").Grants, g => Assert.Equal(UserFunction.Viewer, g.Function));
-        var req = Assert.Single(dir.Requests(), r => r.NtUser == "BOSCH\\NEW1");
+        var req = Assert.Single(dir.Requests(), r => r.NtUser == "NEW1");
         Assert.True(req.IsRegistration);
         Assert.Equal("New user", req.TypeText);
 

@@ -126,7 +126,7 @@ CREATE TABLE IB_PROCESS_MM60_COSTS (
    ===================================================================== */
 
 CREATE TABLE IB_PROCESS_USERS (
-    NT_USER           VARCHAR2(64 CHAR)    NOT NULL,     -- DOMAIN\USER, upper case
+    NT_USER           VARCHAR2(64 CHAR)    NOT NULL,     -- Windows account WITHOUT domain (RLN8JU), upper case
     DISPLAY_NAME      NVARCHAR2(150)  NOT NULL,
     DEPARTMENT_CODE   VARCHAR2(20 CHAR),                 -- profile department (first run / approved request)
     EMAIL             VARCHAR2(200 CHAR),
@@ -135,7 +135,8 @@ CREATE TABLE IB_PROCESS_USERS (
     CONSTRAINT IB_USR_PK PRIMARY KEY (NT_USER),
     CONSTRAINT IB_USR_FK_DEPT FOREIGN KEY (DEPARTMENT_CODE) REFERENCES IB_PROCESS_DEPARTMENTS (DEPARTMENT_CODE),
     CONSTRAINT IB_USR_CK_ACTIVE CHECK (IS_ACTIVE IN ('Y','N')),
-    CONSTRAINT IB_USR_CK_UPPER CHECK (NT_USER = UPPER(NT_USER))
+    CONSTRAINT IB_USR_CK_UPPER CHECK (NT_USER = UPPER(NT_USER)),
+    CONSTRAINT IB_USR_CK_NO_DOMAIN CHECK (INSTR(NT_USER, '\') = 0)       -- no 'US\' in front (v0.5.7)
 );
 
 -- One row per user x department x VS with its function. A removal closes VALID_TO (history is kept).

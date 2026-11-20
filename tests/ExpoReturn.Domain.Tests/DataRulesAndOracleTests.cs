@@ -68,7 +68,8 @@ public class DataRulesAndOracleTests
 
             var json = File.ReadAllText(path);
             Assert.Contains("\"AccessHistory\"", json);
-            Assert.Contains("BOSCH\\\\OWNER", json);                                 // who ended the VS4 viewer row and the VS1 viewer row
+            Assert.Contains("OWNER", json);                                          // who ended the VS4 viewer row and the VS1 viewer row
+            Assert.DoesNotContain("BOSCH\\\\", json);                                   // users are kept without domain
             Assert.Equal(3, dir.Requests(pendingOnly: false).Count);                 // registration + the first request are still there…
             Assert.Equal(RequestStatus.Rejected, dir.Requests(false).Single(r => r.Id == first.Id).Status);   // …marked as replaced
             Assert.Throws<DataRuleException>(() => dir.UpdateDisplayName("BOSCH\\U2", " "));
@@ -442,7 +443,7 @@ public class OracleScriptCoherenceTests
                     Assert.True(seen.Contains(fk.Groups[2].Value), $"{table} is seeded before {fk.Groups[2].Value}");
             if (!seen.Contains(table)) seen.Add(table);
         }
-        Assert.Contains("'US\\RLN8JU', NULL, NULL, 'OWNER'", seed);
+        Assert.Contains("'RLN8JU', NULL, NULL, 'OWNER'", seed);
         Assert.EndsWith("COMMIT;", seed.Trim());
     }
 

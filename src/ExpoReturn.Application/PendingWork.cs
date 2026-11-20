@@ -59,8 +59,8 @@ public static class PendingWork
         scopes.Any(s =>
             (s.ValueStreamId == 0 || s.ValueStreamId == process.ValueStreamId)
             && (s.OnlyOwnOf is null
-                || string.Equals(process.CreatedBy, s.OnlyOwnOf, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(process.QmmResponsibleNtUser, s.OnlyOwnOf, StringComparison.OrdinalIgnoreCase))
+                || NtUsers.Same(process.CreatedBy, s.OnlyOwnOf)
+                || NtUsers.Same(process.QmmResponsibleNtUser, s.OnlyOwnOf))
             && process.Pallets.Any(p => IsPendingFor(s.Area, p)));
 
     /// <summary>SQL condition of an area over IB_PROCESS_PALLETS_V v, IB_PROCESS_PALLETS x and IB_PROCESS_PROCESSES m.</summary>

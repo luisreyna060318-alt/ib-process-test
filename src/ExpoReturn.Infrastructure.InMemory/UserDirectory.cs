@@ -45,17 +45,18 @@ public sealed class UserDirectory : IUserDirectory
 
     public string StoreDescription => _backend?.Description ?? "Memory only";
 
-    public static string Normalize(string ntUser) => ntUser.Trim().ToUpperInvariant();
-    public static bool IsDemoUser(string ntUser) => Normalize(ntUser).StartsWith("DEMO\\", StringComparison.Ordinal);
+    /// <summary>The Windows account without domain, in capitals ("US\\RLN8JU" → "RLN8JU").</summary>
+    public static string Normalize(string ntUser) => NtUsers.Normalize(ntUser);
+    public static bool IsDemoUser(string ntUser) => Normalize(ntUser).StartsWith("DEMO.", StringComparison.Ordinal);
 
-    /// <summary>Fictitious network user: "Andrea Salinas" → DEMO\ANDREA.SALINAS.</summary>
+    /// <summary>Fictitious network user: "Andrea Salinas" → DEMO.ANDREA.SALINAS.</summary>
     public static string DemoNtUser(string name)
     {
         var plain = new string(name.Normalize(NormalizationForm.FormD)
             .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray());
         var parts = plain.ToUpperInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(p => new string(p.Where(char.IsLetterOrDigit).ToArray())).Where(p => p.Length > 0);
-        return "DEMO\\" + string.Join(".", parts);
+        return "DEMO." + string.Join(".", parts);
     }
 
     private void Load()
@@ -95,8 +96,7 @@ public sealed class UserDirectory : IUserDirectory
     public bool IsOwner(string ntUser)
     {
         var key = Normalize(ntUser);
-        var shortName = key.Contains('\\') ? key[(key.LastIndexOf('\\') + 1)..] : key;
-        if (_configuredOwners.Contains(key) || _configuredOwners.Contains(shortName)) return true;
+        if (_configuredOwners.Contains(key)) return true;
         lock (_gate) return AllAccess.Any(a => a.NtUser == key && a.Function == UserFunction.Owner);
     }
 

@@ -20,9 +20,7 @@ public sealed record ProcessFilter(int? ValueStreamId = null, WorkflowStatus? St
     /// historical Excel rows only carry names, so they are nobody's). Same rule as the SQL of the inbox.
     /// </summary>
     public static bool IsMine(IbProcess p, string ntUser) =>
-        string.Equals(p.CreatedBy, ntUser, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(p.QmmResponsibleNtUser, ntUser, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(p.RequestorNtUser, ntUser, StringComparison.OrdinalIgnoreCase);
+        NtUsers.Same(p.CreatedBy, ntUser) || NtUsers.Same(p.QmmResponsibleNtUser, ntUser) || NtUsers.Same(p.RequestorNtUser, ntUser);
 
     /// <summary>Search text trimmed, or null.</summary>
     public string? SearchText => string.IsNullOrWhiteSpace(Search) ? null : Search.Trim();
